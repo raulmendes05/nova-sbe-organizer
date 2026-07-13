@@ -1,4 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="112" fill="#0a2540"/>
-  <path d="M150 360V152h44l124 132V152h44v208h-44L194 228v132z" fill="#ffffff"/>
+  <!-- Marca Nova SBE: o "O" estilizado (anel aberto + ponto em cima) + sublinhado -->
+  <g fill="none" stroke="#ffffff" stroke-width="44" stroke-linecap="round">
+    <path d="M 176 210 A 84 100 0 1 0 336 210" />
+  </g>
+  <circle cx="256" cy="150" r="40" fill="#ffffff"/>
+  <rect x="168" y="392" width="176" height="22" rx="11" fill="#ffffff"/>
 </svg>

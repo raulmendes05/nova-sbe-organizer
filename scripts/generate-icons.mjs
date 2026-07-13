@@ -8,12 +8,16 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const pub = join(root, 'public')
 const svg = readFileSync(join(pub, 'favicon.svg'))
 
-// Icone "maskable" precisa de margem (safe zone) — fundo navy a preencher tudo.
+// Icone "maskable" precisa de margem (safe zone) — fundo navy a preencher tudo,
+// marca Nova reduzida e centrada.
 const maskable = Buffer.from(
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
      <rect width="512" height="512" fill="#0a2540"/>
-     <path transform="translate(52,52) scale(0.8)"
-       d="M150 360V152h44l124 132V152h44v208h-44L194 228v132z" fill="#ffffff"/>
+     <g transform="translate(256,266) scale(0.72) translate(-256,-266)">
+       <path d="M 176 210 A 84 100 0 1 0 336 210" fill="none" stroke="#ffffff" stroke-width="44" stroke-linecap="round"/>
+       <circle cx="256" cy="150" r="40" fill="#ffffff"/>
+       <rect x="168" y="392" width="176" height="22" rx="11" fill="#ffffff"/>
+     </g>
    </svg>`
 )
 
