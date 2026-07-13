@@ -14,8 +14,8 @@ export default async function handler(req, res) {
       return
     }
     const { messages, context } = req.body || {}
-    const reply = await runClaudio({ messages, context, apiKey: key })
-    res.status(200).json({ reply })
+    const result = await runClaudio({ messages, context, apiKey: key })
+    res.status(200).json(result)
   } catch (e) {
     res.status(500).json({ error: e?.message || 'Erro inesperado.' })
   }

@@ -9,6 +9,82 @@ import { renderExams } from '../src/data/exams.js'
 
 const MODEL = 'claude-opus-4-8'
 
+// Ferramentas que o Cláudio pode usar para AGIR na app (executadas no cliente).
+const TOOLS = [
+  {
+    name: 'criar_tarefa',
+    description: 'Cria uma tarefa (to-do) no separador "Notas & Tarefas". Usa quando o utilizador pede para adicionar/criar uma tarefa, lembrete ou coisa a fazer.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        titulo: { type: 'string', description: 'O que precisa de ser feito' },
+        detalhes: { type: 'string', description: 'Detalhes opcionais' },
+        cadeira: { type: 'string', description: 'Nome ou código da cadeira associada (opcional)' },
+      },
+      required: ['titulo'],
+    },
+  },
+  {
+    name: 'criar_nota',
+    description: 'Cria uma nota/apontamento (NÃO é tarefa) no separador "Notas & Tarefas".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        titulo: { type: 'string' },
+        texto: { type: 'string', description: 'Conteúdo da nota' },
+        cadeira: { type: 'string' },
+      },
+      required: ['texto'],
+    },
+  },
+  {
+    name: 'criar_prazo',
+    description: 'Cria um prazo (trabalho, teste, exame, apresentação) no separador "Prazos".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        titulo: { type: 'string' },
+        tipo: { type: 'string', enum: ['trabalho', 'exame', 'teste', 'apresentacao', 'outro'] },
+        data: { type: 'string', description: 'Data-limite em ISO: YYYY-MM-DD ou YYYY-MM-DDTHH:mm' },
+        cadeira: { type: 'string' },
+      },
+      required: ['titulo'],
+    },
+  },
+  {
+    name: 'adicionar_aula',
+    description: 'Adiciona um bloco de aula ao "Horário" semanal.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        titulo: { type: 'string', description: 'Ex.: "Marketing — Teórica"' },
+        dia: { type: 'integer', description: '1=Segunda, 2=Terça, 3=Quarta, 4=Quinta, 5=Sexta, 6=Sábado, 7=Domingo' },
+        inicio: { type: 'string', description: 'Hora de início HH:mm' },
+        fim: { type: 'string', description: 'Hora de fim HH:mm' },
+        sala: { type: 'string' },
+        tipo: { type: 'string', enum: ['aula', 'pratica', 'seminario', 'outro'] },
+        cadeira: { type: 'string' },
+      },
+      required: ['titulo', 'dia', 'inicio', 'fim'],
+    },
+  },
+  {
+    name: 'criar_cadeira',
+    description: 'Adiciona uma cadeira à lista de "Notas". Podes usar o código do catálogo Nova SBE (preenche ECTS).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        nome: { type: 'string' },
+        codigo: { type: 'string' },
+        ects: { type: 'number' },
+        ano: { type: 'integer', description: 'Ano do curso: 1, 2 ou 3' },
+        semestre: { type: 'integer', description: 'Semestre: 1 ou 2' },
+      },
+      required: ['nome'],
+    },
+  },
+]
+
 function curriculumSummary() {
   return Object.entries(PROGRAMS).map(([key, p]) => {
     const line = (c) => `${c.code} ${c.name} (${c.ects})`
@@ -29,6 +105,7 @@ function buildSystemPrompt(context = {}) {
 1. **Escolha de cadeiras sem sobreposição de horário.** O maior objetivo: ajudar o estudante a decidir que cadeiras fazer no próximo semestre de forma a que as aulas **não se sobreponham**. O estudante vai colar/enviar os horários das cadeiras (dias e horas) e, mais tarde, as datas dos exames. Quando tiveres esses horários, analisa-os cuidadosamente, deteta conflitos (mesma faixa horária no mesmo dia) e recomenda combinações viáveis. Considera também o equilíbrio de ECTS e as regras do curso. Se ainda não tiveres os horários, pede-os.
 2. **Explicar a app e ajudar a usá-la** (ver secção "A app" abaixo).
 3. **Aconselhar sobre o plano de estudos e a transição 26/27** (ver secção abaixo).
+4. **Agir na app**: podes criar coisas diretamente na conta do utilizador usando as ferramentas disponíveis — criar_tarefa, criar_nota, criar_prazo, adicionar_aula, criar_cadeira. Usa-as sempre que o utilizador pedir para adicionar/criar/marcar algo (ex.: "cria uma tarefa para entregar o trabalho", "mete Marketing no meu horário à terça às 14h", "adiciona a cadeira Finance"). Depois de a ação ser executada, confirma em 1 frase curta o que criaste. Se faltar informação essencial, pergunta antes; caso contrário assume valores sensatos. Não inventes que criaste algo sem chamar a ferramenta.
 
 # A app (o que existe e como se usa)
 - **Início**: dashboard com média global (0–20, ponderada por ECTS), nº de cadeiras, prazos abertos, aulas de hoje e próximos prazos.
@@ -96,9 +173,9 @@ export async function runClaudio({ messages, context, apiKey }) {
   if (!apiKey) throw new Error('Falta a ANTHROPIC_API_KEY.')
   const client = new Anthropic({ apiKey })
 
-  // Só mensagens user/assistant, conteúdo em texto
+  // Aceita mensagens user/assistant com conteúdo em texto OU em blocos (tool use).
   const clean = (messages || [])
-    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
+    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && m.content)
     .map((m) => ({ role: m.role, content: m.content }))
 
   if (!clean.length) throw new Error('Sem mensagens.')
@@ -107,14 +184,10 @@ export async function runClaudio({ messages, context, apiKey }) {
     model: MODEL,
     max_tokens: 4096,
     system: buildSystemPrompt(context),
+    tools: TOOLS,
     messages: clean,
   })
 
-  const text = (response.content || [])
-    .filter((b) => b.type === 'text')
-    .map((b) => b.text)
-    .join('\n')
-    .trim()
-
-  return text || '(sem resposta)'
+  // Devolve os blocos crus + stop_reason; o cliente executa as ações (tool_use)
+  return { content: response.content, stop_reason: response.stop_reason }
 }

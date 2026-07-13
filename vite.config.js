@@ -27,9 +27,9 @@ function claudioDevApi(env) {
             }
             const { messages, context } = JSON.parse(body || '{}')
             const { runClaudio } = await import('./api/_core.js')
-            const reply = await runClaudio({ messages, context, apiKey: key })
+            const result = await runClaudio({ messages, context, apiKey: key })
             res.statusCode = 200
-            res.end(JSON.stringify({ reply }))
+            res.end(JSON.stringify(result))
           } catch (e) {
             res.statusCode = 500
             res.end(JSON.stringify({ error: e?.message || 'Erro inesperado.' }))
