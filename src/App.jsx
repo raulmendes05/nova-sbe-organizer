@@ -5,16 +5,18 @@ import Layout from './components/Layout.jsx'
 import { Spinner } from './components/ui.jsx'
 import NotConfigured from './pages/NotConfigured.jsx'
 import Login from './pages/Login.jsx'
+import Onboarding from './pages/Onboarding.jsx'
 import Home from './pages/Home.jsx'
 import Schedule from './pages/Schedule.jsx'
 import Assignments from './pages/Assignments.jsx'
 import Grades from './pages/Grades.jsx'
 import Notes from './pages/Notes.jsx'
+import Claudio from './pages/Claudio.jsx'
 
 export default function App() {
   if (!isConfigured) return <NotConfigured />
 
-  const { user, loading } = useAuth()
+  const { user, loading, displayName, academicYear } = useAuth()
 
   if (loading) {
     return (
@@ -26,6 +28,9 @@ export default function App() {
 
   if (!user) return <Login />
 
+  // Primeiro login: pedir nome + ano/semestre antes de mostrar a app
+  if (!displayName || !academicYear) return <Onboarding />
+
   return (
     <Routes>
       <Route element={<Layout />}>
@@ -34,6 +39,7 @@ export default function App() {
         <Route path="/prazos" element={<Assignments />} />
         <Route path="/notas" element={<Grades />} />
         <Route path="/tarefas" element={<Notes />} />
+        <Route path="/claudio" element={<Claudio />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

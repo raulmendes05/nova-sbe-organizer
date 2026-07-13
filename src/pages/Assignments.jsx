@@ -3,13 +3,13 @@ import { useCollection } from '../lib/useCollection.js'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components/ui.jsx'
 import CourseSelect from '../components/CourseSelect.jsx'
-import { ASSIGNMENT_KINDS, dueLabel, formatDateTime } from '../lib/helpers.js'
+import { ASSIGNMENT_KINDS, dueLabel, formatDateTime, lighten } from '../lib/helpers.js'
 
 const toneClasses = {
-  rose: 'bg-rose-100 text-rose-700',
-  amber: 'bg-amber-100 text-amber-700',
-  emerald: 'bg-emerald-100 text-emerald-700',
-  slate: 'bg-slate-100 text-slate-600',
+  rose: 'bg-rose-500/15 text-rose-300 border border-rose-500/20',
+  amber: 'bg-amber-500/15 text-amber-300 border border-amber-500/20',
+  emerald: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/20',
+  slate: 'bg-white/10 text-slate-300 border border-white/10',
 }
 
 const empty = { title: '', course_id: null, description: '', due_date: '', kind: 'trabalho', status: 'todo' }
@@ -66,9 +66,7 @@ export default function Assignments() {
       <div className="flex gap-2 mb-4">
         {[['open', 'Por fazer'], ['done', 'Concluidos']].map(([v, label]) => (
           <button key={v} onClick={() => setTab(v)}
-            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition ${
-              tab === v ? 'bg-nova-700 text-white' : 'bg-white text-slate-600 border border-slate-100'
-            }`}>{label}</button>
+            className={`flex-1 py-2 seg ${tab === v ? 'seg-on' : 'seg-off'}`}>{label}</button>
         ))}
       </div>
 
@@ -86,21 +84,21 @@ export default function Assignments() {
             return (
               <div key={a.id} className="card p-3.5 flex items-start gap-3">
                 <button onClick={() => toggleDone(a)}
-                  className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center border-2 flex-shrink-0 ${
-                    done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 text-transparent'
+                  className={`mt-0.5 w-6 h-6 rounded-full flex items-center justify-center border-2 flex-shrink-0 transition ${
+                    done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-white/25 text-transparent'
                   }`}>
                   <Icon name="check" className="w-3.5 h-3.5" />
                 </button>
                 <div className="flex-1 min-w-0" onClick={() => openEdit(a)}>
-                  <p className={`font-semibold ${done ? 'text-slate-400 line-through' : 'text-slate-800'}`}>{a.title}</p>
-                  <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                    {c && <span className="chip" style={{ background: (c.color || '#1f5aa3') + '22', color: c.color || '#1f5aa3' }}>{c.name}</span>}
+                  <p className={`font-semibold ${done ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{a.title}</p>
+                  <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                    {c && <span className="chip" style={{ background: (c.color || '#3d78bf') + '2e', color: lighten(c.color) }}>{c.name}</span>}
                     <span className="capitalize">{a.kind}</span>
                     {a.due_date && <>· {formatDateTime(a.due_date)}</>}
                   </p>
                 </div>
                 {!done && a.due_date && <span className={`chip ${toneClasses[dl.tone]}`}>{dl.text}</span>}
-                <button onClick={() => remove(a.id)} className="p-1.5 text-slate-300 hover:text-rose-500 flex-shrink-0">
+                <button onClick={() => remove(a.id)} className="p-1.5 text-slate-500 hover:text-rose-400 flex-shrink-0">
                   <Icon name="trash" className="w-4 h-4" />
                 </button>
               </div>

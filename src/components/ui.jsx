@@ -16,6 +16,8 @@ export function Icon({ name, className = 'w-6 h-6' }) {
     clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></>,
     pin: <><path d="M12 21s-7-5.6-7-11a7 7 0 0 1 14 0c0 5.4-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" /></>,
     edit: <><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" /></>,
+    spark: <><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /><path d="M19 15l.7 1.8L21.5 17l-1.8.7L19 19.5l-.7-1.8L16.5 17l1.8-.7z" /></>,
+    send: <><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4z" /></>,
   }
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
@@ -28,10 +30,10 @@ export function Icon({ name, className = 'w-6 h-6' }) {
 /* ---------- Cabecalho de pagina ---------- */
 export function PageHeader({ title, subtitle, right }) {
   return (
-    <div className="flex items-end justify-between gap-3 mb-4">
+    <div className="flex items-end justify-between gap-3 mb-5">
       <div>
-        <h1 className="text-2xl font-bold text-nova-800">{title}</h1>
-        {subtitle && <p className="text-sm text-slate-500 mt-0.5">{subtitle}</p>}
+        <h1 className="text-2xl font-bold tracking-tight text-white">{title}</h1>
+        {subtitle && <p className="text-sm text-slate-400 mt-0.5">{subtitle}</p>}
       </div>
       {right}
     </div>
@@ -42,7 +44,8 @@ export function PageHeader({ title, subtitle, right }) {
 export function Fab({ onClick, label = 'Adicionar' }) {
   return (
     <button onClick={onClick} aria-label={label}
-      className="fixed right-5 bottom-24 z-30 w-14 h-14 rounded-full bg-nova-700 text-white shadow-lg shadow-nova-900/30 flex items-center justify-center active:scale-95 transition">
+      className="fixed right-5 bottom-24 z-30 w-14 h-14 rounded-full text-white shadow-fab flex items-center justify-center active:scale-95 transition"
+      style={{ backgroundImage: 'linear-gradient(135deg, #3d78bf 0%, #1f5aa3 60%, #154680 100%)' }}>
       <Icon name="plus" className="w-7 h-7" />
     </button>
   )
@@ -52,11 +55,11 @@ export function Fab({ onClick, label = 'Adicionar' }) {
 export function EmptyState({ icon = 'note', title, hint }) {
   return (
     <div className="text-center py-16 px-6">
-      <div className="mx-auto w-16 h-16 rounded-2xl bg-nova-50 text-nova-400 flex items-center justify-center mb-3">
+      <div className="mx-auto w-16 h-16 rounded-2xl bg-white/[0.06] border border-white/10 text-nova-300 flex items-center justify-center mb-3">
         <Icon name={icon} className="w-8 h-8" />
       </div>
-      <p className="font-semibold text-slate-700">{title}</p>
-      {hint && <p className="text-sm text-slate-400 mt-1">{hint}</p>}
+      <p className="font-semibold text-slate-200">{title}</p>
+      {hint && <p className="text-sm text-slate-500 mt-1">{hint}</p>}
     </div>
   )
 }
@@ -82,11 +85,12 @@ export function Modal({ open, onClose, title, children }) {
   if (!open) return null
   return (
     <div className="fixed inset-0 z-40 flex items-end sm:items-center sm:justify-center">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl p-5 pb-8 safe-bottom max-h-[90vh] overflow-y-auto animate-[slideup_.2s_ease]">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full sm:max-w-md bg-[#0d1626] border-t border-x border-white/10 sm:border rounded-t-3xl sm:rounded-3xl p-5 pb-8 safe-bottom max-h-[90vh] overflow-y-auto animate-[slideup_.2s_ease] shadow-card">
+        <div className="mx-auto -mt-1 mb-3 h-1.5 w-10 rounded-full bg-white/15 sm:hidden" />
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-nova-800">{title}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-slate-100 text-slate-500">
+          <h2 className="text-lg font-bold text-white">{title}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-white/10 text-slate-400">
             <Icon name="close" className="w-5 h-5" />
           </button>
         </div>

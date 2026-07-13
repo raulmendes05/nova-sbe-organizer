@@ -25,6 +25,11 @@ export default {
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
       },
+      boxShadow: {
+        card: '0 1px 0 rgba(255,255,255,0.05) inset, 0 18px 40px -22px rgba(0,0,0,0.8)',
+        glow: '0 18px 50px -18px rgba(61,120,191,0.55)',
+        fab: '0 12px 30px -6px rgba(61,120,191,0.6)',
+      },
     },
   },
   plugins: [],

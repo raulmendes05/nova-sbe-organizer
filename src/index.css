@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 html,
@@ -14,7 +14,13 @@ body,
 
 body {
   margin: 0;
-  background: #f1f5f9;
+  color: #e2e8f0;
+  background-color: #070d18;
+  background-image:
+    radial-gradient(1100px 560px at 50% -12%, rgba(31, 90, 163, 0.28), transparent 70%),
+    radial-gradient(760px 380px at 108% 4%, rgba(244, 166, 58, 0.08), transparent 70%),
+    radial-gradient(760px 520px at -10% 20%, rgba(124, 58, 237, 0.1), transparent 70%);
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
@@ -34,25 +40,41 @@ body {
 }
 
 @layer components {
+  /* Superficie base — vidro escuro subtil */
   .card {
-    @apply bg-white rounded-2xl shadow-sm border border-slate-100;
+    @apply rounded-2xl border border-white/10 bg-white/[0.045] backdrop-blur-xl shadow-card;
   }
   .btn {
     @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition active:scale-[0.98] disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-nova-700 text-white px-4 py-2.5 hover:bg-nova-800;
+    @apply btn text-white px-4 py-2.5 shadow-glow;
+    background-image: linear-gradient(135deg, #3d78bf 0%, #1f5aa3 55%, #154680 100%);
   }
   .btn-ghost {
-    @apply btn bg-slate-100 text-nova-800 px-4 py-2.5 hover:bg-slate-200;
+    @apply btn bg-white/[0.06] text-slate-200 px-4 py-2.5 border border-white/10 hover:bg-white/10;
   }
   .input {
-    @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-slate-800 outline-none focus:border-nova-400 focus:ring-2 focus:ring-nova-100;
+    @apply w-full rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-2.5 text-slate-100 placeholder-slate-500 outline-none focus:border-nova-400/70 focus:ring-2 focus:ring-nova-500/25;
+  }
+  .input option {
+    @apply bg-nova-900 text-slate-100;
   }
   .label {
-    @apply block text-sm font-medium text-slate-600 mb-1;
+    @apply block text-sm font-medium text-slate-400 mb-1;
   }
   .chip {
     @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+  /* Botao de segmento (dias / abas) */
+  .seg {
+    @apply rounded-xl text-sm font-semibold transition border;
+  }
+  .seg-on {
+    @apply text-white border-transparent shadow-glow;
+    background-image: linear-gradient(135deg, #3d78bf 0%, #1f5aa3 100%);
+  }
+  .seg-off {
+    @apply bg-white/[0.05] text-slate-300 border-white/10 hover:bg-white/10;
   }
 }

@@ -37,6 +37,15 @@ export const SCHEDULE_KINDS = [
 // "14:30:00" -> "14:30"
 export const hhmm = (t) => (t ? t.slice(0, 5) : '')
 
+// Clareia uma cor hex em direcao ao branco (para legibilidade em fundo escuro)
+export function lighten(hex = '#3d78bf', amount = 0.5) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '')
+  if (!m) return '#9ec1e8'
+  const mix = (c) => Math.round(parseInt(c, 16) + (255 - parseInt(c, 16)) * amount)
+  const [r, g, b] = [mix(m[1]), mix(m[2]), mix(m[3])]
+  return `rgb(${r}, ${g}, ${b})`
+}
+
 export function formatDate(iso) {
   if (!iso) return ''
   const d = new Date(iso)
@@ -68,6 +77,27 @@ export function dueLabel(iso) {
   if (d === 1) return { text: 'Amanha', tone: 'amber' }
   if (d <= 7) return { text: `${d} dias`, tone: 'amber' }
   return { text: `${d} dias`, tone: 'emerald' }
+}
+
+// Etiqueta de grupo ano/semestre para agrupar cadeiras
+export function termLabel(year, term) {
+  if (!year) return 'Outras cadeiras'
+  return `${year}º ano${term ? ` · ${term}º semestre` : ''}`
+}
+
+// Chave ordenavel para agrupar (ano sem definir vai para o fim)
+export function termKey(year, term) {
+  const y = year || 99
+  const t = term || 9
+  return y * 10 + t
+}
+
+// Nota de uma cadeira: a nota final (principal) tem prioridade;
+// caso nao exista, usa a media ponderada dos componentes.
+export function resolveGrade(course, components) {
+  const f = course?.final_grade
+  if (f !== null && f !== undefined && f !== '') return Number(f)
+  return courseAverage(components)
 }
 
 // Escala portuguesa 0-20

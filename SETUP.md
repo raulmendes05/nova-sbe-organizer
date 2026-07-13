@@ -44,13 +44,32 @@ Stack: React + Vite + Tailwind + Supabase (login + base de dados) + Vercel (depl
 
 ---
 
+## Passo 2.5 — Ativar o Cláudio (assistente) · ~2 min
+
+O **Cláudio** é o assistente dentro da app (ajuda a escolher cadeiras sem sobreposição de horário e explica o site). Usa o modelo **Claude (Anthropic)**, por isso precisa de uma chave de API.
+
+1. Vai a **https://console.anthropic.com** → cria conta → **API Keys** → cria uma chave (`sk-ant-...`).
+2. No teu `.env.local`, adiciona a linha (repara: **sem** `VITE_` — a chave fica só no servidor, nunca no browser):
+
+   ```
+   ANTHROPIC_API_KEY=sk-ant-...
+   ```
+
+3. **Reinicia** o `npm run dev` (para carregar a chave) e abre o separador **Cláudio**.
+
+> Sem esta chave, a app funciona toda na mesma — só o separador Cláudio é que mostra um aviso.
+> Nota: a API da Anthropic é paga por utilização (tens algum crédito grátis inicial).
+
+---
+
 ## Passo 3 — Pôr online (Vercel) · ~3 min
 
 1. Cria um repositório no GitHub e faz push deste projeto.
 2. Vai a **https://vercel.com** → **Add New → Project** → importa o repositório.
-3. A Vercel deteta Vite automaticamente. Antes de *Deploy*, em **Environment Variables** adiciona as duas variáveis:
+3. A Vercel deteta Vite automaticamente. Antes de *Deploy*, em **Environment Variables** adiciona:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
+   - `ANTHROPIC_API_KEY` (para o Cláudio funcionar online)
 4. Clica **Deploy**. Em ~1 min tens o link (ex: `nova-sbe.vercel.app`).
 
 A partir daqui, cada `git push` para a branch principal faz deploy automático — igual ao Champi.

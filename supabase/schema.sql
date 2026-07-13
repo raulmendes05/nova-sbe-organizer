@@ -19,8 +19,18 @@ create table if not exists public.courses (
   ects        numeric default 6,
   semester    text,                         -- ex: "1o Semestre 2025/26"
   color       text default '#1f5aa3',
+  final_grade numeric,                      -- nota final 0-20 (principal; null = sem nota)
+  year        smallint,                     -- ano do curso: 1 | 2 | 3
+  term        smallint,                     -- semestre: 1 | 2 (null = nao definido)
+  is_equivalence boolean default false,     -- creditada de outra universidade
   created_at  timestamptz not null default now()
 );
+
+-- Migracao para bases de dados ja existentes:
+alter table public.courses add column if not exists final_grade numeric;
+alter table public.courses add column if not exists year smallint;
+alter table public.courses add column if not exists term smallint;
+alter table public.courses add column if not exists is_equivalence boolean default false;
 
 -- ------------------------------------------------------------
 --  HORARIO (schedule_blocks)  — blocos semanais recorrentes

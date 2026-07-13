@@ -52,11 +52,9 @@ export default function Schedule() {
           const active = d.n === filterDay
           return (
             <button key={d.n} onClick={() => setFilterDay(d.n)}
-              className={`flex-shrink-0 px-3.5 py-2 rounded-xl text-sm font-semibold transition ${
-                active ? 'bg-nova-700 text-white' : 'bg-white text-slate-600 border border-slate-100'
-              }`}>
+              className={`flex-shrink-0 px-3.5 py-2 seg ${active ? 'seg-on' : 'seg-off'}`}>
               {d.short}
-              {count > 0 && <span className={`ml-1.5 text-xs ${active ? 'text-nova-100' : 'text-slate-400'}`}>{count}</span>}
+              {count > 0 && <span className={`ml-1.5 text-xs ${active ? 'text-nova-100' : 'text-slate-500'}`}>{count}</span>}
             </button>
           )
         })}
@@ -73,18 +71,18 @@ export default function Schedule() {
             return (
               <div key={b.id} className="card p-3.5 flex items-center gap-3">
                 <div className="text-center min-w-[52px]">
-                  <p className="text-sm font-bold text-nova-700">{hhmm(b.start_time)}</p>
-                  <p className="text-[11px] text-slate-400">{hhmm(b.end_time)}</p>
+                  <p className="text-sm font-bold text-nova-300">{hhmm(b.start_time)}</p>
+                  <p className="text-[11px] text-slate-500">{hhmm(b.end_time)}</p>
                 </div>
-                <div className="w-1 self-stretch rounded-full" style={{ background: c?.color || '#94a3b8' }} />
+                <div className="w-1 self-stretch rounded-full" style={{ background: c?.color || '#3d78bf', boxShadow: `0 0 10px ${c?.color || '#3d78bf'}55` }} />
                 <div className="flex-1 min-w-0" onClick={() => openEdit(b)}>
-                  <p className="font-semibold text-slate-800 truncate">{b.title}</p>
-                  <p className="text-xs text-slate-500 flex items-center gap-1.5 flex-wrap">
+                  <p className="font-semibold text-slate-100 truncate">{b.title}</p>
+                  <p className="text-xs text-slate-400 flex items-center gap-1.5 flex-wrap mt-0.5">
                     <span className="capitalize">{b.kind}</span>
                     {b.location && <><Icon name="pin" className="w-3 h-3" />{b.location}</>}
                   </p>
                 </div>
-                <button onClick={() => remove(b.id)} className="p-2 text-slate-300 hover:text-rose-500">
+                <button onClick={() => remove(b.id)} className="p-2 text-slate-500 hover:text-rose-400">
                   <Icon name="trash" className="w-4.5 h-4.5" />
                 </button>
               </div>
@@ -111,9 +109,7 @@ export default function Schedule() {
             <div className="grid grid-cols-7 gap-1">
               {DAYS.map((d) => (
                 <button type="button" key={d.n} onClick={() => setForm({ ...form, day_of_week: d.n })}
-                  className={`py-2 rounded-lg text-xs font-semibold ${
-                    form.day_of_week === d.n ? 'bg-nova-700 text-white' : 'bg-slate-100 text-slate-600'
-                  }`}>{d.short}</button>
+                  className={`py-2 seg ${form.day_of_week === d.n ? 'seg-on' : 'seg-off'}`}>{d.short}</button>
               ))}
             </div>
           </div>

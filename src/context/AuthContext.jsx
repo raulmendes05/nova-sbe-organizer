@@ -27,8 +27,15 @@ export function AuthProvider({ children }) {
 
   const signOut = () => supabase?.auth.signOut()
 
+  // Preferencias do utilizador (metadados da conta)
+  const meta = user?.user_metadata || {}
+  const displayName = meta.display_name || ''
+  const academicYear = meta.year || ''      // '1' | '2' | '3'
+  const semester = meta.semester || ''      // '1' | '2'
+  const program = meta.program || 'management'
+
   return (
-    <AuthContext.Provider value={{ user, loading, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signOut, displayName, academicYear, semester, program }}>
       {children}
     </AuthContext.Provider>
   )
