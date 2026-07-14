@@ -9,6 +9,10 @@ import { renderExams } from '../src/data/exams.js'
 
 const MODEL = 'claude-opus-4-8'
 
+// Interruptor do Cláudio. A false, não faz NENHUMA chamada à API (custo zero).
+// Para reativar, muda para true e faz deploy.
+const CLAUDIO_ENABLED = false
+
 // Ferramentas que o Cláudio pode usar para AGIR na app (executadas no cliente).
 const TOOLS = [
   {
@@ -213,6 +217,13 @@ Usa este contexto para dares respostas personalizadas (média, cadeiras já feit
 }
 
 export async function runClaudio({ messages, context, apiKey }) {
+  // Desativado: não chama a API (custo zero).
+  if (!CLAUDIO_ENABLED) {
+    return {
+      content: [{ type: 'text', text: 'O Cláudio está desativado de momento. 🔒' }],
+      stop_reason: 'end_turn',
+    }
+  }
   if (!apiKey) throw new Error('Falta a ANTHROPIC_API_KEY.')
   const client = new Anthropic({ apiKey })
 
