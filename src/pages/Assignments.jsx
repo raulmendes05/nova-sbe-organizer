@@ -80,12 +80,25 @@ export default function Assignments() {
     <div>
       <PageHeader title="Prazos" subtitle="Os teus prazos e a época de exames" />
 
-      {/* Alternar Prazos / Exames */}
-      <div className="flex gap-2 mb-4">
-        <button onClick={() => setView('prazos')} className={`flex-1 py-2 seg ${view === 'prazos' ? 'seg-on' : 'seg-off'}`}>Prazos</button>
-        <button onClick={() => setView('exames')} className={`flex-1 py-2 seg ${view === 'exames' ? 'seg-on' : 'seg-off'}`}>
-          Exames{exams.length > 0 && <span className="ml-1 opacity-70">· {exams.length}</span>}
-        </button>
+      {/* Seletor principal: Prazos / Exames (cápsula com ícones) */}
+      <div className="flex gap-1 p-1 mb-4 rounded-2xl bg-white/[0.04] border border-white/10">
+        {[
+          { v: 'prazos', label: 'Prazos', icon: 'clipboard' },
+          { v: 'exames', label: 'Exames', icon: 'cap', badge: exams.length },
+        ].map((t) => {
+          const on = view === t.v
+          return (
+            <button key={t.v} onClick={() => setView(t.v)}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition ${
+                on ? 'text-white shadow-glow' : 'text-slate-400 hover:text-slate-200'
+              }`}
+              style={on ? { backgroundImage: 'linear-gradient(135deg, #3d78bf 0%, #1f5aa3 100%)' } : undefined}>
+              <Icon name={t.icon} className="w-4 h-4" />
+              {t.label}
+              {t.badge > 0 && <span className={`text-xs ${on ? 'text-nova-100' : 'text-slate-500'}`}>· {t.badge}</span>}
+            </button>
+          )
+        })}
       </div>
 
       {view === 'exames' ? (
@@ -129,10 +142,16 @@ export default function Assignments() {
       ) : (
       <>
       <div className="flex gap-2 mb-4">
-        {[['open', 'Por fazer'], ['done', 'Concluídos']].map(([v, label]) => (
-          <button key={v} onClick={() => setTab(v)}
-            className={`flex-1 py-2 seg ${tab === v ? 'seg-on' : 'seg-off'}`}>{label}</button>
-        ))}
+        {[['open', 'Por fazer'], ['done', 'Concluídos']].map(([v, label]) => {
+          const on = tab === v
+          return (
+            <button key={v} onClick={() => setTab(v)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium border transition ${
+                on ? 'bg-nova-500/20 text-nova-100 border-nova-500/30'
+                   : 'text-slate-400 border-white/10 hover:text-slate-200 hover:bg-white/5'
+              }`}>{label}</button>
+          )
+        })}
       </div>
 
       {list.length === 0 ? (
