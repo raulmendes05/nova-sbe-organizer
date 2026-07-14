@@ -60,13 +60,15 @@ export function formatDateTime(iso) {
   })
 }
 
-// Dias que faltam para uma data (negativo = ja passou)
+// Dias de calendário que faltam para uma data (0 = hoje, 1 = amanhã, -1 = ontem).
+// Compara só o dia (ignora a hora), para um prazo hoje às 15:00 dar "Hoje".
 export function daysUntil(iso) {
   if (!iso) return null
   const now = new Date()
   const then = new Date(iso)
-  const ms = then.setHours(23, 59, 59, 999) - now.getTime()
-  return Math.ceil(ms / (1000 * 60 * 60 * 24))
+  const a = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const b = new Date(then.getFullYear(), then.getMonth(), then.getDate())
+  return Math.round((b - a) / (1000 * 60 * 60 * 24))
 }
 
 export function dueLabel(iso) {
