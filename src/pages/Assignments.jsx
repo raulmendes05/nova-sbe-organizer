@@ -39,18 +39,23 @@ export default function Assignments() {
   const [tab, setTab] = useState('open') // open | done
   const [view, setView] = useState('prazos') // prazos | exames
   const [examScope, setExamScope] = useState('minhas') // minhas | todas
+  const [examSearch, setExamSearch] = useState('')
 
   // Só as cadeiras que o aluno ainda vai fazer (sem nota final / não concluídas)
   const pendingCourses = courses.filter(
     (c) => !isCourseDone(c, grades.rows.filter((g) => g.course_id === c.id)))
   const myExams = upcomingExams(pendingCourses)
-  const exams = examScope === 'todas' ? allUpcomingExams() : myExams
+  const norm = (s) => s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
+  const baseExams = examScope === 'todas' ? allUpcomingExams() : myExams
+  const exams = examScope === 'todas' && examSearch.trim()
+    ? baseExams.filter((e) => norm(e.course).includes(norm(examSearch.trim())))
+    : baseExams
 
-  // Deteção de choques no mesmo dia (na lista que está a ser mostrada)
+  // Choques no mesmo dia só fazem sentido para as minhas cadeiras
   const examClash = new Set()
-  {
+  if (examScope === 'minhas') {
     const counts = {}
-    exams.forEach((e) => { counts[e.date] = (counts[e.date] || 0) + 1 })
+    myExams.forEach((e) => { counts[e.date] = (counts[e.date] || 0) + 1 })
     Object.keys(counts).forEach((k) => { if (counts[k] > 1) examClash.add(k) })
   }
 
@@ -124,11 +129,17 @@ export default function Assignments() {
           })}
         </div>
 
+        {examScope === 'todas' && (
+          <input className="input mb-3" placeholder="Pesquisar cadeira..."
+            value={examSearch} onChange={(e) => setExamSearch(e.target.value)} />
+        )}
+
         {exams.length === 0 ? (
-          <EmptyState icon="cap" title={examScope === 'minhas' ? 'Sem exames por fazer' : 'Sem exames a chegar'}
+          <EmptyState icon="cap"
+            title={examScope === 'minhas' ? 'Sem exames por fazer' : (examSearch.trim() ? 'Sem resultados' : 'Sem exames a chegar')}
             hint={examScope === 'minhas'
               ? 'São mostrados só os exames das cadeiras que ainda vais fazer. Adiciona essas cadeiras nas Notas, ou toca em "Todas" para ver o calendário completo.'
-              : 'Não há exames futuros no calendário.'} />
+              : (examSearch.trim() ? `Nenhuma cadeira encontrada com "${examSearch}".` : 'Não há exames futuros no calendário.')} />
         ) : (
           <div className="space-y-2.5">
             {examClash.size > 0 && (
