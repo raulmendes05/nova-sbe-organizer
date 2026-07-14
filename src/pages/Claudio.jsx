@@ -55,13 +55,27 @@ export default function Claudio() {
         equivalencia: !!c.is_equivalence, nota_final: c.final_grade, componentes: compsOf(c.id),
       })),
       horario: schedule.rows.map((b) => ({
-        cadeira: b.title, dia: dayName(b.day_of_week),
+        id: b.id, titulo: b.title, dia: dayName(b.day_of_week), dia_num: b.day_of_week,
         inicio: hhmm(b.start_time), fim: hhmm(b.end_time), sala: b.location, tipo: b.kind,
       })),
       prazos: assignments.rows.filter((a) => a.status !== 'done').map((a) => ({
         titulo: a.title, tipo: a.kind, data: a.due_date,
       })),
     }
+  }
+
+  const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
+
+  // Encontrar um bloco de aula pelo id (do contexto) ou pelo título/dia
+  function findBlock(inp) {
+    const rows = schedule.rows
+    if (inp.id) { const byId = rows.find((r) => r.id === inp.id); if (byId) return { block: byId } }
+    const q = norm(inp.titulo)
+    let m = q ? rows.filter((r) => norm(r.title).includes(q)) : []
+    if (inp.dia) m = m.filter((r) => r.day_of_week === Number(inp.dia))
+    if (m.length === 1) return { block: m[0] }
+    if (m.length === 0) return { none: true }
+    return { many: m.length }
   }
 
   // Resolver nome/código de cadeira -> id
@@ -93,6 +107,29 @@ export default function Claudio() {
     if (name === 'adicionar_aula') {
       await schedule.add({ title: inp.titulo, day_of_week: Number(inp.dia), start_time: inp.inicio, end_time: inp.fim, location: inp.sala || null, kind: inp.tipo || 'aula', course_id: findCourseId(inp.cadeira) })
       return `✓ Aula adicionada ao horário: "${inp.titulo}"`
+    }
+    if (name === 'remover_aula') {
+      const r = findBlock(inp)
+      if (r.none) return `Não encontrei nenhuma aula com "${inp.titulo || inp.id || ''}".`
+      if (r.many) throw new Error(`Há ${r.many} aulas parecidas — diz-me o dia ou o nome completo.`)
+      const title = r.block.title
+      await schedule.remove(r.block.id)
+      return `✓ Aula removida: "${title}"`
+    }
+    if (name === 'editar_aula') {
+      const r = findBlock(inp)
+      if (r.none) return `Não encontrei nenhuma aula com "${inp.titulo || inp.id || ''}".`
+      if (r.many) throw new Error(`Há ${r.many} aulas parecidas — diz-me o dia ou o nome completo.`)
+      const patch = {}
+      if (inp.novo_titulo) patch.title = inp.novo_titulo
+      if (inp.novo_dia) patch.day_of_week = Number(inp.novo_dia)
+      if (inp.inicio) patch.start_time = inp.inicio
+      if (inp.fim) patch.end_time = inp.fim
+      if (inp.sala !== undefined) patch.location = inp.sala || null
+      if (inp.tipo) patch.kind = inp.tipo
+      if (!Object.keys(patch).length) return 'Não indicaste o que alterar na aula.'
+      await schedule.update(r.block.id, patch)
+      return `✓ Aula atualizada: "${patch.title || r.block.title}"`
     }
     if (name === 'criar_cadeira') {
       const color = COURSE_COLORS[courses.length % COURSE_COLORS.length]

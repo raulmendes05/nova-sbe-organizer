@@ -69,6 +69,36 @@ const TOOLS = [
     },
   },
   {
+    name: 'editar_aula',
+    description: 'Altera um bloco de aula existente no Horário (muda hora, dia, sala, nome ou tipo). Identifica a aula pelo `id` (que vem no contexto do horário) ou, em alternativa, pelo título e/ou dia.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: 'id da aula (do contexto), se souberes' },
+        titulo: { type: 'string', description: 'título atual da aula, para a encontrar' },
+        dia: { type: 'integer', description: 'dia atual (1-7) para desambiguar' },
+        novo_titulo: { type: 'string' },
+        novo_dia: { type: 'integer', description: 'novo dia 1-7' },
+        inicio: { type: 'string', description: 'nova hora de início HH:mm' },
+        fim: { type: 'string', description: 'nova hora de fim HH:mm' },
+        sala: { type: 'string' },
+        tipo: { type: 'string', enum: ['aula', 'pratica', 'seminario', 'outro'] },
+      },
+    },
+  },
+  {
+    name: 'remover_aula',
+    description: 'Remove/elimina um bloco de aula do Horário. Identifica pelo `id` (do contexto) ou pelo título e/ou dia.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        titulo: { type: 'string' },
+        dia: { type: 'integer' },
+      },
+    },
+  },
+  {
     name: 'simular_nota',
     description: 'Calcula que nota é precisa nas componentes que faltam de uma cadeira para PASSAR (9,5) e/ou para atingir um objetivo. Usa SEMPRE esta ferramenta para perguntas do tipo "que nota preciso no exame?", "quanto preciso para passar/para ter 16?". Não faças a conta de cabeça.',
     input_schema: {
@@ -117,7 +147,7 @@ function buildSystemPrompt(context = {}) {
 1. **Escolha de cadeiras sem sobreposição de horário.** O maior objetivo: ajudar o estudante a decidir que cadeiras fazer no próximo semestre de forma a que as aulas **não se sobreponham**. O estudante vai colar/enviar os horários das cadeiras (dias e horas) e, mais tarde, as datas dos exames. Quando tiveres esses horários, analisa-os cuidadosamente, deteta conflitos (mesma faixa horária no mesmo dia) e recomenda combinações viáveis. Considera também o equilíbrio de ECTS e as regras do curso. Se ainda não tiveres os horários, pede-os.
 2. **Explicar a app e ajudar a usá-la** (ver secção "A app" abaixo).
 3. **Aconselhar sobre o plano de estudos e a transição 26/27** (ver secção abaixo).
-4. **Agir na app**: podes criar coisas diretamente na conta do utilizador usando as ferramentas disponíveis — criar_tarefa, criar_nota, criar_prazo, adicionar_aula, criar_cadeira. Usa-as sempre que o utilizador pedir para adicionar/criar/marcar algo (ex.: "cria uma tarefa para entregar o trabalho", "mete Marketing no meu horário à terça às 14h", "adiciona a cadeira Finance"). Depois de a ação ser executada, confirma em 1 frase curta o que criaste. Se faltar informação essencial, pergunta antes; caso contrário assume valores sensatos. Não inventes que criaste algo sem chamar a ferramenta.
+4. **Agir na app**: podes criar, alterar e eliminar coisas na conta do utilizador usando as ferramentas — criar_tarefa, criar_nota, criar_prazo, adicionar_aula, editar_aula, remover_aula, criar_cadeira. Usa-as sempre que o utilizador pedir (ex.: "cria uma tarefa", "mete Marketing à terça às 14h", "muda a aula de Finance para as 15h", "apaga a aula de Marketing de terça"). Para **alterar/eliminar aulas** do horário, identifica a aula pelo contexto (usa o `id` do horário quando possível, ou o título/dia); se houver mais do que uma aula parecida, pergunta qual antes de agir. Depois de executar, confirma em 1 frase curta. Não inventes que fizeste algo sem chamar a ferramenta.
 5. **Simular notas**: para perguntas do tipo "que nota preciso no exame?", "quanto preciso para passar?", "o que me falta para ter 16 em X?", usa a ferramenta **simular_nota** (é determinística e não erra a conta). Depois explica o resultado em linguagem natural. Se a cadeira não tiver componentes com pesos, diz ao aluno que precisa de os adicionar primeiro (nas Notas → Detalhar por componentes).
 
 # A app (o que existe e como se usa)
