@@ -1,20 +1,13 @@
 import { NavLink } from 'react-router-dom'
 import { Icon } from './ui.jsx'
+import { NAV_TABS } from './navTabs.js'
 
-const tabs = [
-  { to: '/', icon: 'home', label: 'Início', end: true },
-  { to: '/horario', icon: 'calendar', label: 'Horário' },
-  { to: '/prazos', icon: 'clipboard', label: 'Prazos' },
-  { to: '/notas', icon: 'chart', label: 'Notas' },
-  { to: '/tarefas', icon: 'note', label: 'Tarefas' },
-  { to: '/claudio', icon: 'spark', label: 'Cláudio' },
-]
-
+// Barra inferior — só no telemóvel (md:hidden)
 export default function BottomNav() {
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-30 bg-[#0a1220]/80 backdrop-blur-xl border-t border-white/10 safe-bottom">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[#0a1220]/80 backdrop-blur-xl border-t border-white/10 safe-bottom">
       <div className="max-w-md mx-auto grid grid-cols-6">
-        {tabs.map((t) => (
+        {NAV_TABS.map((t) => (
           <NavLink
             key={t.to}
             to={t.to}
