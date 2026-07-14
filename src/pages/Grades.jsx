@@ -4,7 +4,7 @@ import { useCourses } from '../context/CoursesContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components/ui.jsx'
 import CoursePicker from '../components/CoursePicker.jsx'
-import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey } from '../lib/helpers.js'
+import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade } from '../lib/helpers.js'
 
 const YEAR_OPTS = [1, 2, 3]
 const TERM_OPTS = [1, 2]
@@ -33,6 +33,7 @@ export default function Grades() {
   })
   const [finalDraft, setFinalDraft] = useState('')
   const [showComps, setShowComps] = useState(false)
+  const [simTarget, setSimTarget] = useState('') // objetivo do simulador (0-20)
   const [courseModal, setCourseModal] = useState(false)
   const [courseForm, setCourseForm] = useState({ name: '', code: '', ects: 6, professor: '', year: null, term: null, is_equivalence: false })
   const [courseEditId, setCourseEditId] = useState(null)
@@ -202,6 +203,34 @@ export default function Grades() {
                   <button onClick={() => openNewGrade(c.id)} className="btn-ghost w-full py-2 text-sm">
                     <Icon name="plus" className="w-4 h-4" /> Adicionar componente
                   </button>
+
+                  {/* Simulador — que nota preciso? */}
+                  {comps.length > 0 && (() => {
+                    const pass = simulateGrade(comps, 9.5)
+                    const goal = simTarget !== '' && !isNaN(Number(simTarget)) ? simulateGrade(comps, Number(simTarget)) : null
+                    const line = (sim) => {
+                      if (!sim || sim.done) return { txt: 'Todas as componentes já têm nota — média fechada.', cls: 'text-slate-400' }
+                      if (sim.guaranteed) return { txt: `✅ Já garantido — mesmo com 0 no resto ficas acima.`, cls: 'text-emerald-300' }
+                      if (sim.impossible) return { txt: `❌ Já não dá — precisavas de mais de 20 nos ${sim.remainingPct}% que faltam.`, cls: 'text-rose-300' }
+                      return { txt: `Precisas de ${sim.needed.toFixed(1)} nos ${sim.remainingPct}% que faltam.`, cls: 'text-slate-100' }
+                    }
+                    const p = line(pass)
+                    const g = goal ? line(goal) : null
+                    return (
+                      <div className="mt-3 rounded-xl bg-nova-500/10 border border-nova-500/25 p-3">
+                        <p className="text-xs font-semibold text-nova-200 mb-2">🎯 Simulador — que nota preciso?</p>
+                        <p className={`text-sm ${p.cls}`}><span className="text-slate-400">Para passar (9,5):</span> {p.txt}</p>
+                        <div className="flex items-center gap-2 mt-2.5">
+                          <label className="text-sm text-slate-400">Objetivo:</label>
+                          <input type="number" step="0.5" min="0" max="20" inputMode="decimal"
+                            className="input w-20 py-1.5 text-sm" placeholder="ex. 16"
+                            value={simTarget} onChange={(e) => setSimTarget(e.target.value)} />
+                          <span className="text-sm text-slate-500">/ 20</span>
+                        </div>
+                        {g && <p className={`text-sm mt-2 ${g.cls}`}><span className="text-slate-400">Para {Number(simTarget)}:</span> {g.txt}</p>}
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
             </div>

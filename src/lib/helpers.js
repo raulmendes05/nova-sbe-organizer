@@ -112,6 +112,29 @@ export function courseAverage(components) {
   return sum / totalWeight
 }
 
+// Simulador: que nota (média) é precisa nas componentes que faltam para
+// atingir um objetivo `target` (0-20). Normaliza pelo peso total planeado.
+export function simulateGrade(components, target) {
+  const comps = components || []
+  const totalW = comps.reduce((s, c) => s + Number(c.weight || 0), 0)
+  if (totalW <= 0) return null
+  const graded = comps.filter((c) => c.grade !== null && c.grade !== undefined && c.grade !== '')
+  const wGraded = graded.reduce((s, c) => s + Number(c.weight || 0), 0)
+  const earned = graded.reduce((s, c) => s + Number(c.grade) * Number(c.weight || 0), 0)
+  const remainingW = totalW - wGraded
+  if (remainingW <= 0.001) return { done: true, totalW }
+  const needed = (Number(target) * totalW - earned) / remainingW
+  return {
+    done: false,
+    totalW,
+    remainingW,
+    remainingPct: Math.round((remainingW / totalW) * 100),
+    needed,
+    guaranteed: needed <= 0,       // já atingido mesmo com 0 no resto
+    impossible: needed > 20,       // já não é possível
+  }
+}
+
 // Percentagem de avaliacao ja com nota lancada
 export function gradedWeight(components) {
   return components
