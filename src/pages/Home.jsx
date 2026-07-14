@@ -4,7 +4,7 @@ import { useCourses } from '../context/CoursesContext.jsx'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon, Spinner } from '../components/ui.jsx'
 import {
-  DAYS, todayDow, hhmm, dueLabel, formatDate, resolveGrade,
+  DAYS, todayDow, hhmm, dueLabel, formatDate, resolveGrade, isCourseDone,
 } from '../lib/helpers.js'
 import { upcomingExams } from '../data/exams.js'
 
@@ -43,7 +43,9 @@ export default function Home() {
 
   const hi = displayName || 'Olá'
   const openCount = assignments.rows.filter((a) => a.status !== 'done').length
-  const upExams = upcomingExams(courses).slice(0, 3)
+  const pendingCourses = courses.filter(
+    (c) => !isCourseDone(c, grades.rows.filter((g) => g.course_id === c.id)))
+  const upExams = upcomingExams(pendingCourses).slice(0, 3)
   const loading = schedule.loading || assignments.loading
 
   return (

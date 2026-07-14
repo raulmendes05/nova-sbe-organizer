@@ -97,3 +97,20 @@ export function upcomingExams(courses, now = new Date()) {
   out.sort((a, b) => a.when - b.when || (a.time > b.time ? 1 : -1))
   return out
 }
+
+// Calendário completo: todos os exames de todas as cadeiras (a partir de hoje).
+export function allUpcomingExams(now = new Date()) {
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const out = []
+  for (const e of Object.values(EXAMS)) {
+    for (const it of e.items) {
+      const [y, m, d] = it.date.split('-').map(Number)
+      const when = new Date(y, m - 1, d)
+      if (when >= todayStart) {
+        out.push({ course: e.name, type: it.type, typeLabel: EXAM_TYPE_PT[it.type], date: it.date, time: it.time, when })
+      }
+    }
+  }
+  out.sort((a, b) => a.when - b.when || (a.time > b.time ? 1 : -1))
+  return out
+}

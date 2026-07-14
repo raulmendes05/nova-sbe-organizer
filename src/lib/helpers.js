@@ -94,6 +94,20 @@ export function termKey(year, term) {
   return y * 10 + t
 }
 
+// Uma cadeira está "concluída" se já tem nota final OU todas as componentes com nota.
+// (usado para não mostrar exames de cadeiras que o aluno já fez)
+export function isCourseDone(course, components) {
+  const f = course?.final_grade
+  if (f !== null && f !== undefined && f !== '') return true
+  const comps = components || []
+  if (!comps.length) return false
+  const totalW = comps.reduce((s, c) => s + Number(c.weight || 0), 0)
+  const gradedW = comps
+    .filter((c) => c.grade !== null && c.grade !== undefined && c.grade !== '')
+    .reduce((s, c) => s + Number(c.weight || 0), 0)
+  return totalW > 0 && totalW - gradedW <= 0.001
+}
+
 // Nota de uma cadeira: a nota final (principal) tem prioridade;
 // caso nao exista, usa a media ponderada dos componentes.
 export function resolveGrade(course, components) {

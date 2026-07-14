@@ -3,8 +3,8 @@ import { useCollection } from '../lib/useCollection.js'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components/ui.jsx'
 import CourseSelect from '../components/CourseSelect.jsx'
-import { ASSIGNMENT_KINDS, dueLabel, formatDateTime, lighten } from '../lib/helpers.js'
-import { upcomingExams } from '../data/exams.js'
+import { ASSIGNMENT_KINDS, dueLabel, formatDateTime, lighten, isCourseDone } from '../lib/helpers.js'
+import { upcomingExams, allUpcomingExams } from '../data/exams.js'
 
 const toneClasses = {
   rose: 'bg-rose-500/15 text-rose-300 border border-rose-500/20',
@@ -30,6 +30,7 @@ export default function Assignments() {
     orderBy: 'due_date', ascending: true,
   })
   const { rows: courses } = useCourses()
+  const grades = useCollection('grades', { orderBy: 'created_at', ascending: true })
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
   const [open, setOpen] = useState(false)
@@ -37,9 +38,15 @@ export default function Assignments() {
   const [editId, setEditId] = useState(null)
   const [tab, setTab] = useState('open') // open | done
   const [view, setView] = useState('prazos') // prazos | exames
+  const [examScope, setExamScope] = useState('minhas') // minhas | todas
 
-  // Exames a chegar (das cadeiras do aluno) + deteção de choques no mesmo dia
-  const exams = upcomingExams(courses)
+  // Só as cadeiras que o aluno ainda vai fazer (sem nota final / não concluídas)
+  const pendingCourses = courses.filter(
+    (c) => !isCourseDone(c, grades.rows.filter((g) => g.course_id === c.id)))
+  const myExams = upcomingExams(pendingCourses)
+  const exams = examScope === 'todas' ? allUpcomingExams() : myExams
+
+  // Deteção de choques no mesmo dia (na lista que está a ser mostrada)
   const examClash = new Set()
   {
     const counts = {}
@@ -84,7 +91,7 @@ export default function Assignments() {
       <div className="flex gap-1 p-1 mb-4 rounded-2xl bg-white/[0.04] border border-white/10">
         {[
           { v: 'prazos', label: 'Prazos', icon: 'clipboard' },
-          { v: 'exames', label: 'Exames', icon: 'cap', badge: exams.length },
+          { v: 'exames', label: 'Exames', icon: 'cap', badge: myExams.length },
         ].map((t) => {
           const on = view === t.v
           return (
@@ -102,9 +109,26 @@ export default function Assignments() {
       </div>
 
       {view === 'exames' ? (
-        exams.length === 0 ? (
-          <EmptyState icon="clipboard" title="Sem exames a chegar"
-            hint="Adiciona as tuas cadeiras (com código do catálogo Nova SBE) nas Notas para veres aqui os exames." />
+        <>
+        {/* As minhas cadeiras vs Todas */}
+        <div className="flex gap-2 mb-4">
+          {[['minhas', 'As minhas cadeiras'], ['todas', 'Todas']].map(([v, label]) => {
+            const on = examScope === v
+            return (
+              <button key={v} onClick={() => setExamScope(v)}
+                className={`px-4 py-1.5 rounded-full text-sm font-medium border transition ${
+                  on ? 'bg-nova-500/20 text-nova-100 border-nova-500/30'
+                     : 'text-slate-400 border-white/10 hover:text-slate-200 hover:bg-white/5'
+                }`}>{label}</button>
+            )
+          })}
+        </div>
+
+        {exams.length === 0 ? (
+          <EmptyState icon="cap" title={examScope === 'minhas' ? 'Sem exames por fazer' : 'Sem exames a chegar'}
+            hint={examScope === 'minhas'
+              ? 'São mostrados só os exames das cadeiras que ainda vais fazer. Adiciona essas cadeiras nas Notas, ou toca em "Todas" para ver o calendário completo.'
+              : 'Não há exames futuros no calendário.'} />
         ) : (
           <div className="space-y-2.5">
             {examClash.size > 0 && (
@@ -136,7 +160,8 @@ export default function Assignments() {
             })}
             <p className="text-[11px] text-slate-500 text-center pt-1">Calendário oficial S1 26/27 · inclui testes, exames e recursos</p>
           </div>
-        )
+        )}
+        </>
       ) : loading ? (
         <Spinner />
       ) : (
