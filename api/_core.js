@@ -69,6 +69,18 @@ const TOOLS = [
     },
   },
   {
+    name: 'simular_nota',
+    description: 'Calcula que nota é precisa nas componentes que faltam de uma cadeira para PASSAR (9,5) e/ou para atingir um objetivo. Usa SEMPRE esta ferramenta para perguntas do tipo "que nota preciso no exame?", "quanto preciso para passar/para ter 16?". Não faças a conta de cabeça.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        cadeira: { type: 'string', description: 'Nome ou código da cadeira' },
+        objetivo: { type: 'number', description: 'Nota objetivo 0-20 (opcional; se não for dada, calcula só para passar)' },
+      },
+      required: ['cadeira'],
+    },
+  },
+  {
     name: 'criar_cadeira',
     description: 'Adiciona uma cadeira à lista de "Notas". Podes usar o código do catálogo Nova SBE (preenche ECTS).',
     input_schema: {
@@ -106,6 +118,7 @@ function buildSystemPrompt(context = {}) {
 2. **Explicar a app e ajudar a usá-la** (ver secção "A app" abaixo).
 3. **Aconselhar sobre o plano de estudos e a transição 26/27** (ver secção abaixo).
 4. **Agir na app**: podes criar coisas diretamente na conta do utilizador usando as ferramentas disponíveis — criar_tarefa, criar_nota, criar_prazo, adicionar_aula, criar_cadeira. Usa-as sempre que o utilizador pedir para adicionar/criar/marcar algo (ex.: "cria uma tarefa para entregar o trabalho", "mete Marketing no meu horário à terça às 14h", "adiciona a cadeira Finance"). Depois de a ação ser executada, confirma em 1 frase curta o que criaste. Se faltar informação essencial, pergunta antes; caso contrário assume valores sensatos. Não inventes que criaste algo sem chamar a ferramenta.
+5. **Simular notas**: para perguntas do tipo "que nota preciso no exame?", "quanto preciso para passar?", "o que me falta para ter 16 em X?", usa a ferramenta **simular_nota** (é determinística e não erra a conta). Depois explica o resultado em linguagem natural. Se a cadeira não tiver componentes com pesos, diz ao aluno que precisa de os adicionar primeiro (nas Notas → Detalhar por componentes).
 
 # A app (o que existe e como se usa)
 - **Início**: dashboard com média global (0–20, ponderada por ECTS), nº de cadeiras, prazos abertos, aulas de hoje e próximos prazos.

@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon } from '../components/ui.jsx'
-import { hhmm, DAYS, COURSE_COLORS } from '../lib/helpers.js'
+import { hhmm, DAYS, COURSE_COLORS, simulateGrade } from '../lib/helpers.js'
 
 const SUGGESTIONS = [
   'Que cadeiras me recomendas para o próximo semestre?',
@@ -99,6 +99,25 @@ export default function Claudio() {
       await coursesCtx.add({ name: inp.nome, code: inp.codigo || null, ects: inp.ects ?? 6, year: inp.ano ?? null, term: inp.semestre ?? null, color })
       return `✓ Cadeira criada: "${inp.nome}"`
     }
+    if (name === 'simular_nota') {
+      const course = courses.find((c) =>
+        (c.name && c.name.toLowerCase().includes(String(inp.cadeira || '').toLowerCase().trim())) ||
+        (c.code && String(c.code).toLowerCase() === String(inp.cadeira || '').toLowerCase().trim()))
+      if (!course) return `Não encontrei a cadeira "${inp.cadeira}".`
+      const comps = grades.rows.filter((g) => g.course_id === course.id)
+      if (!comps.length) return `A cadeira "${course.name}" ainda não tem componentes de avaliação com pesos — adiciona-os primeiro para poder simular.`
+      const describe = (sim, label) => {
+        if (!sim || sim.done) return `${label}: todas as componentes já têm nota (média fechada).`
+        if (sim.guaranteed) return `${label}: já garantido (mesmo com 0 no resto).`
+        if (sim.impossible) return `${label}: já não é possível (precisava de mais de 20 nos ${sim.remainingPct}% que faltam).`
+        return `${label}: precisa de ${sim.needed.toFixed(1)} nos ${sim.remainingPct}% que faltam.`
+      }
+      const parts = [describe(simulateGrade(comps, 9.5), 'Para passar (9,5)')]
+      if (inp.objetivo != null && !isNaN(Number(inp.objetivo))) {
+        parts.push(describe(simulateGrade(comps, Number(inp.objetivo)), `Para ${Number(inp.objetivo)}`))
+      }
+      return `Simulação — ${course.name}: ${parts.join(' | ')}`
+    }
     throw new Error(`Ferramenta desconhecida: ${name}`)
   }
 
@@ -128,12 +147,14 @@ export default function Claudio() {
 
         const toolUses = assistantContent.filter((b) => b.type === 'tool_use')
         if (data.stop_reason === 'tool_use' && toolUses.length) {
+          const READONLY = new Set(['simular_nota'])
           const results = []
           for (const tu of toolUses) {
             let out, ok = true
             try { out = await execTool(tu.name, tu.input) }
             catch (e) { out = `⚠️ Não consegui: ${e.message || e}`; ok = false }
-            setChat((c) => [...c, { role: 'action', text: out, ok }])
+            // Só mostra etiqueta de "ação" para ferramentas que alteram dados
+            if (!READONLY.has(tu.name)) setChat((c) => [...c, { role: 'action', text: out, ok }])
             results.push({ type: 'tool_result', tool_use_id: tu.id, content: out, is_error: !ok })
           }
           msgs = [...msgs, { role: 'user', content: results }]
