@@ -1,10 +1,10 @@
 export const DAYS = [
   { n: 1, short: 'Seg', long: 'Segunda' },
-  { n: 2, short: 'Ter', long: 'Terca' },
+  { n: 2, short: 'Ter', long: 'Terça' },
   { n: 3, short: 'Qua', long: 'Quarta' },
   { n: 4, short: 'Qui', long: 'Quinta' },
   { n: 5, short: 'Sex', long: 'Sexta' },
-  { n: 6, short: 'Sab', long: 'Sabado' },
+  { n: 6, short: 'Sáb', long: 'Sábado' },
   { n: 7, short: 'Dom', long: 'Domingo' },
 ]
 
