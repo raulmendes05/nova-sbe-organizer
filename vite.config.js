@@ -19,10 +19,10 @@ function claudioDevApi(env) {
         req.on('end', async () => {
           res.setHeader('content-type', 'application/json')
           try {
-            const key = env.ANTHROPIC_API_KEY
+            const key = env.GEMINI_API_KEY
             if (!key) {
               res.statusCode = 500
-              res.end(JSON.stringify({ error: 'Falta ANTHROPIC_API_KEY no .env.local' }))
+              res.end(JSON.stringify({ error: 'Falta GEMINI_API_KEY no .env.local' }))
               return
             }
             const { messages, context } = JSON.parse(body || '{}')

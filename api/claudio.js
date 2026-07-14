@@ -8,9 +8,9 @@ export default async function handler(req, res) {
     return
   }
   try {
-    const key = process.env.ANTHROPIC_API_KEY
+    const key = process.env.GEMINI_API_KEY
     if (!key) {
-      res.status(500).json({ error: 'ANTHROPIC_API_KEY não configurada no servidor.' })
+      res.status(500).json({ error: 'GEMINI_API_KEY não configurada no servidor.' })
       return
     }
     const { messages, context } = req.body || {}

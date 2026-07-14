@@ -2,16 +2,15 @@
 //  Cláudio — núcleo do assistente (partilhado dev + produção)
 //  Modelo: claude-opus-4-8 via SDK oficial @anthropic-ai/sdk.
 // ============================================================
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenAI } from '@google/genai'
 import { PROGRAMS } from '../src/data/curriculum.js'
 import { renderSchedules } from '../src/data/schedules.js'
 import { renderExams } from '../src/data/exams.js'
 
-const MODEL = 'claude-opus-4-8'
+const MODEL = 'gemini-flash-latest'
 
 // Interruptor do Cláudio. A false, não faz NENHUMA chamada à API (custo zero).
-// Para reativar, muda para true e faz deploy.
-const CLAUDIO_ENABLED = false
+const CLAUDIO_ENABLED = true
 
 // Ferramentas que o Cláudio pode usar para AGIR na app (executadas no cliente).
 const TOOLS = [
@@ -216,6 +215,55 @@ ${ctx}
 Usa este contexto para dares respostas personalizadas (média, cadeiras já feitas, horário atual, prazos). Se algo não estiver no contexto, pede ou assume com cuidado e diz que assumiste.`
 }
 
+// ---- Tradução do formato (contrato do cliente = estilo Anthropic) para o Gemini ----
+
+// Ferramentas Anthropic -> functionDeclarations do Gemini
+function geminiTools() {
+  return [{
+    functionDeclarations: TOOLS.map((t) => ({
+      name: t.name,
+      description: t.description,
+      parametersJsonSchema: t.input_schema,
+    })),
+  }]
+}
+
+// Mensagens (estilo Anthropic) -> contents do Gemini (role user/model, parts)
+function geminiContents(messages) {
+  const idToName = {}
+  const contents = []
+  for (const m of messages) {
+    if (m.role === 'assistant') {
+      const blocks = Array.isArray(m.content) ? m.content : [{ type: 'text', text: String(m.content || '') }]
+      const parts = []
+      for (const b of blocks) {
+        if (b.type === 'text' && b.text) parts.push({ text: b.text })
+        else if (b.type === 'tool_use') {
+          idToName[b.id] = b.name
+          parts.push({ functionCall: { name: b.name, args: b.input || {} } })
+        }
+      }
+      if (parts.length) contents.push({ role: 'model', parts })
+    } else {
+      // user
+      if (typeof m.content === 'string') {
+        contents.push({ role: 'user', parts: [{ text: m.content }] })
+      } else if (Array.isArray(m.content)) {
+        const parts = m.content
+          .filter((b) => b.type === 'tool_result')
+          .map((b) => ({
+            functionResponse: {
+              name: idToName[b.tool_use_id] || 'tool',
+              response: { result: typeof b.content === 'string' ? b.content : JSON.stringify(b.content) },
+            },
+          }))
+        if (parts.length) contents.push({ role: 'user', parts })
+      }
+    }
+  }
+  return contents
+}
+
 export async function runClaudio({ messages, context, apiKey }) {
   // Desativado: não chama a API (custo zero).
   if (!CLAUDIO_ENABLED) {
@@ -224,24 +272,36 @@ export async function runClaudio({ messages, context, apiKey }) {
       stop_reason: 'end_turn',
     }
   }
-  if (!apiKey) throw new Error('Falta a ANTHROPIC_API_KEY.')
-  const client = new Anthropic({ apiKey })
+  if (!apiKey) throw new Error('Falta a GEMINI_API_KEY.')
 
-  // Aceita mensagens user/assistant com conteúdo em texto OU em blocos (tool use).
   const clean = (messages || [])
     .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && m.content)
-    .map((m) => ({ role: m.role, content: m.content }))
-
   if (!clean.length) throw new Error('Sem mensagens.')
 
-  const response = await client.messages.create({
+  const ai = new GoogleGenAI({ apiKey })
+  const response = await ai.models.generateContent({
     model: MODEL,
-    max_tokens: 4096,
-    system: buildSystemPrompt(context),
-    tools: TOOLS,
-    messages: clean,
+    contents: geminiContents(clean),
+    config: {
+      systemInstruction: buildSystemPrompt(context),
+      tools: geminiTools(),
+      maxOutputTokens: 4096,
+    },
   })
 
-  // Devolve os blocos crus + stop_reason; o cliente executa as ações (tool_use)
-  return { content: response.content, stop_reason: response.stop_reason }
+  // Extrai texto sem usar o getter .text (evita aviso quando há functionCall)
+  const parts = response.candidates?.[0]?.content?.parts || []
+  const text = parts.filter((p) => typeof p.text === 'string').map((p) => p.text).join('').trim()
+
+  // Resposta do Gemini -> blocos estilo Anthropic (o cliente já sabe lidar)
+  const calls = response.functionCalls || []
+  if (calls.length) {
+    const content = []
+    if (text) content.push({ type: 'text', text })
+    calls.forEach((c, i) => {
+      content.push({ type: 'tool_use', id: `call_${i}_${clean.length}`, name: c.name, input: c.args || {} })
+    })
+    return { content, stop_reason: 'tool_use' }
+  }
+  return { content: [{ type: 'text', text: text || '(sem resposta)' }], stop_reason: 'end_turn' }
 }
