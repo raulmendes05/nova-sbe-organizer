@@ -6,6 +6,7 @@ import { Icon, Spinner } from '../components/ui.jsx'
 import {
   DAYS, todayDow, hhmm, dueLabel, formatDate, resolveGrade,
 } from '../lib/helpers.js'
+import { upcomingExams } from '../data/exams.js'
 
 const toneClasses = {
   rose: 'bg-rose-500/15 text-rose-300 border border-rose-500/20',
@@ -42,6 +43,7 @@ export default function Home() {
 
   const hi = displayName || 'Olá'
   const openCount = assignments.rows.filter((a) => a.status !== 'done').length
+  const upExams = upcomingExams(courses).slice(0, 3)
   const loading = schedule.loading || assignments.loading
 
   return (
@@ -135,6 +137,27 @@ export default function Home() {
               </div>
             )}
           </section>
+
+          {/* Proximos exames */}
+          {upExams.length > 0 && (
+            <section>
+              <SectionTitle icon="clipboard" title="Próximos exames" to="/prazos" />
+              <div className="space-y-2.5">
+                {upExams.map((e, i) => {
+                  const dl = dueLabel(e.when)
+                  return (
+                    <div key={i} className="card p-3.5 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-100 truncate">{e.course}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{e.typeLabel} · {formatDate(e.when)}</p>
+                      </div>
+                      <span className={`chip ${toneClasses[dl.tone]}`}>{dl.text}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
         </div>
       )}
     </div>

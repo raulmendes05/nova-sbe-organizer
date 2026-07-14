@@ -58,17 +58,42 @@ export const EXAMS = {
   '1600': { name: 'Communication', items: [] },
 }
 
-const TYPE_PT = { mid: 'Miniteste', t1: '1º Teste', t2: '2º Teste', apr: 'Apresentação', exame: 'Exame', recurso: 'Recurso' }
+export const EXAM_TYPE_PT = { mid: 'Miniteste', t1: '1º Teste', t2: '2º Teste', apr: 'Apresentação', exame: 'Exame', recurso: 'Recurso' }
 
 function fmt(iso) {
-  const [y, m, d] = iso.split('-').map(Number)
+  const [, m, d] = iso.split('-').map(Number)
   return `${d} ${MONTHS_PT[m - 1]}`
 }
 
 export function renderExams() {
   return Object.values(EXAMS).map((c) => {
     if (!c.items.length) return `${c.name} — sem exame/teste`
-    const list = c.items.map((i) => `${TYPE_PT[i.type]} ${fmt(i.date)} ${i.time}`).join(' · ')
+    const list = c.items.map((i) => `${EXAM_TYPE_PT[i.type]} ${fmt(i.date)} ${i.time}`).join(' · ')
     return `${c.name} — ${list}`
   }).join('\n')
+}
+
+// Exames a chegar das cadeiras do aluno (por código, respeitando T1/T2), a partir de hoje.
+export function upcomingExams(courses, now = new Date()) {
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const out = []
+  for (const c of courses || []) {
+    if (!c.code) continue
+    const code = String(c.code)
+    let keys = []
+    if (EXAMS[code]) keys = [code]
+    else if (c.term && EXAMS[`${code}_T${c.term}`]) keys = [`${code}_T${c.term}`]
+    else keys = [`${code}_T1`, `${code}_T2`].filter((k) => EXAMS[k])
+    for (const k of keys) {
+      for (const it of EXAMS[k].items) {
+        const [y, m, d] = it.date.split('-').map(Number)
+        const when = new Date(y, m - 1, d)
+        if (when >= todayStart) {
+          out.push({ course: c.name, type: it.type, typeLabel: EXAM_TYPE_PT[it.type], date: it.date, time: it.time, when })
+        }
+      }
+    }
+  }
+  out.sort((a, b) => a.when - b.when || (a.time > b.time ? 1 : -1))
+  return out
 }
