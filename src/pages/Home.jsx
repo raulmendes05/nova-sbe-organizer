@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon, Spinner } from '../components/ui.jsx'
+import CalendarBanner from '../components/CalendarBanner.jsx'
 import {
   DAYS, todayDow, hhmm, dueLabel, formatDate, resolveGrade, isCourseDone,
 } from '../lib/helpers.js'
@@ -64,6 +65,7 @@ export default function Home() {
         <Spinner />
       ) : (
         <div className="space-y-6">
+          <CalendarBanner />
           {/* Cartao media — destaque */}
           <Link to="/notas" className="block relative overflow-hidden rounded-3xl p-5 shadow-glow active:scale-[0.99] transition"
             style={{ backgroundImage: 'linear-gradient(135deg, #1f5aa3 0%, #0f3663 55%, #0a2540 100%)' }}>

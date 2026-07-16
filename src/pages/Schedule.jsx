@@ -4,6 +4,7 @@ import { useCourses } from '../context/CoursesContext.jsx'
 import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components/ui.jsx'
 import CourseSelect from '../components/CourseSelect.jsx'
 import { DAYS, SCHEDULE_KINDS, hhmm, todayDow } from '../lib/helpers.js'
+import CalendarBanner from '../components/CalendarBanner.jsx'
 
 const empty = {
   title: '', course_id: null, day_of_week: todayDow(),
@@ -44,6 +45,8 @@ export default function Schedule() {
   return (
     <div>
       <PageHeader title="Horario" subtitle="A tua semana, aula a aula" />
+
+      <CalendarBanner className="mb-4" />
 
       {/* Seletor de dia */}
       <div className="flex gap-1.5 mb-4 overflow-x-auto -mx-1 px-1 pb-1">

@@ -6,6 +6,7 @@ import { GoogleGenAI } from '@google/genai'
 import { PROGRAMS } from '../src/data/curriculum.js'
 import { renderSchedules } from '../src/data/schedules.js'
 import { renderExams } from '../src/data/exams.js'
+import { renderCalendar } from '../src/data/calendar.js'
 
 const MODEL = 'gemini-flash-latest'
 
@@ -207,6 +208,15 @@ ${renderExams()}
 - Além das aulas, verifica também os **exames**: duas cadeiras com **exame final no mesmo dia** (ainda pior, à mesma hora) são um problema — avisa o aluno.
 - Ao recomendar uma combinação de cadeiras, mostra as **datas dos exames finais** de cada uma e assinala se ficam muito juntas (ex.: dois no mesmo dia ou em dias seguidos).
 - As datas de exames podem depender do período (T1/T2) da cadeira. Usa a linha correta.
+
+# Calendário académico 26/27 (BSc 2.º/3.º ano) — semanas de aulas, feriados e compensações
+${renderCalendar()}
+
+## Como usar o calendário
+- Sabe distinguir **semanas com aulas** (T1/T2/T3/T4) das épocas de **exames**, **pausas** (Natal, Páscoa) e **feriados**. Se o aluno perguntar "há aulas na próxima semana?", "quando começam/acabam as aulas", "quando é a pausa/os exames", responde com estas datas.
+- **Não marques** aulas nem sugiras estudar "em aula" em feriados/pausas; ao criar prazos ou tarefas evita cair num feriado sem avisar.
+- **Dias de compensação:** nesses dias há aulas, mas segue-se o horário de **outro dia da semana** (ex.: 15/mar corre as aulas de terça). Avisa o aluno quando for relevante.
+- Datas em ISO. Confirma sempre com o calendário antes de afirmar que "há/não há aulas".
 
 # Contexto atual do estudante (dados reais da app)
 \`\`\`json
