@@ -250,7 +250,11 @@ function geminiContents(messages) {
         if (b.type === 'text' && b.text) parts.push({ text: b.text })
         else if (b.type === 'tool_use') {
           idToName[b.id] = b.name
-          parts.push({ functionCall: { name: b.name, args: b.input || {} } })
+          const part = { functionCall: { name: b.name, args: b.input || {} } }
+          // Reenvia a assinatura de raciocínio do Gemini (obrigatória nas
+          // function calls de modelos "thinking"; sem ela dá erro 400).
+          if (b.thought_signature) part.thoughtSignature = b.thought_signature
+          parts.push(part)
         }
       }
       if (parts.length) contents.push({ role: 'model', parts })
@@ -303,13 +307,21 @@ export async function runClaudio({ messages, context, apiKey }) {
   const parts = response.candidates?.[0]?.content?.parts || []
   const text = parts.filter((p) => typeof p.text === 'string').map((p) => p.text).join('').trim()
 
-  // Resposta do Gemini -> blocos estilo Anthropic (o cliente já sabe lidar)
-  const calls = response.functionCalls || []
-  if (calls.length) {
+  // Resposta do Gemini -> blocos estilo Anthropic (o cliente já sabe lidar).
+  // Percorre as parts (em vez do getter .functionCalls) para conservar o
+  // thoughtSignature de cada function call — é preciso reenviá-lo na volta seguinte.
+  const fcParts = parts.filter((p) => p.functionCall)
+  if (fcParts.length) {
     const content = []
     if (text) content.push({ type: 'text', text })
-    calls.forEach((c, i) => {
-      content.push({ type: 'tool_use', id: `call_${i}_${clean.length}`, name: c.name, input: c.args || {} })
+    fcParts.forEach((p, i) => {
+      content.push({
+        type: 'tool_use',
+        id: `call_${i}_${clean.length}`,
+        name: p.functionCall.name,
+        input: p.functionCall.args || {},
+        thought_signature: p.thoughtSignature || null,
+      })
     })
     return { content, stop_reason: 'tool_use' }
   }
