@@ -13,7 +13,8 @@ Stack: React + Vite + Tailwind + Supabase (login + base de dados) + Vercel (depl
 3. Espera ~1 min até o projeto ficar pronto.
 4. No menu lateral vai a **SQL Editor** → **New query**.
 5. Abre o ficheiro [`supabase/schema.sql`](supabase/schema.sql) deste projeto, copia **tudo**, cola no editor e clica **Run**. Deve aparecer *Success*.
-6. No menu vai a **Project Settings** (roda dentada) → **API**. Copia dois valores:
+6. **New query** outra vez e repete o passo anterior com [`supabase/exams.sql`](supabase/exams.sql) — cria a biblioteca partilhada de provas antigas e o bucket de ficheiros.
+7. No menu vai a **Project Settings** (roda dentada) → **API**. Copia dois valores:
    - **Project URL** → `https://xxxx.supabase.co`
    - **anon public** (em *Project API keys*) → começa por `eyJ...`
 

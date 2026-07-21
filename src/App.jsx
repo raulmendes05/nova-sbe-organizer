@@ -11,6 +11,7 @@ import Schedule from './pages/Schedule.jsx'
 import Assignments from './pages/Assignments.jsx'
 import Grades from './pages/Grades.jsx'
 import Notes from './pages/Notes.jsx'
+import Exams from './pages/Exams.jsx'
 import Claudio from './pages/Claudio.jsx'
 
 export default function App() {
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/prazos" element={<Assignments />} />
         <Route path="/notas" element={<Grades />} />
         <Route path="/tarefas" element={<Notes />} />
+        <Route path="/provas" element={<Exams />} />
         <Route path="/claudio" element={<Claudio />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

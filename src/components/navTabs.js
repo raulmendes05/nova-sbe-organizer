@@ -6,5 +6,6 @@ export const NAV_TABS = [
   { to: '/prazos', icon: 'clipboard', label: 'Prazos' },
   { to: '/notas', icon: 'chart', label: 'Notas' },
   { to: '/tarefas', icon: 'note', label: 'Tarefas' },
+  { to: '/provas', icon: 'archive', label: 'Provas' },
   { to: '/claudio', icon: 'spark', label: 'Cláudio' },
 ]

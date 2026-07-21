@@ -6,7 +6,7 @@ import { NAV_TABS } from './navTabs.js'
 export default function BottomNav() {
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-[#0a1220]/80 backdrop-blur-xl border-t border-white/10 safe-bottom">
-      <div className="max-w-md mx-auto grid grid-cols-6">
+      <div className="max-w-md mx-auto grid grid-cols-7">
         {NAV_TABS.map((t) => (
           <NavLink
             key={t.to}
