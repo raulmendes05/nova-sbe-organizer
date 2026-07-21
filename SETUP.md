@@ -63,6 +63,46 @@ O **Cláudio** é o assistente dentro da app (ajuda a escolher cadeiras sem sobr
 
 ---
 
+## Passo 2.6 — Biblioteca de provas antigas (Cloudflare R2) · ~5 min
+
+O separador **Provas** guarda exames e testes de anos anteriores. Os **metadados**
+ficam no Supabase (tabela `exam_files`, criada pelo `supabase/exams.sql`), mas os
+**ficheiros** ficam no **Cloudflare R2**.
+
+> **Porquê R2 e não o Supabase Storage?** O plano gratuito do Supabase dá 1 GB de
+> ficheiros mas só **5 GB de tráfego por mês**. Uma biblioteca de provas é quase só
+> descarregamentos — em época de exames isso esgota-se em dias. O R2 dá **10 GB
+> grátis e saída de dados sem custo nem limite**, que é exatamente o que aqui interessa.
+
+1. Cria conta em **https://dash.cloudflare.com** → **R2**. (Pede um método de
+   pagamento para ativar, mas o plano gratuito não cobra nada.)
+2. **Create bucket** com o nome `exams`. Deixa-o **privado** — os ficheiros só se
+   abrem por URL assinado de 2 minutos, gerado em `/api/exam-url`.
+3. **Manage R2 API Tokens** → **Create API token** → permissão **Object Read & Write**
+   sobre esse bucket. Guarda o *Access Key ID* e o *Secret Access Key*.
+4. No `.env.local` preenche `R2_ACCOUNT_ID` (aparece no painel do R2),
+   `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` e `R2_BUCKET=exams`.
+
+### Importar uma pasta inteira de uma vez
+
+Para carregar o arquivo da SU (ou qualquer pasta organizada por cadeira), há um
+script que deduz sozinho a cadeira, o tipo (exame/teste/recurso), o ano letivo e
+se tem resolução:
+
+```bash
+# ver o que ele faria, sem enviar nada
+node scripts/import-exams.mjs --dir ~/Downloads/Bachelors --dry-run
+
+# importar a sério (precisa de SUPABASE_SERVICE_ROLE_KEY e IMPORT_AS_EMAIL)
+node scripts/import-exams.mjs --dir ~/Downloads/Bachelors
+```
+
+Pode voltar a correr-se sem medo: o caminho de cada ficheiro é determinístico, por
+isso o que já foi importado é saltado (dá para retomar a meio). Usa `--skip-archive`
+para ignorar as pastas `Archive*` (matéria pré-2015).
+
+---
+
 ## Passo 3 — Pôr online (Vercel) · ~3 min
 
 1. Cria um repositório no GitHub e faz push deste projeto.
@@ -70,7 +110,9 @@ O **Cláudio** é o assistente dentro da app (ajuda a escolher cadeiras sem sobr
 3. A Vercel deteta Vite automaticamente. Antes de *Deploy*, em **Environment Variables** adiciona:
    - `VITE_SUPABASE_URL`
    - `VITE_SUPABASE_ANON_KEY`
-   - `ANTHROPIC_API_KEY` (para o Cláudio funcionar online)
+   - `GEMINI_API_KEY` (para o Cláudio funcionar online)
+   - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
+     (para o separador Provas funcionar online)
 4. Clica **Deploy**. Em ~1 min tens o link (ex: `nova-sbe.vercel.app`).
 
 A partir daqui, cada `git push` para a branch principal faz deploy automático — igual ao Champi.

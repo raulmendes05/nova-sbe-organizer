@@ -43,27 +43,39 @@ create policy "exams_delete_own" on public.exam_files
   for delete to authenticated using (auth.uid() = uploaded_by);
 
 -- ------------------------------------------------------------
---  Storage — bucket privado "exams"
---  Privado de proposito: os ficheiros so se abrem por signed URL
---  gerada para quem tem sessao iniciada (nao ficam num link publico).
+--  Onde ficam os ficheiros?
+--  NAO no Supabase Storage. Os PDFs vivem no Cloudflare R2 (10 GB gratis
+--  e, sobretudo, saida de dados gratis — o plano gratuito do Supabase so
+--  da 5 GB de trafego por mes, e uma biblioteca de provas e quase so
+--  descarregamentos). Aqui guarda-se apenas o "storage_path"; os URLs
+--  assinados sao gerados em /api/exam-url.
 -- ------------------------------------------------------------
-insert into storage.buckets (id, name, public, file_size_limit)
-values ('exams', 'exams', false, 20971520)   -- 20 MB por ficheiro
-on conflict (id) do update set file_size_limit = excluded.file_size_limit;
 
-drop policy if exists "exams_obj_read"   on storage.objects;
-drop policy if exists "exams_obj_insert" on storage.objects;
-drop policy if exists "exams_obj_delete" on storage.objects;
+-- ------------------------------------------------------------
+--  So contas da Nova SBE se podem registar
+--  ATENCAO: mexe no registo de TODA a app, nao so nas provas.
+--  Ajusta a lista ALLOWED se o teu dominio for outro; o allowlist
+--  extra serve para nao te trancares fora com uma conta pessoal.
+-- ------------------------------------------------------------
+create or replace function public.enforce_nova_email()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  allowed_domains text[] := array['novasbe.pt', 'novasbe.unl.pt'];
+  extra_emails    text[] := array[]::text[];  -- ex: array['o.teu@gmail.com']
+  domain          text;
+begin
+  domain := lower(split_part(coalesce(new.email, ''), '@', 2));
+  if domain = any(allowed_domains) or lower(coalesce(new.email,'')) = any(extra_emails) then
+    return new;
+  end if;
+  raise exception 'Só contas @novasbe.pt se podem registar nesta app.';
+end $$;
 
-create policy "exams_obj_read" on storage.objects
-  for select to authenticated using (bucket_id = 'exams');
-
--- Nota: nao se valida o "owner" aqui — e o proprio servico de Storage que
--- preenche essa coluna depois da verificacao, por isso um with check sobre
--- ela rejeitaria envios legitimos.
-create policy "exams_obj_insert" on storage.objects
-  for insert to authenticated with check (bucket_id = 'exams');
-
-create policy "exams_obj_delete" on storage.objects
-  for delete to authenticated
-  using (bucket_id = 'exams' and (owner = auth.uid() or owner_id = auth.uid()::text));
+drop trigger if exists trg_enforce_nova_email on auth.users;
+create trigger trg_enforce_nova_email
+  before insert on auth.users
+  for each row execute function public.enforce_nova_email();

@@ -5,8 +5,24 @@ import { useCourses } from '../context/CoursesContext.jsx'
 import { PageHeader, Fab, Modal, Icon, EmptyState, Spinner } from '../components/ui.jsx'
 import { PROGRAMS, flatCatalog } from '../data/curriculum.js'
 
-const BUCKET = 'exams'
 const MAX_MB = 20
+
+// Os ficheiros vivem no Cloudflare R2; o servidor devolve URLs assinados
+// de curta duração para que as chaves nunca cheguem ao browser.
+async function signUrl(body) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch('/api/exam-url', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session?.access_token || ''}`,
+    },
+    body: JSON.stringify(body),
+  })
+  const out = await res.json()
+  if (!res.ok) throw new Error(out.error || 'Erro no servidor.')
+  return out
+}
 
 const KINDS = [
   { v: 'exame', label: 'Exame', tone: 'bg-nova-500/20 text-nova-200' },
@@ -109,11 +125,10 @@ export default function Exams() {
       const ext = row.storage_path.split('.').pop()
       const name = [row.course_code, kindOf(row.kind).label.split(' ')[0], row.school_year || '']
         .filter(Boolean).join(' ').replace(/\//g, '-')
-      const { data, error } = await supabase.storage
-        .from(BUCKET)
-        .createSignedUrl(row.storage_path, 60, { download: `${name}.${ext}` })
-      if (error) throw error
-      window.open(data.signedUrl, '_blank', 'noopener')
+      const { url } = await signUrl({
+        action: 'download', path: row.storage_path, downloadAs: `${name}.${ext}`,
+      })
+      window.open(url, '_blank', 'noopener')
     } catch (e) {
       setError(e.message || 'Não consegui abrir o ficheiro.')
     } finally {
@@ -125,10 +140,8 @@ export default function Exams() {
     if (!window.confirm('Apagar este ficheiro da biblioteca?')) return
     setBusy(row.storage_path)
     try {
-      const { error: se } = await supabase.storage.from(BUCKET).remove([row.storage_path])
-      if (se) throw se
-      const { error: de } = await supabase.from('exam_files').delete().eq('id', row.id)
-      if (de) throw de
+      // O servidor apaga a linha (a RLS confirma que é tua) e só depois o ficheiro.
+      await signUrl({ action: 'delete', path: row.storage_path })
       setRows((prev) => prev.filter((r) => r.id !== row.id))
     } catch (e) {
       setError(e.message || 'Não consegui apagar.')
@@ -286,12 +299,20 @@ function UploadModal({ open, onClose, user, displayName, myCodes, onDone }) {
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
         setProgress(`A enviar ${i + 1} de ${files.length}...`)
-        const ext = (file.name.split('.').pop() || 'pdf').toLowerCase()
-        const path = `${course.code}/${crypto.randomUUID()}.${ext}`
-
-        const { error: ue } = await supabase.storage
-          .from(BUCKET).upload(path, file, { contentType: file.type || undefined })
-        if (ue) throw ue
+        // 1) pedir ao servidor um URL de escrita; ele é que decide o caminho
+        const { url, path } = await signUrl({
+          action: 'upload',
+          courseCode: course.code,
+          fileName: file.name,
+          contentType: file.type || 'application/pdf',
+        })
+        // 2) enviar o ficheiro direto para o R2 (não passa pelo nosso servidor)
+        const put = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type || 'application/pdf' },
+          body: file,
+        })
+        if (!put.ok) throw new Error(`Falha ao enviar "${file.name}" (${put.status}).`)
 
         const { error: ie } = await supabase.from('exam_files').insert({
           course_code: course.code,
@@ -306,8 +327,9 @@ function UploadModal({ open, onClose, user, displayName, myCodes, onDone }) {
           uploaded_by: user.id,
           uploader_name: displayName || null,
         })
-        // Se a linha falhar, não deixa o ficheiro órfão no bucket
-        if (ie) { await supabase.storage.from(BUCKET).remove([path]); throw ie }
+        // Se a linha falhar, o ficheiro fica órfão no R2 — mas sem linha não há
+        // como o apagar via RLS, por isso avisa-se em vez de o esconder.
+        if (ie) throw new Error(`${ie.message} (ficheiro "${file.name}" ficou por registar)`)
       }
       await onDone()
       reset(); onClose()

@@ -40,6 +40,37 @@ function claudioDevApi(env) {
   }
 }
 
+// Idem para /api/exam-url (URLs assinados do R2 das provas antigas).
+function examUrlDevApi(env) {
+  return {
+    name: 'exam-url-dev-api',
+    configureServer(server) {
+      server.middlewares.use('/api/exam-url', (req, res) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405
+          res.end('Método não permitido')
+          return
+        }
+        let body = ''
+        req.on('data', (c) => (body += c))
+        req.on('end', async () => {
+          res.setHeader('content-type', 'application/json')
+          try {
+            const token = (req.headers.authorization || '').replace(/^Bearer /i, '')
+            const { signExamUrl } = await import('./api/_r2.js')
+            const out = await signExamUrl({ ...JSON.parse(body || '{}'), token, env })
+            res.statusCode = 200
+            res.end(JSON.stringify(out))
+          } catch (e) {
+            res.statusCode = 500
+            res.end(JSON.stringify({ error: e?.message || 'Erro inesperado.' }))
+          }
+        })
+      })
+    },
+  }
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -47,6 +78,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       claudioDevApi(env),
+      examUrlDevApi(env),
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
