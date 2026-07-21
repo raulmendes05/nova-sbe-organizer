@@ -519,7 +519,7 @@ function UploadModal({ open, onClose, user, displayName, currentCodes, lockedCod
               Ficheiros (podes escolher vários)
             </label>
             <input type="file" multiple disabled={saving}
-              accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.zip"
+              accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.zip"
               onChange={(e) => setFiles([...e.target.files])}
               className="block w-full text-sm text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-nova-600 file:text-white" />
             {files.length > 0 && (

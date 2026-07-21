@@ -114,7 +114,7 @@ function walk(dir, base = dir, out = []) {
     if (e.isDirectory()) {
       if (SKIP_ARCHIVE && /archive/i.test(e.name)) continue
       walk(full, base, out)
-    } else if (/\.(pdf|docx?|zip)$/i.test(e.name)) {
+    } else if (/\.(pdf|docx?|xlsx?|zip)$/i.test(e.name)) {
       const rel = path.relative(base, full)
       if (EXAMISH.test(rel)) out.push(rel)
     }
@@ -210,7 +210,9 @@ const todo = records.filter((r) => !existing.has(r.row.storage_path))
 console.log(`${existing.size} ja importados · ${todo.length} por importar\n`)
 
 const MIME = { pdf: 'application/pdf', zip: 'application/zip', doc: 'application/msword',
-  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
 
 let done = 0, failed = 0
 async function worker(queue) {
