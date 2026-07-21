@@ -41,6 +41,7 @@ export default function App() {
         <Route path="/notas" element={<Grades />} />
         <Route path="/tarefas" element={<Notes />} />
         <Route path="/provas" element={<Exams />} />
+        <Route path="/provas/:code" element={<Exams />} />
         <Route path="/claudio" element={<Claudio />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

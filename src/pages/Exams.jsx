@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCourses } from '../context/CoursesContext.jsx'
@@ -25,10 +26,10 @@ async function signUrl(body) {
 }
 
 const KINDS = [
-  { v: 'exame', label: 'Exame', tone: 'bg-nova-500/20 text-nova-200' },
-  { v: 'teste', label: 'Teste / Midterm', tone: 'bg-violet-500/20 text-violet-200' },
-  { v: 'recurso', label: 'Recurso', tone: 'bg-amber-500/20 text-amber-200' },
-  { v: 'outro', label: 'Outro', tone: 'bg-slate-500/20 text-slate-300' },
+  { v: 'exame', label: 'Exames', one: 'Exame', tone: 'bg-nova-500/20 text-nova-200' },
+  { v: 'teste', label: 'Midterms', one: 'Midterm', tone: 'bg-violet-500/20 text-violet-200' },
+  { v: 'recurso', label: 'Recursos', one: 'Recurso', tone: 'bg-amber-500/20 text-amber-200' },
+  { v: 'outro', label: 'Outros', one: 'Outro', tone: 'bg-slate-500/20 text-slate-300' },
 ]
 const kindOf = (v) => KINDS.find((k) => k.v === v) || KINDS[3]
 
@@ -44,7 +45,6 @@ const CATALOG = (() => {
 const DIACRITICS = new RegExp('[\\u0300-\\u036f]', 'g')
 const norm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(DIACRITICS, '')
 
-// Anos letivos para o seletor: do atual para trás
 const SCHOOL_YEARS = (() => {
   const now = new Date()
   const start = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
@@ -60,70 +60,55 @@ function prettySize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+/* ============================================================
+   Página: lista de cadeiras (/provas) ou uma cadeira (/provas/:code)
+   ============================================================ */
 export default function Exams() {
-  const { user, displayName } = useAuth()
+  const { code } = useParams()
+  const navigate = useNavigate()
+  const { user, displayName, academicYear, semester } = useAuth()
   const myCourses = useCourses().rows
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [q, setQ] = useState('')
-  const [onlyMine, setOnlyMine] = useState(false)
-  const [open, setOpen] = useState(() => new Set())
-  const [busy, setBusy] = useState(null)      // storage_path a ser descarregado/apagado
+  const [busy, setBusy] = useState(null)
   const [modal, setModal] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('exam_files')
-      .select('*')
-      .order('school_year', { ascending: false })
-      .order('created_at', { ascending: false })
-    if (error) setError(error.message)
-    else { setRows(data ?? []); setError(null) }
-    setLoading(false)
+    const all = []
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from('exam_files').select('*')
+        .order('school_year', { ascending: false })
+        .range(from, from + 999)
+      if (error) { setError(error.message); setLoading(false); return }
+      all.push(...data)
+      if (data.length < 1000) break
+    }
+    setRows(all); setError(null); setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
-  // Códigos das cadeiras do próprio aluno (para o filtro "As minhas")
-  const myCodes = useMemo(
-    () => new Set(myCourses.map((c) => c.code).filter(Boolean).map(String)),
-    [myCourses]
-  )
-
-  // Agrupar por cadeira, já filtrado
-  const groups = useMemo(() => {
-    const query = norm(q.trim())
-    const map = new Map()
-    for (const r of rows) {
-      if (onlyMine && !myCodes.has(String(r.course_code))) continue
-      if (query && !norm(r.course_name).includes(query)
-        && !String(r.course_code).includes(query)
-        && !norm(r.title).includes(query)) continue
-      const g = map.get(r.course_code)
-      if (g) g.files.push(r)
-      else map.set(r.course_code, { code: r.course_code, name: r.course_name, files: [r] })
-    }
-    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
-  }, [rows, q, onlyMine, myCodes])
-
-  const total = rows.length
-
-  function toggle(code) {
-    setOpen((prev) => {
-      const next = new Set(prev)
-      next.has(code) ? next.delete(code) : next.add(code)
-      return next
-    })
-  }
+  // Cadeiras que o aluno está a fazer AGORA (ano + semestre do perfil).
+  // Não as que já fez — essas já não interessam para estudar.
+  const currentCodes = useMemo(() => {
+    const y = Number(academicYear)
+    const t = Number(semester)
+    return new Set(
+      myCourses
+        .filter((c) => !c.is_equivalence && Number(c.year) === y && Number(c.term) === t)
+        .map((c) => c.code).filter(Boolean).map(String)
+    )
+  }, [myCourses, academicYear, semester])
 
   async function download(row) {
     setBusy(row.storage_path)
     try {
       const ext = row.storage_path.split('.').pop()
-      const name = [row.course_code, kindOf(row.kind).label.split(' ')[0], row.school_year || '']
+      const name = [row.course_code, kindOf(row.kind).one, row.school_year || '']
         .filter(Boolean).join(' ').replace(/\//g, '-')
       const { url } = await signUrl({
         action: 'download', path: row.storage_path, downloadAs: `${name}.${ext}`,
@@ -140,7 +125,6 @@ export default function Exams() {
     if (!window.confirm('Apagar este ficheiro da biblioteca?')) return
     setBusy(row.storage_path)
     try {
-      // O servidor apaga a linha (a RLS confirma que é tua) e só depois o ficheiro.
       await signUrl({ action: 'delete', path: row.storage_path })
       setRows((prev) => prev.filter((r) => r.id !== row.id))
     } catch (e) {
@@ -150,11 +134,63 @@ export default function Exams() {
     }
   }
 
+  const errorBar = error && (
+    <div className="card p-3 mb-3 text-sm text-rose-200 bg-rose-500/10 border-rose-500/20 flex items-start gap-2">
+      <span className="flex-1">{error}</span>
+      <button onClick={() => setError(null)} className="text-rose-300">
+        <Icon name="close" className="w-4 h-4" />
+      </button>
+    </div>
+  )
+
+  const shared = { rows, loading, busy, download, removeFile, user, errorBar }
+
   return (
     <div className="pb-24">
+      {code
+        ? <CourseView {...shared} code={code} onBack={() => navigate('/provas')} onUpload={() => setModal(true)} />
+        : <CourseList {...shared} currentCodes={currentCodes} onOpen={(c) => navigate(`/provas/${c}`)} onUpload={() => setModal(true)} />}
+
+      <Fab onClick={() => setModal(true)} label="Enviar prova" />
+
+      <UploadModal
+        open={modal}
+        onClose={() => setModal(false)}
+        user={user}
+        displayName={displayName}
+        currentCodes={currentCodes}
+        lockedCode={code || null}
+        onDone={load}
+      />
+    </div>
+  )
+}
+
+/* ---------- Lista de cadeiras ---------- */
+function CourseList({ rows, loading, currentCodes, onOpen, errorBar }) {
+  const [q, setQ] = useState('')
+  const [onlyMine, setOnlyMine] = useState(false)
+
+  const groups = useMemo(() => {
+    const query = norm(q.trim())
+    const map = new Map()
+    for (const r of rows) {
+      if (onlyMine && !currentCodes.has(String(r.course_code))) continue
+      if (query && !norm(r.course_name).includes(query) && !String(r.course_code).includes(query)) continue
+      const g = map.get(r.course_code)
+      if (g) { g.n++; g.kinds.add(r.kind) }
+      else map.set(r.course_code, { code: r.course_code, name: r.course_name, n: 1, kinds: new Set([r.kind]) })
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }, [rows, q, onlyMine, currentCodes])
+
+  const total = rows.length
+
+  return (
+    <>
       <PageHeader
         title="Provas antigas"
-        subtitle={total ? `${total} ficheiro${total === 1 ? '' : 's'} partilhado${total === 1 ? '' : 's'}` : 'Exames e testes de anos anteriores'}
+        subtitle={total ? `${total} ficheiros · ${new Set(rows.map((r) => r.course_code)).size} cadeiras` : 'Exames e testes de anos anteriores'}
       />
 
       <input className="input mb-2" placeholder="Pesquisar cadeira ou código..."
@@ -164,102 +200,148 @@ export default function Exams() {
         <button type="button" onClick={() => setOnlyMine(false)}
           className={`py-2 seg ${!onlyMine ? 'seg-on' : 'seg-off'}`}>Todas</button>
         <button type="button" onClick={() => setOnlyMine(true)}
-          className={`py-2 seg ${onlyMine ? 'seg-on' : 'seg-off'}`}>As minhas cadeiras</button>
+          className={`py-2 seg ${onlyMine ? 'seg-on' : 'seg-off'}`}>Este semestre</button>
       </div>
 
-      {error && (
-        <div className="card p-3 mb-3 text-sm text-rose-200 bg-rose-500/10 border-rose-500/20 flex items-start gap-2">
-          <span className="flex-1">{error}</span>
-          <button onClick={() => setError(null)} className="text-rose-300"><Icon name="close" className="w-4 h-4" /></button>
-        </div>
-      )}
+      {errorBar}
 
       {loading ? <Spinner /> : groups.length === 0 ? (
         <EmptyState icon="archive"
-          title={total === 0 ? 'A biblioteca está vazia' : 'Sem resultados'}
-          hint={total === 0
-            ? 'Sê o primeiro a partilhar: carrega no + e envia exames ou testes antigos.'
-            : 'Tenta outra pesquisa ou desliga o filtro "As minhas cadeiras".'} />
+          title={onlyMine && currentCodes.size === 0 ? 'Sem cadeiras este semestre' : total === 0 ? 'A biblioteca está vazia' : 'Sem resultados'}
+          hint={onlyMine && currentCodes.size === 0
+            ? 'Adiciona as cadeiras deste semestre em Notas para as veres aqui.'
+            : onlyMine ? 'Ainda não há provas das cadeiras que estás a fazer.'
+              : total === 0 ? 'Carrega no + para enviares exames ou testes antigos.'
+                : 'Tenta outra pesquisa.'} />
       ) : (
         <div className="space-y-2">
-          {groups.map((g) => {
-            const isOpen = open.has(g.code) || Boolean(q.trim())
-            return (
-              <div key={g.code} className="card overflow-hidden">
-                <button type="button" onClick={() => toggle(g.code)}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.03] transition">
-                  <span className="w-9 h-9 rounded-xl bg-nova-500/15 text-nova-300 flex items-center justify-center shrink-0">
-                    <Icon name="archive" className="w-5 h-5" />
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-semibold text-slate-100 truncate">{g.name}</span>
-                    <span className="block text-xs text-slate-500">
-                      #{g.code} · {g.files.length} ficheiro{g.files.length === 1 ? '' : 's'}
-                    </span>
-                  </span>
-                  <Icon name="chevron"
-                    className={`w-4 h-4 text-slate-500 shrink-0 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
-                </button>
-
-                {isOpen && (
-                  <div className="border-t border-white/5 divide-y divide-white/5">
-                    {g.files.map((f) => {
-                      const k = kindOf(f.kind)
-                      const working = busy === f.storage_path
-                      return (
-                        <div key={f.id} className="flex items-center gap-3 px-4 py-2.5">
-                          <span className="flex-1 min-w-0">
-                            <span className="flex items-center gap-1.5 flex-wrap">
-                              <span className={`chip ${k.tone}`}>{k.label}</span>
-                              {f.school_year && <span className="text-xs font-medium text-slate-300">{f.school_year}</span>}
-                              {f.has_solutions && (
-                                <span className="chip bg-emerald-500/20 text-emerald-200">c/ resolução</span>
-                              )}
-                            </span>
-                            {f.title && <span className="block text-xs text-slate-400 mt-1 truncate">{f.title}</span>}
-                            <span className="block text-[11px] text-slate-600 mt-0.5">
-                              {prettySize(f.file_size)}{f.uploader_name ? ` · ${f.uploader_name}` : ''}
-                            </span>
-                          </span>
-
-                          <button onClick={() => download(f)} disabled={working} aria-label="Descarregar"
-                            className="p-2 rounded-lg text-nova-300 hover:bg-white/10 disabled:opacity-40 shrink-0">
-                            <Icon name="download" className="w-5 h-5" />
-                          </button>
-                          {f.uploaded_by === user?.id && (
-                            <button onClick={() => removeFile(f)} disabled={working} aria-label="Apagar"
-                              className="p-2 rounded-lg text-slate-500 hover:text-rose-300 hover:bg-white/10 disabled:opacity-40 shrink-0">
-                              <Icon name="trash" className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          })}
+          {groups.map((g) => (
+            <button key={g.code} type="button" onClick={() => onOpen(g.code)}
+              className="card w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.06] active:scale-[0.99] transition">
+              <span className="w-9 h-9 rounded-xl bg-nova-500/15 text-nova-300 flex items-center justify-center shrink-0">
+                <Icon name="archive" className="w-5 h-5" />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm font-semibold text-slate-100 truncate">{g.name}</span>
+                <span className="block text-xs text-slate-500 mt-0.5">
+                  #{g.code} · {g.n} ficheiro{g.n === 1 ? '' : 's'}
+                  {currentCodes.has(String(g.code)) && <span className="text-nova-300"> · este semestre</span>}
+                </span>
+              </span>
+              <Icon name="chevron" className="w-4 h-4 text-slate-500 shrink-0" />
+            </button>
+          ))}
         </div>
       )}
+    </>
+  )
+}
 
-      <Fab onClick={() => setModal(true)} label="Enviar exame" />
+/* ---------- Uma cadeira, com separadores por tipo de avaliação ---------- */
+function CourseView({ rows, loading, code, onBack, busy, download, removeFile, user, errorBar }) {
+  const mine = useMemo(() => rows.filter((r) => String(r.course_code) === String(code)), [rows, code])
+  const name = mine[0]?.course_name || CATALOG.find((c) => c.code === code)?.name || code
 
-      <UploadModal
-        open={modal}
-        onClose={() => setModal(false)}
-        user={user}
-        displayName={displayName}
-        myCodes={myCodes}
-        onDone={load}
-      />
-    </div>
+  // Só se mostram os separadores que têm mesmo ficheiros
+  const tabs = useMemo(
+    () => KINDS.map((k) => ({ ...k, n: mine.filter((r) => r.kind === k.v).length })).filter((k) => k.n > 0),
+    [mine]
+  )
+  const [tab, setTab] = useState(null)
+  const active = tab && tabs.some((t) => t.v === tab) ? tab : tabs[0]?.v
+
+  const files = useMemo(() => mine
+    .filter((r) => r.kind === active)
+    .sort((a, b) => String(b.school_year || '').localeCompare(String(a.school_year || ''))
+      || String(a.title || '').localeCompare(String(b.title || ''))),
+  [mine, active])
+
+  // Agrupar por ano letivo dentro do separador
+  const byYear = useMemo(() => {
+    const m = new Map()
+    for (const f of files) {
+      const y = f.school_year || 'Sem ano'
+      if (!m.has(y)) m.set(y, [])
+      m.get(y).push(f)
+    }
+    return [...m.entries()]
+  }, [files])
+
+  if (loading) return <Spinner />
+
+  return (
+    <>
+      <button onClick={onBack}
+        className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 mb-3 -ml-1">
+        <Icon name="chevron" className="w-4 h-4 rotate-180" /> Todas as cadeiras
+      </button>
+
+      <PageHeader title={name} subtitle={`#${code} · ${mine.length} ficheiro${mine.length === 1 ? '' : 's'}`} />
+
+      {errorBar}
+
+      {tabs.length === 0 ? (
+        <EmptyState icon="archive" title="Ainda não há provas desta cadeira"
+          hint="Carrega no + para seres o primeiro a partilhar." />
+      ) : (
+        <>
+          <div className="grid gap-2 mb-4" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0,1fr))` }}>
+            {tabs.map((t) => (
+              <button key={t.v} type="button" onClick={() => setTab(t.v)}
+                className={`py-2 seg ${active === t.v ? 'seg-on' : 'seg-off'}`}>
+                {t.label} <span className="opacity-60">{t.n}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-4">
+            {byYear.map(([year, list]) => (
+              <div key={year}>
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5 px-0.5">{year}</p>
+                <div className="card divide-y divide-white/5">
+                  {list.map((f) => {
+                    const working = busy === f.storage_path
+                    return (
+                      <div key={f.id} className="flex items-center gap-3 px-4 py-2.5">
+                        <span className="flex-1 min-w-0">
+                          <span className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-sm font-medium text-slate-100">
+                              {f.school_year || 'Sem ano'}
+                            </span>
+                            {f.has_solutions && (
+                              <span className="chip bg-emerald-500/20 text-emerald-200">c/ resolução</span>
+                            )}
+                          </span>
+                          {f.title && <span className="block text-xs text-slate-500 mt-0.5 truncate">{f.title}</span>}
+                          <span className="block text-[11px] text-slate-600 mt-0.5">{prettySize(f.file_size)}</span>
+                        </span>
+                        <button onClick={() => download(f)} disabled={working} aria-label="Descarregar"
+                          className="p-2 rounded-lg text-nova-300 hover:bg-white/10 disabled:opacity-40 shrink-0">
+                          <Icon name="download" className="w-5 h-5" />
+                        </button>
+                        {f.uploaded_by === user?.id && (
+                          <button onClick={() => removeFile(f)} disabled={working} aria-label="Apagar"
+                            className="p-2 rounded-lg text-slate-500 hover:text-rose-300 hover:bg-white/10 disabled:opacity-40 shrink-0">
+                            <Icon name="trash" className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </>
   )
 }
 
 /* ---------- Modal de envio (aceita vários ficheiros de uma vez) ---------- */
-function UploadModal({ open, onClose, user, displayName, myCodes, onDone }) {
-  const [course, setCourse] = useState(null)
+function UploadModal({ open, onClose, user, displayName, currentCodes, lockedCode, onDone }) {
+  const preset = lockedCode ? CATALOG.find((c) => c.code === lockedCode) : null
+  const [course, setCourse] = useState(preset || null)
   const [q, setQ] = useState('')
   const [kind, setKind] = useState('exame')
   const [year, setYear] = useState(SCHOOL_YEARS[0])
@@ -269,25 +351,30 @@ function UploadModal({ open, onClose, user, displayName, myCodes, onDone }) {
   const [progress, setProgress] = useState('')
   const [err, setErr] = useState(null)
 
+  // Ao abrir dentro de uma cadeira, já vem escolhida
+  useEffect(() => {
+    if (open && lockedCode) setCourse(CATALOG.find((c) => c.code === lockedCode) || null)
+  }, [open, lockedCode])
+
   function reset() {
-    setCourse(null); setQ(''); setKind('exame'); setYear(SCHOOL_YEARS[0])
+    setCourse(lockedCode ? CATALOG.find((c) => c.code === lockedCode) || null : null)
+    setQ(''); setKind('exame'); setYear(SCHOOL_YEARS[0])
     setSolutions(false); setFiles([]); setErr(null); setProgress('')
   }
 
   function close() { if (!saving) { reset(); onClose() } }
 
-  // Cadeiras do aluno primeiro — é o que ele mais provavelmente vai enviar
   const list = useMemo(() => {
     const query = norm(q.trim())
     const hits = query
       ? CATALOG.filter((c) => norm(c.name).includes(query) || c.code.includes(query))
       : CATALOG
     return [...hits].sort((a, b) => {
-      const am = myCodes.has(a.code) ? 0 : 1
-      const bm = myCodes.has(b.code) ? 0 : 1
+      const am = currentCodes.has(a.code) ? 0 : 1
+      const bm = currentCodes.has(b.code) ? 0 : 1
       return am - bm || a.name.localeCompare(b.name)
     })
-  }, [q, myCodes])
+  }, [q, currentCodes])
 
   async function submit() {
     if (!course || !files.length) return
@@ -299,14 +386,12 @@ function UploadModal({ open, onClose, user, displayName, myCodes, onDone }) {
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
         setProgress(`A enviar ${i + 1} de ${files.length}...`)
-        // 1) pedir ao servidor um URL de escrita; ele é que decide o caminho
         const { url, path } = await signUrl({
           action: 'upload',
           courseCode: course.code,
           fileName: file.name,
           contentType: file.type || 'application/pdf',
         })
-        // 2) enviar o ficheiro direto para o R2 (não passa pelo nosso servidor)
         const put = await fetch(url, {
           method: 'PUT',
           headers: { 'Content-Type': file.type || 'application/pdf' },
@@ -319,7 +404,6 @@ function UploadModal({ open, onClose, user, displayName, myCodes, onDone }) {
           course_name: course.name,
           kind,
           school_year: year || null,
-          // Sem título próprio, guarda o nome original do ficheiro
           title: file.name.replace(/\.[^.]+$/, '').slice(0, 120),
           has_solutions: solutions,
           storage_path: path,
@@ -327,8 +411,6 @@ function UploadModal({ open, onClose, user, displayName, myCodes, onDone }) {
           uploaded_by: user.id,
           uploader_name: displayName || null,
         })
-        // Se a linha falhar, o ficheiro fica órfão no R2 — mas sem linha não há
-        // como o apagar via RLS, por isso avisa-se em vez de o esconder.
         if (ie) throw new Error(`${ie.message} (ficheiro "${file.name}" ficou por registar)`)
       }
       await onDone()
@@ -341,7 +423,7 @@ function UploadModal({ open, onClose, user, displayName, myCodes, onDone }) {
   }
 
   return (
-    <Modal open={open} onClose={close} title="Partilhar exames">
+    <Modal open={open} onClose={close} title="Partilhar provas">
       {!course ? (
         <>
           <p className="text-sm text-slate-400 mb-3">Primeiro, escolhe a cadeira.</p>
@@ -355,7 +437,7 @@ function UploadModal({ open, onClose, user, displayName, myCodes, onDone }) {
                 <span className="flex-1 min-w-0">
                   <span className="block text-sm font-medium text-slate-100 truncate">{c.name}</span>
                   <span className="block text-xs text-slate-500">
-                    #{c.code}{myCodes.has(c.code) ? ' · tua' : ''}
+                    #{c.code}{currentCodes.has(c.code) ? ' · este semestre' : ''}
                   </span>
                 </span>
                 <Icon name="chevron" className="w-4 h-4 text-slate-500 shrink-0" />
@@ -379,7 +461,7 @@ function UploadModal({ open, onClose, user, displayName, myCodes, onDone }) {
             <div className="grid grid-cols-2 gap-2">
               {KINDS.map((k) => (
                 <button key={k.v} type="button" onClick={() => setKind(k.v)} disabled={saving}
-                  className={`py-2 seg ${kind === k.v ? 'seg-on' : 'seg-off'}`}>{k.label}</button>
+                  className={`py-2 seg ${kind === k.v ? 'seg-on' : 'seg-off'}`}>{k.one}</button>
               ))}
             </div>
           </div>
