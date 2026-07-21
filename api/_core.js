@@ -174,16 +174,25 @@ function buildSystemPrompt(context = {}) {
 # Catálogo do curso (código nome (ECTS))
 ${curriculumSummary()}
 
-# Horários S1 26/27 (ficheiro oficial "T&TP schedules")
-Formato: "código Nome — TURNO: Dia hh:mm-hh:mm, ...". Cada turno (ex.: TXA, TPB) é uma alternativa; o aluno frequenta UM turno por cadeira.
+# Horários S1 26/27 (ficheiro oficial "Bachelor schedules Course Units", 21/07/2026)
+Cada cadeira aparece assim:
+\`\`\`
+1219 Finance [vários turnos]
+   Teóricas — TXA: Qua 14:00-15:30, Qui 17:00-18:30 | TXB: ...
+   Práticas — P210A: Qua 15:30-17:00 | P211A: Qui 15:30-17:00 | ...
+\`\`\`
+- **Teóricas (TX…)**: aulas expositivas. O aluno escolhe **UMA** (ex.: TXA *ou* TXB).
+- **Práticas (P…)**: aulas de exercícios. O aluno escolhe **UMA**, à parte da teórica.
+- **Teórico-práticas (TP…)**: juntam as duas coisas — nesse caso escolhe-se só **UMA** TP e não há prática separada.
+Ou seja, numa cadeira com teóricas e práticas o aluno tem **duas** marcações por semana (uma T + uma P); numa cadeira só com TP tem apenas essa.
+Ao montar um horário, escolhe explicitamente a teórica **e** a prática de cada cadeira, e verifica os choques com ambas — é fácil esquecer a prática e propor um horário impossível.
 ${renderSchedules()}
 
 ## Regras para detetar sobreposições (MUITO IMPORTANTE)
 - Duas aulas só colidem se forem no **mesmo dia**, com **horas que se cruzam**, **E** no mesmo período do semestre.
 - **T1 e T2 são as duas metades do semestre**: uma aula marcada (T1) NÃO colide com uma (T2), mesmo à mesma hora/dia. Cadeiras "S1" correm o semestre inteiro e podem colidir com T1 e com T2.
-- Cadeiras com **[vários turnos]** são flexíveis: se houver choque, sugere trocar de turno em vez de descartar a cadeira. Diz qual o turno que evita o conflito.
-- Estes são os blocos **T&TP** do ficheiro oficial. Algumas cadeiras podem ter aulas teóricas plenárias adicionais não listadas — se um horário parecer demasiado curto para os ECTS, assinala a incerteza em vez de afirmares "sem conflito" com certeza absoluta.
-- Ao recomendar cadeiras para o semestre, verifica par a par as sobreposições e apresenta uma combinação viável (com os turnos escolhidos) e os ECTS totais. Lembra-te das regras do curso (Management: mín. ~20,5 ECTS eletivas de gestão; total 30 ECTS/semestre).
+- Cadeiras com **[vários turnos]** são flexíveis: se houver choque, sugere trocar de turno em vez de descartar a cadeira. Diz qual o turno que evita o conflito. Muitas vezes basta mudar só a **prática**, que costuma ter mais alternativas do que a teórica.
+- Ao recomendar cadeiras para o semestre, verifica par a par as sobreposições — **incluindo as práticas** — e apresenta uma combinação viável, dizendo que teórica **e** que prática escolheste em cada cadeira, com os ECTS totais. Lembra-te das regras do curso (Management: mín. ~20,5 ECTS eletivas de gestão; total 30 ECTS/semestre).
 
 ## Como montar um horário (fluxo obrigatório)
 Quando o aluno pedir para montares/organizares o horário (ou escolher turnos), **primeiro faz algumas perguntas de preferências** antes de propor seja o que for. Pergunta de forma breve (lista curta, tudo de uma vez):
