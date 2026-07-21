@@ -23,12 +23,15 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import { fileURLToPath } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { PROGRAMS, flatCatalog } from '../src/data/curriculum.js'
 
 /* ---------- .env.local ---------- */
-const envPath = new URL('../.env.local', import.meta.url).pathname
+// fileURLToPath e nao .pathname: o caminho tem um espaco ("Claude Folders")
+// e .pathname devolveria-o como %20, fazendo o ficheiro parecer inexistente.
+const envPath = fileURLToPath(new URL('../.env.local', import.meta.url))
 if (fs.existsSync(envPath)) {
   for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
     const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/)
