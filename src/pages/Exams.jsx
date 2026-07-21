@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useCourses } from '../context/CoursesContext.jsx'
+import { useCollection } from '../lib/useCollection.js'
 import { PageHeader, Fab, Modal, Icon, EmptyState, Spinner } from '../components/ui.jsx'
 import { PROGRAMS, flatCatalog } from '../data/curriculum.js'
 
@@ -54,6 +55,32 @@ const SCHOOL_YEARS = (() => {
   })
 })()
 
+// "Microeconomics — TXB (T1)" -> "Microeconomics". Tira o turno (depois do
+// travessão) e marcas como "(T1)", ficando só o nome da cadeira.
+function baseTitle(t) {
+  return String(t || '')
+    .split(/\s+[—–]\s+|\s+-\s+/)[0]
+    .replace(/\([^)]*\)/g, '')
+    .trim()
+}
+
+/**
+ * Descobre a cadeira do catálogo a partir do título de um bloco do horário.
+ * O nome exato ganha SEMPRE: senão "Microeconomics" seria apanhado por
+ * "Principles of Microeconomics" ou "Advanced Microeconomics".
+ */
+function courseFromTitle(title) {
+  const n = norm(baseTitle(title))
+  if (!n) return null
+  const exact = CATALOG.find((c) => norm(c.name) === n)
+  if (exact) return exact
+  // Sem correspondência exata, fica a mais próxima em comprimento
+  const near = CATALOG
+    .filter((c) => norm(c.name).startsWith(n) || n.startsWith(norm(c.name)))
+    .sort((a, b) => Math.abs(a.name.length - n.length) - Math.abs(b.name.length - n.length))
+  return near[0] || null
+}
+
 function prettySize(bytes) {
   if (!bytes && bytes !== 0) return ''
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
@@ -66,8 +93,9 @@ function prettySize(bytes) {
 export default function Exams() {
   const { code } = useParams()
   const navigate = useNavigate()
-  const { user, displayName, academicYear, semester } = useAuth()
+  const { user, displayName } = useAuth()
   const myCourses = useCourses().rows
+  const schedule = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -92,17 +120,22 @@ export default function Exams() {
 
   useEffect(() => { load() }, [load])
 
-  // Cadeiras que o aluno está a fazer AGORA (ano + semestre do perfil).
-  // Não as que já fez — essas já não interessam para estudar.
+  // Cadeiras deste semestre = as que estão no HORÁRIO. É o sinal mais fiável:
+  // o horário só tem as aulas que o aluno anda mesmo a ter agora.
+  // Vai pelo título do bloco, porque o course_id costuma vir vazio (ou errado).
   const currentCodes = useMemo(() => {
-    const y = Number(academicYear)
-    const t = Number(semester)
-    return new Set(
-      myCourses
-        .filter((c) => !c.is_equivalence && Number(c.year) === y && Number(c.term) === t)
-        .map((c) => c.code).filter(Boolean).map(String)
-    )
-  }, [myCourses, academicYear, semester])
+    const codes = new Set()
+    for (const b of schedule.rows) {
+      const hit = courseFromTitle(b.title)
+      if (hit) { codes.add(hit.code); continue }
+      // Só se o título não disser nada é que se recorre à ligação guardada
+      if (b.course_id) {
+        const c = myCourses.find((x) => x.id === b.course_id)
+        if (c?.code) codes.add(String(c.code))
+      }
+    }
+    return codes
+  }, [schedule.rows, myCourses])
 
   async function download(row) {
     setBusy(row.storage_path)
@@ -209,7 +242,7 @@ function CourseList({ rows, loading, currentCodes, onOpen, errorBar }) {
         <EmptyState icon="archive"
           title={onlyMine && currentCodes.size === 0 ? 'Sem cadeiras este semestre' : total === 0 ? 'A biblioteca está vazia' : 'Sem resultados'}
           hint={onlyMine && currentCodes.size === 0
-            ? 'Adiciona as cadeiras deste semestre em Notas para as veres aqui.'
+            ? 'Preenche o teu Horário — as cadeiras que lá tiveres aparecem aqui.'
             : onlyMine ? 'Ainda não há provas das cadeiras que estás a fazer.'
               : total === 0 ? 'Carrega no + para enviares exames ou testes antigos.'
                 : 'Tenta outra pesquisa.'} />
