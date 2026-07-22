@@ -5,6 +5,7 @@ import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components
 import CourseSelect from '../components/CourseSelect.jsx'
 import { DAYS, SCHEDULE_KINDS, hhmm, todayDow } from '../lib/helpers.js'
 import CalendarBanner from '../components/CalendarBanner.jsx'
+import WeekGrid from '../components/WeekGrid.jsx'
 
 const empty = {
   title: '', course_id: null, day_of_week: todayDow(),
@@ -21,9 +22,8 @@ export default function Schedule() {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(empty)
   const [editId, setEditId] = useState(null)
-  const [filterDay, setFilterDay] = useState(todayDow())
 
-  function openNew() { setForm({ ...empty, day_of_week: filterDay }); setEditId(null); setOpen(true) }
+  function openNew() { setForm({ ...empty, day_of_week: todayDow() }); setEditId(null); setOpen(true) }
   function openEdit(b) {
     setForm({
       title: b.title, course_id: b.course_id, day_of_week: b.day_of_week,
@@ -40,58 +40,28 @@ export default function Schedule() {
     setOpen(false)
   }
 
-  const dayBlocks = rows.filter((b) => b.day_of_week === filterDay)
+  const hoursPerWeek = rows.reduce((a, b) => {
+    const [sh, sm] = hhmm(b.start_time).split(':').map(Number)
+    const [eh, em] = hhmm(b.end_time).split(':').map(Number)
+    return a + (eh * 60 + em - sh * 60 - sm) / 60
+  }, 0)
 
   return (
-    <div>
-      <PageHeader title="Horario" subtitle="A tua semana, aula a aula" />
+    <div className="pb-24">
+      <PageHeader
+        title="Horário"
+        subtitle={rows.length
+          ? `${rows.length} aulas · ${hoursPerWeek.toFixed(hoursPerWeek % 1 ? 1 : 0)}h por semana`
+          : 'A tua semana, aula a aula'} />
 
       <CalendarBanner className="mb-4" />
 
-      {/* Seletor de dia */}
-      <div className="flex gap-1.5 mb-4 overflow-x-auto -mx-1 px-1 pb-1">
-        {DAYS.map((d) => {
-          const count = rows.filter((b) => b.day_of_week === d.n).length
-          const active = d.n === filterDay
-          return (
-            <button key={d.n} onClick={() => setFilterDay(d.n)}
-              className={`flex-shrink-0 px-3.5 py-2 seg ${active ? 'seg-on' : 'seg-off'}`}>
-              {d.short}
-              {count > 0 && <span className={`ml-1.5 text-xs ${active ? 'text-nova-100' : 'text-slate-500'}`}>{count}</span>}
-            </button>
-          )
-        })}
-      </div>
-
       {loading ? (
         <Spinner />
-      ) : dayBlocks.length === 0 ? (
-        <EmptyState icon="calendar" title="Sem aulas neste dia" hint="Toca no + para adicionar um bloco." />
+      ) : rows.length === 0 ? (
+        <EmptyState icon="calendar" title="Ainda não tens horário" hint="Toca no + para adicionares a primeira aula." />
       ) : (
-        <div className="space-y-2.5">
-          {dayBlocks.map((b) => {
-            const c = courseById[b.course_id]
-            return (
-              <div key={b.id} className="card p-3.5 flex items-center gap-3">
-                <div className="text-center min-w-[52px]">
-                  <p className="text-sm font-bold text-nova-300">{hhmm(b.start_time)}</p>
-                  <p className="text-[11px] text-slate-500">{hhmm(b.end_time)}</p>
-                </div>
-                <div className="w-1 self-stretch rounded-full" style={{ background: c?.color || '#3d78bf', boxShadow: `0 0 10px ${c?.color || '#3d78bf'}55` }} />
-                <div className="flex-1 min-w-0" onClick={() => openEdit(b)}>
-                  <p className="font-semibold text-slate-100 truncate">{b.title}</p>
-                  <p className="text-xs text-slate-400 flex items-center gap-1.5 flex-wrap mt-0.5">
-                    <span className="capitalize">{b.kind}</span>
-                    {b.location && <><Icon name="pin" className="w-3 h-3" />{b.location}</>}
-                  </p>
-                </div>
-                <button onClick={() => remove(b.id)} className="p-2 text-slate-500 hover:text-rose-400">
-                  <Icon name="trash" className="w-4.5 h-4.5" />
-                </button>
-              </div>
-            )
-          })}
-        </div>
+        <WeekGrid blocks={rows} courseById={courseById} onPick={openEdit} />
       )}
 
       <Fab onClick={openNew} />
@@ -142,6 +112,17 @@ export default function Schedule() {
             </div>
           </div>
           <button className="btn-primary w-full mt-2">{editId ? 'Guardar' : 'Adicionar'}</button>
+          {/* Na grelha não cabe um botão por bloco — apaga-se aqui. */}
+          {editId && (
+            <button type="button"
+              onClick={async () => {
+                if (!window.confirm('Apagar esta aula do horário?')) return
+                await remove(editId); setOpen(false)
+              }}
+              className="w-full py-2.5 rounded-xl text-sm font-medium text-rose-300 hover:bg-rose-500/10 flex items-center justify-center gap-2">
+              <Icon name="trash" className="w-4 h-4" /> Apagar
+            </button>
+          )}
         </form>
       </Modal>
     </div>
