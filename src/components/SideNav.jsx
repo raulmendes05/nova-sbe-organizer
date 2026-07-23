@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { Icon } from './ui.jsx'
 import { NAV_TABS } from './navTabs.js'
+import NovaLogo from './NovaLogo.jsx'
 
 // Barra lateral — só no computador (hidden até md)
 export default function SideNav() {
@@ -39,6 +40,11 @@ export default function SideNav() {
           </NavLink>
         ))}
       </nav>
+
+      {/* Marca oficial Nova SBE — no fundo, por baixo do separador do Cláudio */}
+      <div className="mt-auto pt-5 border-t border-white/10">
+        <NovaLogo />
+      </div>
     </aside>
   )
 }
