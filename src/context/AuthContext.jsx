@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase, isConfigured } from '../lib/supabase.js'
+import { termKey } from '../lib/helpers.js'
 
 const AuthContext = createContext({ user: null, loading: true })
 
@@ -34,8 +35,26 @@ export function AuthProvider({ children }) {
   const semester = meta.semester || ''      // '1' | '2'
   const program = meta.program || 'management'
 
+  // Objetivo de média — guardado POR semestre (chave ano+termo), para que ao
+  // avançar de semestre o objetivo antigo não se aplique ao novo.
+  const currentTermKey = termKey(Number(academicYear) || null, Number(semester) || null)
+  const goals = meta.goals || {}
+  const goalAvg = goals[currentTermKey] != null ? Number(goals[currentTermKey]) : null
+
+  async function updateGoal(value) {
+    const v = value === '' || value == null ? null : Number(value)
+    const next = { ...(meta.goals || {}) }
+    if (v == null || isNaN(v)) delete next[currentTermKey]
+    else next[currentTermKey] = v
+    const { error } = await supabase.auth.updateUser({ data: { goals: next } })
+    if (error) throw error
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, signOut, displayName, academicYear, semester, program }}>
+    <AuthContext.Provider value={{
+      user, loading, signOut, displayName, academicYear, semester, program,
+      goalAvg, currentTermKey, updateGoal,
+    }}>
       {children}
     </AuthContext.Provider>
   )

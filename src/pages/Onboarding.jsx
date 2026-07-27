@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { firstYearCourses } from '../data/curriculum.js'
-import { COURSE_COLORS } from '../lib/helpers.js'
+import { COURSE_COLORS, termKey } from '../lib/helpers.js'
 
 const YEARS = [
   { v: '1', label: '1º ano' },
@@ -24,6 +24,7 @@ export default function Onboarding() {
   const [name, setName] = useState(displayName || '')
   const [year, setYear] = useState('')
   const [semester, setSemester] = useState('')
+  const [goal, setGoal] = useState('')
   const [addFirstYear, setAddFirstYear] = useState(true)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState(null)
@@ -61,9 +62,12 @@ export default function Onboarding() {
       }
 
       // Guardar preferencias (dispara USER_UPDATED -> app abre)
-      const { error } = await supabase.auth.updateUser({
-        data: { display_name: name.trim(), year, semester, program },
-      })
+      const data = { display_name: name.trim(), year, semester, program }
+      if (goal.trim() !== '' && !isNaN(Number(goal))) {
+        const v = Math.max(0, Math.min(20, Number(goal)))
+        data.goals = { [termKey(Number(year), Number(semester))]: v }
+      }
+      const { error } = await supabase.auth.updateUser({ data })
       if (error) throw error
     } catch (e2) {
       setErr('Algo correu mal. Tenta outra vez.')
@@ -112,6 +116,18 @@ export default function Onboarding() {
                     semester === s.v ? 'bg-white text-nova-800 border-transparent' : 'bg-white/10 border-white/20 text-white'
                   }`}>{s.label}</button>
               ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm text-nova-100">Qual é o teu objetivo de média para este semestre?</label>
+            <div className="flex items-center gap-2 mt-1.5">
+              <input type="number" step="0.5" min="0" max="20" inputMode="decimal" value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                className="w-24 rounded-xl bg-white/10 border border-white/20 px-3.5 py-3 text-lg font-semibold outline-none focus:border-white/60 placeholder-nova-200"
+                placeholder="ex. 15" />
+              <span className="text-nova-200">/ 20</span>
+              <span className="text-xs text-nova-300 ml-1">opcional</span>
             </div>
           </div>
 

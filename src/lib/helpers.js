@@ -155,3 +155,37 @@ export function gradedWeight(components) {
     .filter((c) => c.grade !== null && c.grade !== undefined && c.grade !== '')
     .reduce((s, c) => s + Number(c.weight || 0), 0)
 }
+
+// Média ponderada por ECTS de um conjunto de itens { ects, avg }.
+// Ignora itens sem nota (avg null). Devolve null se não houver notas.
+export function weightedAvg(items) {
+  const withAvg = (items || []).filter((x) => x.avg !== null && x.avg !== undefined)
+  const ects = withAvg.reduce((s, x) => s + Number(x.ects || 0), 0)
+  if (ects <= 0) return null
+  return withAvg.reduce((s, x) => s + x.avg * Number(x.ects || 0), 0) / ects
+}
+
+// Estado do objetivo de média: compara a média atual com a meta e devolve
+// como mostrar (cor, barra, texto). tone: emerald=atingido, amber=perto,
+// sky=ainda longe, slate=sem notas.
+export function goalStatus(current, goal) {
+  const g = Number(goal)
+  if (!g || isNaN(g)) return null
+  if (current === null || current === undefined) {
+    return { pct: 0, tone: 'slate', reached: false, distance: null,
+      label: 'Ainda sem notas lançadas este semestre' }
+  }
+  const diff = current - g
+  if (diff >= -0.05) {
+    return { pct: 1, tone: 'emerald', reached: true, distance: diff,
+      label: diff > 0.05 ? `Objetivo atingido · +${diff.toFixed(1)}` : 'Objetivo atingido' }
+  }
+  const gap = -diff
+  return {
+    pct: Math.max(0, Math.min(1, current / g)),
+    tone: gap <= 1 ? 'amber' : 'sky',
+    reached: false,
+    distance: gap,
+    label: `A ${gap.toFixed(1)} valores do objetivo`,
+  }
+}

@@ -4,7 +4,8 @@ import { useCourses } from '../context/CoursesContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components/ui.jsx'
 import CoursePicker from '../components/CoursePicker.jsx'
-import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade } from '../lib/helpers.js'
+import GoalCard from '../components/GoalCard.jsx'
+import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg } from '../lib/helpers.js'
 
 const YEAR_OPTS = [1, 2, 3]
 const TERM_OPTS = [1, 2]
@@ -19,7 +20,7 @@ function gradeColor(avg) {
 export default function Grades() {
   const { rows: courses, add: addCourse, update: updateCourse, remove: removeCourse, loading: coursesLoading } = useCourses()
   const { rows: grades, loading: gradesLoading, add: addGrade, update: updateGrade, remove: removeGrade } = useCollection('grades', { orderBy: 'created_at', ascending: true })
-  const { academicYear, semester } = useAuth()
+  const { academicYear, semester, goalAvg, currentTermKey, updateGoal } = useAuth()
   const defYear = Number(academicYear) || null
   const defTerm = Number(semester) || null
 
@@ -81,6 +82,10 @@ export default function Grades() {
       return acc
     }, {})
   ).sort((a, b) => a.key - b.key)
+
+  // Média do semestre atual (o do perfil) — é o que o objetivo mede
+  const currentItems = regular.filter((x) => termKey(x.c.year, x.c.term) === currentTermKey)
+  const currentAvg = weightedAvg(currentItems.map((x) => ({ ects: x.c.ects, avg: x.avg })))
 
   // ----- cadeira -----
   function openNewCourse(isEquiv = false) {
@@ -268,6 +273,12 @@ export default function Grades() {
             {withAvg.length} de {courses.length} cadeiras com notas · {totalEcts} ECTS
           </p>
         </div>
+      </div>
+
+      {/* Objetivo de média do semestre atual */}
+      <div className="mb-4">
+        <GoalCard current={currentAvg} goal={goalAvg} onSave={updateGoal}
+          subtitle={termLabel(defYear, defTerm)} />
       </div>
 
       {/* Separadores */}

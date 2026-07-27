@@ -4,8 +4,10 @@ import { useCourses } from '../context/CoursesContext.jsx'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon, Spinner } from '../components/ui.jsx'
 import CalendarBanner from '../components/CalendarBanner.jsx'
+import GoalCard from '../components/GoalCard.jsx'
 import {
   DAYS, todayDow, hhmm, dueLabel, formatDate, resolveGrade, isCourseDone,
+  termKey, weightedAvg,
 } from '../lib/helpers.js'
 import { upcomingExams } from '../data/exams.js'
 
@@ -17,7 +19,7 @@ const toneClasses = {
 }
 
 export default function Home() {
-  const { displayName, signOut } = useAuth()
+  const { displayName, signOut, goalAvg, currentTermKey, updateGoal } = useAuth()
   const { rows: courses } = useCourses()
   const schedule = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
   const assignments = useCollection('assignments', { orderBy: 'due_date', ascending: true })
@@ -41,6 +43,13 @@ export default function Home() {
   const globalAvg = totalEcts > 0
     ? perCourse.reduce((s, x) => s + x.avg * Number(x.course.ects || 0), 0) / totalEcts
     : null
+
+  // Média do semestre atual — para o cartão de objetivo
+  const currentAvg = weightedAvg(
+    courses
+      .filter((c) => !c.is_equivalence && termKey(c.year, c.term) === currentTermKey)
+      .map((c) => ({ ects: c.ects, avg: resolveGrade(c, grades.rows.filter((g) => g.course_id === c.id)) }))
+  )
 
   const hi = displayName || 'Olá'
   const openCount = assignments.rows.filter((a) => a.status !== 'done').length
@@ -82,6 +91,9 @@ export default function Home() {
               </p>
             </div>
           </Link>
+
+          {/* Objetivo do semestre — sempre à vista */}
+          <GoalCard current={currentAvg} goal={goalAvg} onSave={updateGoal} />
 
           {/* Stats rapidas */}
           <div className="grid grid-cols-2 gap-3">

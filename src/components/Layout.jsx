@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import BottomNav from './BottomNav.jsx'
 import SideNav from './SideNav.jsx'
+import GoalPrompt from './GoalPrompt.jsx'
 import { CoursesProvider } from '../context/CoursesContext.jsx'
 
 export default function Layout() {
@@ -20,6 +21,7 @@ export default function Layout() {
         {/* Barra inferior (só telemóvel) */}
         <BottomNav />
       </div>
+      <GoalPrompt />
     </CoursesProvider>
   )
 }
