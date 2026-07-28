@@ -1,3 +1,5 @@
+import { dayStatus } from '../data/calendar.js'
+
 export const DAYS = [
   { n: 1, short: 'Seg', long: 'Segunda' },
   { n: 2, short: 'Ter', long: 'Terça' },
@@ -164,23 +166,34 @@ const toMinutes = (t) => {
 const fmtMinutes = (min) =>
   `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 
-// Aulas que vêm a seguir, por ordem, olhando para os próximos 7 dias.
-// blocks: linhas de schedule_blocks. Devolve até `limit` entradas com o dia,
-// o desfasamento em dias (0=hoje) e se a aula está a decorrer agora.
-export function upcomingClasses(blocks, now = new Date(), limit = 3) {
-  const dow = now.getDay() === 0 ? 7 : now.getDay()
+const MONTHS_ABBR = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+const isoOf = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+// Aulas que vêm a seguir, por ordem. Respeita o CALENDÁRIO ACADÉMICO: só conta
+// dias em que há mesmo aulas (ignora pausas, feriados e o verão) e, nos dias de
+// compensação, usa o dia da semana que efetivamente corre nesse dia.
+// horizonDays: até quão longe procurar (por defeito ~5 meses, para apanhar o
+// início do semestre depois de uma pausa longa).
+export function upcomingClasses(blocks, now = new Date(), limit = 3, horizonDays = 160) {
   const nowMin = now.getHours() * 60 + now.getMinutes()
   const norm = (blocks || []).map((b) => ({
     block: b, day: b.day_of_week, sMin: toMinutes(b.start_time), eMin: toMinutes(b.end_time),
   }))
   const out = []
-  for (let offset = 0; offset <= 7 && out.length < limit; offset++) {
-    const day = ((dow - 1 + offset) % 7) + 1
-    const today = norm.filter((x) => x.day === day).sort((a, b) => a.sMin - b.sMin)
+  const base = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  for (let offset = 0; offset <= horizonDays && out.length < limit; offset++) {
+    const d = new Date(base)
+    d.setDate(base.getDate() + offset)
+    const st = dayStatus(isoOf(d))
+    if (st.type !== 'classes' && st.type !== 'makeup') continue // dia sem aulas
+    // Num dia de compensação corre o horário de OUTRO dia da semana.
+    const weekday = st.type === 'makeup' ? st.sourceWeekday : (d.getDay() === 0 ? 7 : d.getDay())
+    const today = norm.filter((x) => x.day === weekday).sort((a, b) => a.sMin - b.sMin)
     for (const x of today) {
       if (offset === 0 && x.eMin <= nowMin) continue // já terminou hoje
       out.push({
-        ...x, offset,
+        ...x, offset, date: d,
         inProgress: offset === 0 && x.sMin <= nowMin && nowMin < x.eMin,
         minsUntil: offset === 0 ? x.sMin - nowMin : null,
       })
@@ -200,7 +213,10 @@ export function whenLabel(entry, dayLong) {
     return `Hoje às ${fmtMinutes(entry.sMin)}`
   }
   if (entry.offset === 1) return `Amanhã às ${fmtMinutes(entry.sMin)}`
-  return `${dayLong} às ${fmtMinutes(entry.sMin)}`
+  if (entry.offset <= 6) return `${dayLong} às ${fmtMinutes(entry.sMin)}`
+  // mais de uma semana → mostra a data, senão "Segunda" seria ambíguo
+  const dt = entry.date
+  return `${dt.getDate()} ${MONTHS_ABBR[dt.getMonth()]} às ${fmtMinutes(entry.sMin)}`
 }
 
 export const classTimeRange = (entry) => `${fmtMinutes(entry.sMin)}–${fmtMinutes(entry.eMin)}`
