@@ -156,6 +156,55 @@ export function gradedWeight(components) {
     .reduce((s, c) => s + Number(c.weight || 0), 0)
 }
 
+// "14:30:00" | "14:30" -> minutos desde a meia-noite
+const toMinutes = (t) => {
+  const [h, m] = String(t || '').split(':').map(Number)
+  return (h || 0) * 60 + (m || 0)
+}
+const fmtMinutes = (min) =>
+  `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
+
+// Aulas que vêm a seguir, por ordem, olhando para os próximos 7 dias.
+// blocks: linhas de schedule_blocks. Devolve até `limit` entradas com o dia,
+// o desfasamento em dias (0=hoje) e se a aula está a decorrer agora.
+export function upcomingClasses(blocks, now = new Date(), limit = 3) {
+  const dow = now.getDay() === 0 ? 7 : now.getDay()
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const norm = (blocks || []).map((b) => ({
+    block: b, day: b.day_of_week, sMin: toMinutes(b.start_time), eMin: toMinutes(b.end_time),
+  }))
+  const out = []
+  for (let offset = 0; offset <= 7 && out.length < limit; offset++) {
+    const day = ((dow - 1 + offset) % 7) + 1
+    const today = norm.filter((x) => x.day === day).sort((a, b) => a.sMin - b.sMin)
+    for (const x of today) {
+      if (offset === 0 && x.eMin <= nowMin) continue // já terminou hoje
+      out.push({
+        ...x, offset,
+        inProgress: offset === 0 && x.sMin <= nowMin && nowMin < x.eMin,
+        minsUntil: offset === 0 ? x.sMin - nowMin : null,
+      })
+      if (out.length >= limit) break
+    }
+  }
+  return out
+}
+
+// Etiqueta de quando é a aula (relativa a agora).
+export function whenLabel(entry, dayLong) {
+  if (!entry) return ''
+  if (entry.inProgress) return `A decorrer · até ${fmtMinutes(entry.eMin)}`
+  if (entry.offset === 0) {
+    const d = entry.minsUntil
+    if (d < 60) return `Começa em ${d} min`
+    return `Hoje às ${fmtMinutes(entry.sMin)}`
+  }
+  if (entry.offset === 1) return `Amanhã às ${fmtMinutes(entry.sMin)}`
+  return `${dayLong} às ${fmtMinutes(entry.sMin)}`
+}
+
+export const classTimeRange = (entry) => `${fmtMinutes(entry.sMin)}–${fmtMinutes(entry.eMin)}`
+
 // Média ponderada por ECTS de um conjunto de itens { ects, avg }.
 // Ignora itens sem nota (avg null). Devolve null se não houver notas.
 export function weightedAvg(items) {

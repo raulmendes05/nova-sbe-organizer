@@ -12,6 +12,7 @@ import Assignments from './pages/Assignments.jsx'
 import Grades from './pages/Grades.jsx'
 import Notes from './pages/Notes.jsx'
 import Exams from './pages/Exams.jsx'
+import ProximaAula from './pages/ProximaAula.jsx'
 import Claudio from './pages/Claudio.jsx'
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<Home />} />
         <Route path="/horario" element={<Schedule />} />
+        <Route path="/proxima" element={<ProximaAula />} />
         <Route path="/prazos" element={<Assignments />} />
         <Route path="/notas" element={<Grades />} />
         <Route path="/tarefas" element={<Notes />} />

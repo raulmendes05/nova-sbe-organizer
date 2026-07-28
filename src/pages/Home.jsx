@@ -7,7 +7,7 @@ import CalendarBanner from '../components/CalendarBanner.jsx'
 import GoalCard from '../components/GoalCard.jsx'
 import {
   DAYS, todayDow, hhmm, dueLabel, formatDate, resolveGrade, isCourseDone,
-  termKey, weightedAvg,
+  termKey, weightedAvg, upcomingClasses, whenLabel, classTimeRange,
 } from '../lib/helpers.js'
 import { upcomingExams } from '../data/exams.js'
 
@@ -30,6 +30,7 @@ export default function Home() {
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
   const todayClasses = schedule.rows.filter((b) => b.day_of_week === dow)
+  const nextClass = upcomingClasses(schedule.rows, new Date(), 1)[0]
   const upcoming = assignments.rows
     .filter((a) => a.status !== 'done')
     .filter((a) => a.due_date)
@@ -75,6 +76,30 @@ export default function Home() {
       ) : (
         <div className="space-y-6">
           <CalendarBanner />
+
+          {/* Proxima aula — atalho glanceable */}
+          {nextClass && (() => {
+            const cc = courseById[nextClass.block.course_id]
+            const accent = cc?.color || '#3d78bf'
+            return (
+              <Link to="/proxima" className="card p-4 flex items-center gap-3.5 active:scale-[0.99] transition">
+                <div className="text-center min-w-[64px] rounded-2xl py-2 px-1"
+                  style={{ background: `${accent}22`, border: `1px solid ${accent}44` }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 leading-none">Sala</p>
+                  <p className="text-xl font-bold text-white leading-tight mt-1 truncate">{nextClass.block.location || '—'}</p>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-nova-300">Próxima aula</p>
+                  <p className="font-semibold text-slate-100 truncate">{nextClass.block.title}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {whenLabel(nextClass, DAYS.find((d) => d.n === nextClass.day)?.long)} · {classTimeRange(nextClass)}
+                  </p>
+                </div>
+                <span className="text-slate-500 text-lg">›</span>
+              </Link>
+            )
+          })()}
+
           {/* Cartao media — destaque */}
           <Link to="/notas" className="block relative overflow-hidden rounded-3xl p-5 shadow-glow active:scale-[0.99] transition"
             style={{ backgroundImage: 'linear-gradient(135deg, #1f5aa3 0%, #0f3663 55%, #0a2540 100%)' }}>
