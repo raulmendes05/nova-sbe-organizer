@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useCollection } from '../lib/useCollection.js'
 import { useCourses } from '../context/CoursesContext.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components/ui.jsx'
 import CourseSelect from '../components/CourseSelect.jsx'
 import { DAYS, SCHEDULE_KINDS, hhmm, todayDow } from '../lib/helpers.js'
 import CalendarBanner from '../components/CalendarBanner.jsx'
 import WeekGrid from '../components/WeekGrid.jsx'
+import { buildICS } from '../lib/ics.js'
 
 const empty = {
   title: '', course_id: null, day_of_week: todayDow(),
@@ -17,11 +19,32 @@ export default function Schedule() {
     orderBy: 'start_time', ascending: true,
   })
   const { rows: courses } = useCourses()
+  const { semester } = useAuth()
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(empty)
   const [editId, setEditId] = useState(null)
+  const [exported, setExported] = useState(null)
+
+  function exportCalendar() {
+    const { text, count } = buildICS(rows, {
+      semester: Number(semester) || 1,
+      name: 'Horário Nova SBE',
+    })
+    if (!count) { setExported('Nada para exportar'); return }
+    const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'horario-nova-sbe.ics'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 2000)
+    setExported(`${count} aulas exportadas`)
+    setTimeout(() => setExported(null), 4000)
+  }
 
   function openNew() { setForm({ ...empty, day_of_week: todayDow() }); setEditId(null); setOpen(true) }
   function openEdit(b) {
@@ -52,7 +75,20 @@ export default function Schedule() {
         title="Horário"
         subtitle={rows.length
           ? `${rows.length} aulas · ${hoursPerWeek.toFixed(hoursPerWeek % 1 ? 1 : 0)}h por semana`
-          : 'A tua semana, aula a aula'} />
+          : 'A tua semana, aula a aula'}
+        right={rows.length > 0 && (
+          <button onClick={exportCalendar}
+            className="flex items-center gap-1.5 rounded-xl bg-white/[0.06] border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition">
+            <Icon name="download" className="w-4 h-4" /> Exportar
+          </button>
+        )} />
+
+      {exported && (
+        <div className="card p-2.5 mb-3 text-sm text-emerald-200 bg-emerald-500/10 border-emerald-500/20 flex items-center gap-2">
+          <Icon name="check" className="w-4 h-4 shrink-0" />
+          <span>{exported} — abre o ficheiro <b>.ics</b> para o adicionares ao Google Calendar ou ao Calendário.</span>
+        </div>
+      )}
 
       <CalendarBanner className="mb-4" />
 
