@@ -79,7 +79,7 @@ export default function Schedule() {
         right={rows.length > 0 && (
           <button onClick={exportCalendar}
             className="flex items-center gap-1.5 rounded-xl bg-white/[0.06] border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition">
-            <Icon name="download" className="w-4 h-4" /> Exportar
+            <Icon name="calendar" className="w-4 h-4" /> Adicionar ao Calendário
           </button>
         )} />
 
