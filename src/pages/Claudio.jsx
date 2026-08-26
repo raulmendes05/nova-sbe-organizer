@@ -182,6 +182,15 @@ export default function Claudio() {
         const txt = assistantContent.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim()
         if (txt) setChat((c) => [...c, { role: 'assistant', text: txt }])
 
+        // A resposta ficou sem espaço a meio — avisa em vez de a dar por completa.
+        if (data.stop_reason === 'max_tokens') {
+          setChat((c) => [...c, {
+            role: 'error',
+            text: 'A resposta ficou a meio (era demasiado longa). Pede-me para continuar, ou divide o pedido em partes.',
+          }])
+          break
+        }
+
         const toolUses = assistantContent.filter((b) => b.type === 'tool_use')
         if (data.stop_reason === 'tool_use' && toolUses.length) {
           const READONLY = new Set(['simular_nota'])

@@ -1,6 +1,6 @@
 // ============================================================
 //  Cláudio — núcleo do assistente (partilhado dev + produção)
-//  Modelo: claude-opus-4-8 via SDK oficial @anthropic-ai/sdk.
+//  Modelo: Gemini via SDK oficial @google/genai.
 // ============================================================
 import { GoogleGenAI } from '@google/genai'
 import { PROGRAMS } from '../src/data/curriculum.js'
@@ -8,7 +8,25 @@ import { renderSchedules } from '../src/data/schedules.js'
 import { renderExams } from '../src/data/exams.js'
 import { renderCalendar } from '../src/data/calendar.js'
 
-const MODEL = 'gemini-flash-latest'
+// Id fixo, de propósito: o alias "gemini-flash-latest" muda debaixo dos pés e
+// foi apanhado a devolver 503 ("high demand") durante minutos seguidos.
+const MODEL = 'gemini-3.5-flash'
+// Se o principal estiver saturado, tenta estes pela ordem indicada.
+const FALLBACK_MODELS = ['gemini-3.6-flash', 'gemini-flash-latest']
+
+// Estes modelos "pensam" antes de responder e os tokens de raciocínio saem
+// deste mesmo orçamento. Com 4096 o raciocínio comia ~3900 e a resposta saía
+// truncada (ou vazia). Precisa de folga.
+const MAX_OUTPUT_TOKENS = 16384
+
+// Duas tentativas por modelo, com esperas curtas: isto corre dentro de uma
+// função serverless, não pode arrastar-se.
+const ATTEMPTS_PER_MODEL = 2
+const BACKOFF_MS = [600, 1500]
+// Corta uma tentativa pendurada em vez de deixar a função esgotar o tempo.
+const ATTEMPT_TIMEOUT_MS = 120_000
+// Tecto para o conjunto de tentativas (tem de caber no maxDuration da Vercel).
+const TOTAL_BUDGET_MS = 260_000
 
 // Interruptor do Cláudio. A false, não faz NENHUMA chamada à API (custo zero).
 const CLAUDIO_ENABLED = true
@@ -287,6 +305,51 @@ function geminiContents(messages) {
   return contents
 }
 
+// ---- Chamada ao Gemini com repetição e modelos de reserva ----
+
+// Erros que valem a pena repetir: modelo saturado, rate limit, falha de rede
+// ou timeout nosso. Um 400 (pedido mal formado) ou 403 (chave má) não muda por
+// repetir — nesses casos rebenta já.
+function isTransient(e) {
+  const status = e?.status ?? e?.code
+  if (status === 429 || status === 500 || status === 503 || status === 504) return true
+  if (e?.name === 'AbortError' || e?.name === 'TimeoutError') return true
+  const msg = String(e?.message || '')
+  return /UNAVAILABLE|high demand|overloaded|fetch failed|ECONNRESET|ETIMEDOUT/i.test(msg)
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+async function generateWithRetry(ai, { contents, config }) {
+  const deadline = Date.now() + TOTAL_BUDGET_MS
+  let last
+  for (const model of [MODEL, ...FALLBACK_MODELS]) {
+    for (let attempt = 0; attempt < ATTEMPTS_PER_MODEL; attempt++) {
+      if (Date.now() >= deadline) break
+      const ac = new AbortController()
+      const timer = setTimeout(() => ac.abort(), ATTEMPT_TIMEOUT_MS)
+      try {
+        return await ai.models.generateContent({
+          model,
+          contents,
+          config: { ...config, abortSignal: ac.signal },
+        })
+      } catch (e) {
+        last = e
+        if (!isTransient(e)) throw e
+        const wait = BACKOFF_MS[attempt] ?? BACKOFF_MS[BACKOFF_MS.length - 1]
+        if (attempt < ATTEMPTS_PER_MODEL - 1 && Date.now() + wait < deadline) await sleep(wait)
+      } finally {
+        clearTimeout(timer)
+      }
+    }
+  }
+  throw new Error(
+    'Os servidores do Cláudio estão sobrecarregados neste momento. Tenta outra vez daqui a pouco. ' +
+    `(último erro: ${last?.status || last?.name || 'desconhecido'})`
+  )
+}
+
 export async function runClaudio({ messages, context, apiKey }) {
   // Desativado: não chama a API (custo zero).
   if (!CLAUDIO_ENABLED) {
@@ -302,18 +365,18 @@ export async function runClaudio({ messages, context, apiKey }) {
   if (!clean.length) throw new Error('Sem mensagens.')
 
   const ai = new GoogleGenAI({ apiKey })
-  const response = await ai.models.generateContent({
-    model: MODEL,
+  const response = await generateWithRetry(ai, {
     contents: geminiContents(clean),
     config: {
       systemInstruction: buildSystemPrompt(context),
       tools: geminiTools(),
-      maxOutputTokens: 4096,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
     },
   })
 
+  const candidate = response.candidates?.[0]
   // Extrai texto sem usar o getter .text (evita aviso quando há functionCall)
-  const parts = response.candidates?.[0]?.content?.parts || []
+  const parts = candidate?.content?.parts || []
   const text = parts.filter((p) => typeof p.text === 'string').map((p) => p.text).join('').trim()
 
   // Resposta do Gemini -> blocos estilo Anthropic (o cliente já sabe lidar).
@@ -333,6 +396,15 @@ export async function runClaudio({ messages, context, apiKey }) {
       })
     })
     return { content, stop_reason: 'tool_use' }
+  }
+
+  // O modelo pode ter ficado sem orçamento a meio da resposta. Diz-lo ao
+  // cliente em vez de entregar um texto cortado como se estivesse completo.
+  if (candidate?.finishReason === 'MAX_TOKENS') {
+    return {
+      content: [{ type: 'text', text: text || '(sem resposta)' }],
+      stop_reason: 'max_tokens',
+    }
   }
   return { content: [{ type: 'text', text: text || '(sem resposta)' }], stop_reason: 'end_turn' }
 }
