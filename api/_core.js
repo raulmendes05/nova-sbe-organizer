@@ -161,9 +161,17 @@ function curriculumSummary() {
   }).join('\n\n')
 }
 
-function buildSystemPrompt(context = {}) {
+// Estas instrucoes ficam sempre em portugues — o que muda e a lingua em que o
+// modelo responde ao aluno. Traduzir o prompt inteiro nao traria nada e
+// arriscava perder o rigor dos horarios e das regras do curso.
+const LANG_RULE = {
+  pt: 'Falas **português de Portugal (pt-PT)**, de forma amigável, direta e concisa.',
+  en: 'You reply in **English**, in a friendly, direct and concise way — even though these instructions are written in Portuguese. Keep course names, room numbers and shift codes (TXA, P210A, TP1…) exactly as they appear below, and use "ECTS" and the 0–20 grading scale as-is.',
+}
+
+function buildSystemPrompt(context = {}, lang = 'pt') {
   const ctx = JSON.stringify(context ?? {}, null, 2)
-  return `És o **Cláudio**, o assistente pessoal dentro da app "Nova SBE Organizer" — uma app onde o estudante organiza a vida académica na Nova School of Business and Economics (Nova SBE). Falas **português de Portugal (pt-PT)**, de forma amigável, direta e concisa. Usas markdown simples (listas, negrito). Não inventas factos; se não souberes, dizes.
+  return `És o **Cláudio**, o assistente pessoal dentro da app "Nova SBE Organizer" — uma app onde o estudante organiza a vida académica na Nova School of Business and Economics (Nova SBE). ${LANG_RULE[lang] || LANG_RULE.pt} Usas markdown simples (listas, negrito). Não inventas factos; se não souberes, dizes.
 
 # A tua função
 1. **Escolha de cadeiras sem sobreposição de horário.** O maior objetivo: ajudar o estudante a decidir que cadeiras fazer no próximo semestre de forma a que as aulas **não se sobreponham**. O estudante vai colar/enviar os horários das cadeiras (dias e horas) e, mais tarde, as datas dos exames. Quando tiveres esses horários, analisa-os cuidadosamente, deteta conflitos (mesma faixa horária no mesmo dia) e recomenda combinações viáveis. Considera também o equilíbrio de ECTS e as regras do curso. Se ainda não tiveres os horários, pede-os.
@@ -350,7 +358,7 @@ async function generateWithRetry(ai, { contents, config }) {
   )
 }
 
-export async function runClaudio({ messages, context, apiKey }) {
+export async function runClaudio({ messages, context, apiKey, lang }) {
   // Desativado: não chama a API (custo zero).
   if (!CLAUDIO_ENABLED) {
     return {
@@ -368,7 +376,7 @@ export async function runClaudio({ messages, context, apiKey }) {
   const response = await generateWithRetry(ai, {
     contents: geminiContents(clean),
     config: {
-      systemInstruction: buildSystemPrompt(context),
+      systemInstruction: buildSystemPrompt(context, lang),
       tools: geminiTools(),
       maxOutputTokens: MAX_OUTPUT_TOKENS,
     },

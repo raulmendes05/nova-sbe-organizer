@@ -25,9 +25,9 @@ function claudioDevApi(env) {
               res.end(JSON.stringify({ error: 'Falta GEMINI_API_KEY no .env.local' }))
               return
             }
-            const { messages, context } = JSON.parse(body || '{}')
+            const { messages, context, lang } = JSON.parse(body || '{}')
             const { runClaudio } = await import('./api/_core.js')
-            const result = await runClaudio({ messages, context, apiKey: key })
+            const result = await runClaudio({ messages, context, lang, apiKey: key })
             res.statusCode = 200
             res.end(JSON.stringify(result))
           } catch (e) {

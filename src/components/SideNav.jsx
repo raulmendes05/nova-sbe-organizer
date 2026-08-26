@@ -1,10 +1,20 @@
 import { NavLink } from 'react-router-dom'
 import { Icon } from './ui.jsx'
-import { NAV_TABS } from './navTabs.js'
+import { NAV_TABS, PROFILE_TAB } from './navTabs.js'
+import { useT } from '../i18n/index.jsx'
 import NovaLogo from './NovaLogo.jsx'
+
+const linkClass = ({ isActive }) =>
+  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
+    isActive
+      ? 'bg-nova-600/25 text-nova-100 border border-nova-500/20'
+      : 'text-slate-400 border border-transparent hover:bg-white/5 hover:text-slate-200'
+  }`
 
 // Barra lateral — só no computador (hidden até md)
 export default function SideNav() {
+  const { t } = useT()
+
   return (
     <aside className="hidden md:flex flex-col w-60 shrink-0 sticky top-0 h-screen border-r border-white/10 bg-white/[0.02] backdrop-blur-xl px-3 py-5">
       {/* Marca */}
@@ -22,28 +32,23 @@ export default function SideNav() {
       </div>
 
       <nav className="flex flex-col gap-1">
-        {NAV_TABS.map((t) => (
-          <NavLink
-            key={t.to}
-            to={t.to}
-            end={t.end}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition ${
-                isActive
-                  ? 'bg-nova-600/25 text-nova-100 border border-nova-500/20'
-                  : 'text-slate-400 border border-transparent hover:bg-white/5 hover:text-slate-200'
-              }`
-            }
-          >
-            <Icon name={t.icon} className="w-5 h-5" />
-            {t.label}
+        {NAV_TABS.map((tab) => (
+          <NavLink key={tab.to} to={tab.to} end={tab.end} className={linkClass}>
+            <Icon name={tab.icon} className="w-5 h-5" />
+            {t(tab.key)}
           </NavLink>
         ))}
       </nav>
 
-      {/* Marca oficial Nova SBE — no fundo, por baixo do separador do Cláudio */}
-      <div className="mt-auto pt-5 border-t border-white/10">
-        <NovaLogo />
+      {/* Fundo: Perfil e, por baixo, a marca oficial da Nova SBE */}
+      <div className="mt-auto pt-3">
+        <NavLink to={PROFILE_TAB.to} className={linkClass}>
+          <Icon name={PROFILE_TAB.icon} className="w-5 h-5" />
+          {t(PROFILE_TAB.key)}
+        </NavLink>
+        <div className="pt-5 mt-3 border-t border-white/10">
+          <NovaLogo />
+        </div>
       </div>
     </aside>
   )

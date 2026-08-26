@@ -34,12 +34,23 @@ export function AuthProvider({ children }) {
   const academicYear = meta.year || ''      // '1' | '2' | '3'
   const semester = meta.semester || ''      // '1' | '2'
   const program = meta.program || 'management'
+  const lang = meta.lang || 'pt'          // 'pt' | 'en'
 
   // Objetivo de média — guardado POR semestre (chave ano+termo), para que ao
   // avançar de semestre o objetivo antigo não se aplique ao novo.
   const currentTermKey = termKey(Number(academicYear) || null, Number(semester) || null)
   const goals = meta.goals || {}
   const goalAvg = goals[currentTermKey] != null ? Number(goals[currentTermKey]) : null
+
+  /**
+   * Grava preferencias da conta. Uma so chamada ao Supabase para tudo o que o
+   * Perfil altera — nome, ano, semestre, curso, idioma e objetivo — para nao
+   * deixar o perfil meio guardado se uma das escritas falhar.
+   */
+  async function updateProfile(patch) {
+    const { error } = await supabase.auth.updateUser({ data: patch })
+    if (error) throw error
+  }
 
   async function updateGoal(value) {
     const v = value === '' || value == null ? null : Number(value)
@@ -52,8 +63,8 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider value={{
-      user, loading, signOut, displayName, academicYear, semester, program,
-      goalAvg, currentTermKey, updateGoal,
+      user, loading, signOut, displayName, academicYear, semester, program, lang,
+      goalAvg, goals, currentTermKey, updateGoal, updateProfile,
     }}>
       {children}
     </AuthContext.Provider>

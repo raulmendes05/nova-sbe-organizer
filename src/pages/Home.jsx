@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useT } from '../i18n/index.jsx'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon, Spinner } from '../components/ui.jsx'
@@ -19,7 +20,8 @@ const toneClasses = {
 }
 
 export default function Home() {
-  const { displayName, signOut, goalAvg, currentTermKey, updateGoal } = useAuth()
+  const { displayName, goalAvg, currentTermKey, updateGoal } = useAuth()
+  const { t } = useT()
   const { rows: courses } = useCourses()
   const schedule = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
   const assignments = useCollection('assignments', { orderBy: 'due_date', ascending: true })
@@ -66,9 +68,12 @@ export default function Home() {
           <p className="text-xs font-medium tracking-wide text-nova-300/80 uppercase">{dayName}</p>
           <h1 className="text-3xl font-bold tracking-tight text-white mt-0.5">Olá, {hi} 👋</h1>
         </div>
-        <button onClick={signOut} className="p-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-slate-400 hover:text-white transition" aria-label="Sair">
-          <Icon name="logout" className="w-5 h-5" />
-        </button>
+        {/* Atalho para o Perfil — no telemovel e a unica porta de entrada,
+            porque a barra inferior ja leva 7 separadores. O botao de sair
+            passou para la dentro. */}
+        <Link to="/perfil" className="p-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-slate-400 hover:text-white transition" aria-label={t('nav.profile')}>
+          <Icon name="user" className="w-5 h-5" />
+        </Link>
       </div>
 
       {loading ? (

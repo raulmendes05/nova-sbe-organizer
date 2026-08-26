@@ -13,8 +13,8 @@ export default async function handler(req, res) {
       res.status(500).json({ error: 'GEMINI_API_KEY não configurada no servidor.' })
       return
     }
-    const { messages, context } = req.body || {}
-    const result = await runClaudio({ messages, context, apiKey: key })
+    const { messages, context, lang } = req.body || {}
+    const result = await runClaudio({ messages, context, lang, apiKey: key })
     res.status(200).json(result)
   } catch (e) {
     res.status(500).json({ error: e?.message || 'Erro inesperado.' })

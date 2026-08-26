@@ -1,16 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useT } from '../i18n/index.jsx'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon } from '../components/ui.jsx'
 import { hhmm, DAYS, COURSE_COLORS, simulateGrade } from '../lib/helpers.js'
 
-const SUGGESTIONS = [
-  'Que cadeiras me recomendas para o próximo semestre?',
-  'Cria uma tarefa: rever apontamentos de Marketing.',
-  'O que muda com o plano de transição 26/27 para mim?',
-  'Monta-me o horário do próximo semestre.',
-]
+const SUGGESTION_KEYS = ['claudio.s1', 'claudio.s2', 'claudio.s3', 'claudio.s4']
 
 function renderText(text) {
   return text.split('\n').map((line, i) => (
@@ -26,7 +22,8 @@ function renderText(text) {
 }
 
 export default function Claudio() {
-  const { displayName, program, academicYear, semester } = useAuth()
+  const { displayName, program, academicYear, semester, lang } = useAuth()
+  const { t } = useT()
   const coursesCtx = useCourses()
   const courses = coursesCtx.rows
   const schedule = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
@@ -171,7 +168,7 @@ export default function Claudio() {
         const res = await fetch('/api/claudio', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: msgs, context: buildContext() }),
+          body: JSON.stringify({ messages: msgs, context: buildContext(), lang }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error || 'Erro do servidor.')
@@ -186,7 +183,7 @@ export default function Claudio() {
         if (data.stop_reason === 'max_tokens') {
           setChat((c) => [...c, {
             role: 'error',
-            text: 'A resposta ficou a meio (era demasiado longa). Pede-me para continuar, ou divide o pedido em partes.',
+            text: t('claudio.truncated'),
           }])
           break
         }
@@ -224,7 +221,7 @@ export default function Claudio() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-white leading-tight">Cláudio</h1>
-          <p className="text-xs text-slate-400">O teu assistente da Nova SBE</p>
+          <p className="text-xs text-slate-400">{t('claudio.subtitle')}</p>
         </div>
       </div>
 
@@ -232,14 +229,11 @@ export default function Claudio() {
         {chat.length === 0 ? (
           <div className="pt-2">
             <div className="card p-4 text-sm text-slate-300 leading-relaxed">
-              Olá{displayName ? `, ${displayName}` : ''}! 👋 Sou o Cláudio. Já tenho os
-              <b> horários e exames oficiais</b> de todas as cadeiras. Posso montar o teu horário
-              sem sobreposições, explicar as regras do curso e <b>criar tarefas, prazos, notas e
-              cadeiras</b> por ti. Diz-me o que precisas.
+              {t('claudio.intro', { name: displayName ? `, ${displayName}` : '' })}
             </div>
-            <p className="text-xs text-slate-500 mt-4 mb-2 px-1">Experimenta:</p>
+            <p className="text-xs text-slate-500 mt-4 mb-2 px-1">{t('claudio.try')}</p>
             <div className="space-y-2">
-              {SUGGESTIONS.map((s) => (
+              {SUGGESTION_KEYS.map((k) => t(k)).map((s) => (
                 <button key={s} onClick={() => send(s)}
                   className="w-full text-left text-sm rounded-xl bg-white/[0.05] border border-white/10 px-3.5 py-2.5 text-slate-200 hover:bg-white/10 transition">
                   {s}
@@ -293,7 +287,7 @@ export default function Claudio() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-          placeholder="Escreve a tua mensagem..."
+          placeholder={t('claudio.placeholder')}
           className="input flex-1 resize-none max-h-32" />
         <button type="submit" disabled={loading || !input.trim()}
           className="w-11 h-11 flex-shrink-0 rounded-xl text-white flex items-center justify-center disabled:opacity-40 active:scale-95 transition"
