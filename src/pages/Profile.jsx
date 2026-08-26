@@ -189,7 +189,6 @@ export default function Profile() {
           <Segmented value={lang} onChange={pickLang} options={
             LANGS.map((l) => ({ v: l.v, label: `${l.flag}  ${l.label}` }))
           } />
-          <p className="text-xs text-slate-500 mt-2.5 leading-relaxed">{t('profile.languagePartial')}</p>
         </Section>
 
         {/* ---- Guardar ---- */}
@@ -214,6 +213,11 @@ export default function Profile() {
             <Icon name="logout" className="w-5 h-5" />
             {t('profile.signOut')}
           </button>
+          {/* Serve para saber se o telemovel ja tem a versao nova: o service
+              worker do PWA pode continuar a servir a anterior. */}
+          <p className="text-[11px] text-slate-600 text-center mt-3">
+            {t('profile.version', { v: __APP_VERSION__, d: __APP_BUILD__ })}
+          </p>
         </Section>
       </div>
     </div>

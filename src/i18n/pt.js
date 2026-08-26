@@ -50,7 +50,6 @@ export const pt = {
 
   'profile.language': 'Idioma',
   'profile.languageHint': 'Muda o idioma da app e a língua em que o Cláudio te responde.',
-  'profile.languagePartial': 'A tradução está a ser feita por partes: a navegação, este ecrã e o Cláudio já estão em inglês; as restantes páginas ainda aparecem em português.',
 
   'profile.session': 'Sessão',
   'profile.signOut': 'Terminar sessão',
@@ -386,4 +385,6 @@ export const pt = {
   'exams.courseCount.one': '{n} cadeira',
   'notes.subtitle.one': '{n} tarefa por fazer',
   'schedule.subtitle.one': '{n} aula · {h}h por semana',
+
+  'profile.version': 'versão {v} · compilada a {d} UTC',
 }

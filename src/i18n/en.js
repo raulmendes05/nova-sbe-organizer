@@ -50,7 +50,6 @@ export const en = {
 
   'profile.language': 'Language',
   'profile.languageHint': 'Changes the app language and the language Cláudio replies in.',
-  'profile.languagePartial': 'The translation is being rolled out gradually: navigation, this screen and Cláudio are already in English; the remaining pages still show in Portuguese.',
 
   'profile.session': 'Session',
   'profile.signOut': 'Sign out',
@@ -386,4 +385,6 @@ export const en = {
   'exams.courseCount.one': '{n} course',
   'notes.subtitle.one': '{n} task to do',
   'schedule.subtitle.one': '{n} class · {h}h per week',
+
+  'profile.version': 'version {v} · built {d} UTC',
 }
