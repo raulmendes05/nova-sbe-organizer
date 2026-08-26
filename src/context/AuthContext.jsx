@@ -34,7 +34,9 @@ export function AuthProvider({ children }) {
   const academicYear = meta.year || ''      // '1' | '2' | '3'
   const semester = meta.semester || ''      // '1' | '2'
   const program = meta.program || 'management'
-  const lang = meta.lang || 'pt'          // 'pt' | 'en'
+  // Antes do login nao ha metadados, por isso o ultimo idioma escolhido fica
+  // tambem no localStorage — senao o ecra de entrada estaria sempre em pt.
+  const lang = meta.lang || readStoredLang() || 'pt'   // 'pt' | 'en'
 
   // Objetivo de média — guardado POR semestre (chave ano+termo), para que ao
   // avançar de semestre o objetivo antigo não se aplique ao novo.
@@ -47,9 +49,10 @@ export function AuthProvider({ children }) {
    * Perfil altera — nome, ano, semestre, curso, idioma e objetivo — para nao
    * deixar o perfil meio guardado se uma das escritas falhar.
    */
-  async function updateProfile(patch) {
+    async function updateProfile(patch) {
     const { error } = await supabase.auth.updateUser({ data: patch })
     if (error) throw error
+    if (patch.lang) writeStoredLang(patch.lang)
   }
 
   async function updateGoal(value) {
@@ -72,3 +75,11 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(AuthContext)
+
+const LANG_KEY = 'novasbe.lang'
+function readStoredLang() {
+  try { return localStorage.getItem(LANG_KEY) } catch { return null }
+}
+function writeStoredLang(v) {
+  try { localStorage.setItem(LANG_KEY, v) } catch { /* modo privado — ignora */ }
+}

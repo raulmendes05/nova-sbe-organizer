@@ -7,7 +7,7 @@ import { Icon, Spinner } from '../components/ui.jsx'
 import CalendarBanner from '../components/CalendarBanner.jsx'
 import GoalCard from '../components/GoalCard.jsx'
 import {
-  DAYS, todayDow, hhmm, dueLabel, formatDate, resolveGrade, isCourseDone,
+  dayLong, todayDow, hhmm, dueLabel, formatDate, resolveGrade, isCourseDone,
   termKey, weightedAvg, upcomingClasses, whenLabel, classTimeRange,
 } from '../lib/helpers.js'
 import { upcomingExams } from '../data/exams.js'
@@ -21,14 +21,14 @@ const toneClasses = {
 
 export default function Home() {
   const { displayName, goalAvg, currentTermKey, updateGoal } = useAuth()
-  const { t } = useT()
+  const { t, lang } = useT()
   const { rows: courses } = useCourses()
   const schedule = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
   const assignments = useCollection('assignments', { orderBy: 'due_date', ascending: true })
   const grades = useCollection('grades', { orderBy: 'created_at', ascending: true })
 
   const dow = todayDow()
-  const dayName = DAYS.find((d) => d.n === dow)?.long
+  const dayName = dayLong(t, dow)
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
   const todayClasses = schedule.rows.filter((b) => b.day_of_week === dow)
@@ -54,7 +54,6 @@ export default function Home() {
       .map((c) => ({ ects: c.ects, avg: resolveGrade(c, grades.rows.filter((g) => g.course_id === c.id)) }))
   )
 
-  const hi = displayName || 'Olá'
   const openCount = assignments.rows.filter((a) => a.status !== 'done').length
   const pendingCourses = courses.filter(
     (c) => !isCourseDone(c, grades.rows.filter((g) => g.course_id === c.id)))
@@ -66,7 +65,9 @@ export default function Home() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <p className="text-xs font-medium tracking-wide text-nova-300/80 uppercase">{dayName}</p>
-          <h1 className="text-3xl font-bold tracking-tight text-white mt-0.5">Olá, {hi} 👋</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-white mt-0.5">
+            {displayName ? t('home.hello', { name: displayName }) : t('home.helloNoName')}
+          </h1>
         </div>
         {/* Atalho para o Perfil — no telemovel e a unica porta de entrada,
             porque a barra inferior ja leva 7 separadores. O botao de sair
@@ -90,14 +91,14 @@ export default function Home() {
               <Link to="/proxima" className="card p-4 flex items-center gap-3.5 active:scale-[0.99] transition">
                 <div className="text-center min-w-[64px] rounded-2xl py-2 px-1"
                   style={{ background: `${accent}22`, border: `1px solid ${accent}44` }}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 leading-none">Sala</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 leading-none">{t('home.room')}</p>
                   <p className="text-xl font-bold text-white leading-tight mt-1 truncate">{nextClass.block.location || '—'}</p>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-nova-300">Próxima aula</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-nova-300">{t('home.nextClass')}</p>
                   <p className="font-semibold text-slate-100 truncate">{nextClass.block.title}</p>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    {whenLabel(nextClass, DAYS.find((d) => d.n === nextClass.day)?.long)} · {classTimeRange(nextClass)}
+                    {whenLabel(nextClass, dayLong(t, nextClass.day), t, lang)} · {classTimeRange(nextClass)}
                   </p>
                 </div>
                 <span className="text-slate-500 text-lg">›</span>
@@ -111,13 +112,13 @@ export default function Home() {
             <div className="absolute -top-10 -right-8 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
             <div className="absolute -bottom-12 -left-6 w-40 h-40 rounded-full bg-accent-400/20 blur-2xl" />
             <div className="relative">
-              <p className="text-nova-100/90 text-sm font-medium">Média global · ponderada por ECTS</p>
+              <p className="text-nova-100/90 text-sm font-medium">{t('home.avg')}</p>
               <div className="flex items-end gap-2 mt-1">
                 <span className="text-5xl font-bold text-white tracking-tight">{globalAvg !== null ? globalAvg.toFixed(2) : '—'}</span>
                 <span className="text-nova-200 mb-1.5 font-medium">/ 20</span>
               </div>
               <p className="text-nova-200/80 text-xs mt-2">
-                {perCourse.length} de {courses.length} cadeiras com notas · {totalEcts} ECTS
+                {t('home.avgSub', { n: perCourse.length, total: courses.length, ects: totalEcts })}
               </p>
             </div>
           </Link>
@@ -127,15 +128,15 @@ export default function Home() {
 
           {/* Stats rapidas */}
           <div className="grid grid-cols-2 gap-3">
-            <StatCard label="Cadeiras" value={courses.length} icon="chart" to="/notas" accent="#3d78bf" />
-            <StatCard label="Prazos abertos" value={openCount} icon="clipboard" to="/prazos" accent="#f4a63a" />
+            <StatCard label={t('home.statCourses')} value={courses.length} icon="chart" to="/notas" accent="#3d78bf" />
+            <StatCard label={t('home.statDeadlines')} value={openCount} icon="clipboard" to="/prazos" accent="#f4a63a" />
           </div>
 
           {/* Aulas de hoje */}
           <section>
-            <SectionTitle icon="calendar" title="Aulas de hoje" to="/horario" />
+            <SectionTitle icon="calendar" title={t('home.todayClasses')} to="/horario" t={t} />
             {todayClasses.length === 0 ? (
-              <div className="card p-4 text-sm text-slate-400">Sem aulas hoje. Aproveita! 🎉</div>
+              <div className="card p-4 text-sm text-slate-400">{t('home.noClasses')}</div>
             ) : (
               <div className="space-y-2.5">
                 {todayClasses.map((b) => {
@@ -160,20 +161,20 @@ export default function Home() {
 
           {/* Proximos prazos */}
           <section>
-            <SectionTitle icon="clipboard" title="Próximos prazos" to="/prazos" />
+            <SectionTitle icon="clipboard" title={t('home.nextDeadlines')} to="/prazos" t={t} />
             {upcoming.length === 0 ? (
-              <div className="card p-4 text-sm text-slate-400">Nada a caminho. Tudo em dia ✅</div>
+              <div className="card p-4 text-sm text-slate-400">{t('home.noDeadlines')}</div>
             ) : (
               <div className="space-y-2.5">
                 {upcoming.map((a) => {
                   const c = courseById[a.course_id]
-                  const dl = dueLabel(a.due_date)
+                  const dl = dueLabel(a.due_date, t)
                   return (
                     <div key={a.id} className="card p-3.5 flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-slate-100 truncate">{a.title}</p>
                         <p className="text-xs text-slate-400 mt-0.5">
-                          {c ? c.name : 'Geral'} · {formatDate(a.due_date)}
+                          {c ? c.name : t('home.general')} · {formatDate(a.due_date, lang)}
                         </p>
                       </div>
                       <span className={`chip ${toneClasses[dl.tone]}`}>{dl.text}</span>
@@ -187,15 +188,15 @@ export default function Home() {
           {/* Proximos exames */}
           {upExams.length > 0 && (
             <section>
-              <SectionTitle icon="clipboard" title="Próximos exames" to="/prazos" />
+              <SectionTitle icon="clipboard" title={t('home.nextExams')} to="/prazos" t={t} />
               <div className="space-y-2.5">
                 {upExams.map((e, i) => {
-                  const dl = dueLabel(e.when)
+                  const dl = dueLabel(e.when, t)
                   return (
                     <div key={i} className="card p-3.5 flex items-center gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-slate-100 truncate">{e.course}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{e.typeLabel} · {formatDate(e.when)}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{t(`examType.${e.type}`)} · {formatDate(e.when, lang)}</p>
                       </div>
                       <span className={`chip ${toneClasses[dl.tone]}`}>{dl.text}</span>
                     </div>
@@ -225,14 +226,14 @@ function StatCard({ label, value, icon, to, accent }) {
   )
 }
 
-function SectionTitle({ icon, title, to }) {
+function SectionTitle({ icon, title, to, t }) {
   return (
     <div className="flex items-center justify-between mb-3 px-0.5">
       <div className="flex items-center gap-2">
         <Icon name={icon} className="w-4 h-4 text-nova-300" />
         <h2 className="font-bold text-slate-200">{title}</h2>
       </div>
-      <Link to={to} className="text-xs font-semibold text-nova-300 hover:text-nova-200">Ver tudo</Link>
+      <Link to={to} className="text-xs font-semibold text-nova-300 hover:text-nova-200">{t('home.seeAll')}</Link>
     </div>
   )
 }

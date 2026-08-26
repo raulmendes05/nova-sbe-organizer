@@ -4,7 +4,8 @@ import { useT } from '../i18n/index.jsx'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon } from '../components/ui.jsx'
-import { hhmm, DAYS, COURSE_COLORS, simulateGrade } from '../lib/helpers.js'
+import { hhmm, COURSE_COLORS, simulateGrade } from '../lib/helpers.js'
+import { pt } from '../i18n/pt.js'
 
 const SUGGESTION_KEYS = ['claudio.s1', 'claudio.s2', 'claudio.s3', 'claudio.s4']
 
@@ -44,7 +45,10 @@ export default function Claudio() {
   function buildContext() {
     const compsOf = (id) => grades.rows.filter((g) => g.course_id === id)
       .map((g) => ({ titulo: g.title, peso: g.weight, nota: g.grade }))
-    const dayName = (n) => DAYS.find((d) => d.n === n)?.long || n
+    // Em português mesmo quando a app está em inglês: o prompt do Cláudio e os
+    // horários oficiais estão em pt, e misturar as duas línguas no contexto só
+    // dá ao modelo mais uma coisa para desencontrar.
+    const dayName = (n) => pt[`day.${n}.long`] || n
     return {
       aluno: { nome: displayName, curso: program, ano: academicYear, semestre: semester },
       cadeiras: courses.map((c) => ({

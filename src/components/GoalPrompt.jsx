@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { Modal } from './ui.jsx'
+import { useT } from '../i18n/index.jsx'
 
 const DISMISS_KEY = 'goalPromptDismissed'
 
@@ -11,6 +12,7 @@ const DISMISS_KEY = 'goalPromptDismissed'
  */
 export default function GoalPrompt() {
   const { goalAvg, updateGoal, currentTermKey } = useAuth()
+  const { t } = useT()
   const dismissed = typeof sessionStorage !== 'undefined'
     && sessionStorage.getItem(DISMISS_KEY) === String(currentTermKey)
   const [open, setOpen] = useState(true)
@@ -34,22 +36,21 @@ export default function GoalPrompt() {
   }
 
   return (
-    <Modal open={open} onClose={dismiss} title="Qual é a tua meta? 🎯">
+    <Modal open={open} onClose={dismiss} title={t('goalPrompt.title')}>
       <p className="text-sm text-slate-300 leading-relaxed mb-1">
-        Define o <b>objetivo de média para este semestre</b>. A app vai mostrar-te,
-        à medida que lanças notas, quão perto estás de o atingir.
+        {t('goalPrompt.body')}
       </p>
       <div className="flex items-center gap-2 mt-4">
         <input autoFocus type="number" step="0.5" min="0" max="20" inputMode="decimal"
-          className="input w-24 text-xl font-bold" placeholder="ex. 15"
+          className="input w-24 text-xl font-bold" placeholder={t('profile.goalPlaceholder')}
           value={draft} onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && save()} />
         <span className="text-slate-500">/ 20</span>
       </div>
       <div className="flex gap-2 mt-5">
-        <button onClick={dismiss} disabled={saving} className="btn-ghost flex-1 py-2.5 text-sm">Agora não</button>
+        <button onClick={dismiss} disabled={saving} className="btn-ghost flex-1 py-2.5 text-sm">{t('goalPrompt.later')}</button>
         <button onClick={save} disabled={saving || draft.trim() === ''} className="btn-primary flex-1 py-2.5">
-          {saving ? 'A guardar...' : 'Definir objetivo'}
+          {saving ? t('common.saving') : t('goalPrompt.set')}
         </button>
       </div>
     </Modal>

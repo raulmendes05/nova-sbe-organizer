@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Modal, Icon } from './ui.jsx'
-import { PROGRAMS, AREA_LABELS, flatCatalog } from '../data/curriculum.js'
+import { PROGRAMS, flatCatalog } from '../data/curriculum.js'
+import { useT } from '../i18n/index.jsx'
 
 const AREA_TONE = {
   mandatory: 'bg-nova-500/20 text-nova-200',
@@ -18,6 +19,7 @@ const norm = (s) => s.toLowerCase().normalize('NFD').replace(DIACRITICS, '')
  * (por codigo) aparecem marcadas.
  */
 export default function CoursePicker({ open, onClose, onPick, onManual, existingCodes, defaultProgram = 'management' }) {
+  const { t } = useT()
   const [program, setProgram] = useState(defaultProgram)
   const [q, setQ] = useState('')
 
@@ -34,7 +36,7 @@ export default function CoursePicker({ open, onClose, onPick, onManual, existing
     .filter((g) => g.items.length)
 
   return (
-    <Modal open={open} onClose={onClose} title="Catálogo Nova SBE">
+    <Modal open={open} onClose={onClose} title={t('picker.title')}>
       {/* Curso */}
       <div className="grid grid-cols-2 gap-2 mb-3">
         {Object.entries(PROGRAMS).map(([key, p]) => (
@@ -46,17 +48,17 @@ export default function CoursePicker({ open, onClose, onPick, onManual, existing
       </div>
 
       {/* Pesquisa */}
-      <input autoFocus className="input mb-1" placeholder="Pesquisar cadeira ou código..."
+      <input autoFocus className="input mb-1" placeholder={t('picker.search')}
         value={q} onChange={(e) => setQ(e.target.value)} />
-      <p className="text-xs text-slate-500 mb-3 px-0.5">Toca numa cadeira para a adicionar. Podes adicionar várias.</p>
+      <p className="text-xs text-slate-500 mb-3 px-0.5">{t('picker.hint')}</p>
 
       <div className="space-y-4">
         {groups.length === 0 && (
-          <p className="text-sm text-slate-500 text-center py-6">Sem resultados.</p>
+          <p className="text-sm text-slate-500 text-center py-6">{t('deadlines.noResults')}</p>
         )}
         {groups.map((g) => (
           <div key={g.area}>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{AREA_LABELS[g.area]}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{t(`area.${g.area}`)}</p>
             <div className="space-y-1.5">
               {g.items.map((c) => {
                 const added = existingCodes?.has(c.code)
@@ -87,7 +89,7 @@ export default function CoursePicker({ open, onClose, onPick, onManual, existing
       {onManual && (
         <button type="button" onClick={onManual}
           className="w-full text-center text-sm text-slate-400 hover:text-slate-200 mt-5 py-2">
-          Não está na lista? Adicionar manualmente
+          {t('picker.manual')}
         </button>
       )}
     </Modal>

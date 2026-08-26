@@ -4,7 +4,8 @@ import { useCourses } from '../context/CoursesContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components/ui.jsx'
 import CourseSelect from '../components/CourseSelect.jsx'
-import { DAYS, SCHEDULE_KINDS, hhmm, todayDow } from '../lib/helpers.js'
+import { days as weekDays, scheduleKinds, hhmm, todayDow } from '../lib/helpers.js'
+import { useT } from '../i18n/index.jsx'
 import CalendarBanner from '../components/CalendarBanner.jsx'
 import WeekGrid from '../components/WeekGrid.jsx'
 import { buildICS } from '../lib/ics.js'
@@ -20,6 +21,7 @@ export default function Schedule() {
   })
   const { rows: courses } = useCourses()
   const { semester } = useAuth()
+  const { t } = useT()
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
   const [open, setOpen] = useState(false)
@@ -30,9 +32,9 @@ export default function Schedule() {
   function exportCalendar() {
     const { text, count } = buildICS(rows, {
       semester: Number(semester) || 1,
-      name: 'Horário Nova SBE',
+      name: t('schedule.icsName'),
     })
-    if (!count) { setExported('Nada para exportar'); return }
+    if (!count) { setExported(t('schedule.nothingToExport')); return }
     const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -42,7 +44,7 @@ export default function Schedule() {
     a.click()
     a.remove()
     setTimeout(() => URL.revokeObjectURL(url), 2000)
-    setExported(`${count} aulas exportadas`)
+    setExported(t('schedule.exported', { n: count }))
     setTimeout(() => setExported(null), 4000)
   }
 
@@ -72,21 +74,21 @@ export default function Schedule() {
   return (
     <div className="pb-24">
       <PageHeader
-        title="Horário"
+        title={t('schedule.title')}
         subtitle={rows.length
-          ? `${rows.length} aulas · ${hoursPerWeek.toFixed(hoursPerWeek % 1 ? 1 : 0)}h por semana`
-          : 'A tua semana, aula a aula'}
+          ? t('schedule.subtitle', { n: rows.length, h: hoursPerWeek.toFixed(hoursPerWeek % 1 ? 1 : 0) })
+          : t('schedule.subtitleEmpty')}
         right={rows.length > 0 && (
           <button onClick={exportCalendar}
             className="flex items-center gap-1.5 rounded-xl bg-white/[0.06] border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-white/10 transition">
-            <Icon name="calendar" className="w-4 h-4" /> Adicionar ao Calendário
+            <Icon name="calendar" className="w-4 h-4" /> {t('schedule.addToCalendar')}
           </button>
         )} />
 
       {exported && (
         <div className="card p-2.5 mb-3 text-sm text-emerald-200 bg-emerald-500/10 border-emerald-500/20 flex items-center gap-2">
           <Icon name="check" className="w-4 h-4 shrink-0" />
-          <span>{exported} — abre o ficheiro <b>.ics</b> para o adicionares ao Google Calendar ou ao Calendário.</span>
+          <span>{exported} — {t('schedule.icsHint')}</span>
         </div>
       )}
 
@@ -95,28 +97,28 @@ export default function Schedule() {
       {loading ? (
         <Spinner />
       ) : rows.length === 0 ? (
-        <EmptyState icon="calendar" title="Ainda não tens horário" hint="Toca no + para adicionares a primeira aula." />
+        <EmptyState icon="calendar" title={t('schedule.emptyTitle')} hint={t('schedule.emptyHint')} />
       ) : (
         <WeekGrid blocks={rows} courseById={courseById} onPick={openEdit} />
       )}
 
       <Fab onClick={openNew} />
 
-      <Modal open={open} onClose={() => setOpen(false)} title={editId ? 'Editar bloco' : 'Novo bloco'}>
+      <Modal open={open} onClose={() => setOpen(false)} title={editId ? t('schedule.editBlock') : t('schedule.newBlock')}>
         <form onSubmit={save} className="space-y-3">
           <div>
-            <label className="label">Nome</label>
-            <input className="input" required placeholder="Ex: Microeconomia — Teorica"
+            <label className="label">{t('schedule.name')}</label>
+            <input className="input" required placeholder={t('schedule.namePlaceholder')}
               value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           </div>
           <div>
-            <label className="label">Cadeira</label>
+            <label className="label">{t('common.course')}</label>
             <CourseSelect value={form.course_id} onChange={(v) => setForm({ ...form, course_id: v })} />
           </div>
           <div>
-            <label className="label">Dia</label>
+            <label className="label">{t('schedule.day')}</label>
             <div className="grid grid-cols-7 gap-1">
-              {DAYS.map((d) => (
+              {weekDays(t).map((d) => (
                 <button type="button" key={d.n} onClick={() => setForm({ ...form, day_of_week: d.n })}
                   className={`py-2 seg ${form.day_of_week === d.n ? 'seg-on' : 'seg-off'}`}>{d.short}</button>
               ))}
@@ -124,39 +126,39 @@ export default function Schedule() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Inicio</label>
+              <label className="label">{t('schedule.start')}</label>
               <input type="time" className="input" required value={form.start_time}
                 onChange={(e) => setForm({ ...form, start_time: e.target.value })} />
             </div>
             <div>
-              <label className="label">Fim</label>
+              <label className="label">{t('schedule.end')}</label>
               <input type="time" className="input" required value={form.end_time}
                 onChange={(e) => setForm({ ...form, end_time: e.target.value })} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Sala</label>
-              <input className="input" placeholder="Ex: C.017" value={form.location}
+              <label className="label">{t('home.room')}</label>
+              <input className="input" placeholder={t('schedule.roomPlaceholder')} value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })} />
             </div>
             <div>
-              <label className="label">Tipo</label>
+              <label className="label">{t('common.kind')}</label>
               <select className="input" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-                {SCHEDULE_KINDS.map((k) => <option key={k.v} value={k.v}>{k.label}</option>)}
+                {scheduleKinds(t).map((k) => <option key={k.v} value={k.v}>{k.label}</option>)}
               </select>
             </div>
           </div>
-          <button className="btn-primary w-full mt-2">{editId ? 'Guardar' : 'Adicionar'}</button>
+          <button className="btn-primary w-full mt-2">{editId ? t('common.save') : t('common.add')}</button>
           {/* Na grelha não cabe um botão por bloco — apaga-se aqui. */}
           {editId && (
             <button type="button"
               onClick={async () => {
-                if (!window.confirm('Apagar esta aula do horário?')) return
+                if (!window.confirm(t('schedule.confirmDelete'))) return
                 await remove(editId); setOpen(false)
               }}
               className="w-full py-2.5 rounded-xl text-sm font-medium text-rose-300 hover:bg-rose-500/10 flex items-center justify-center gap-2">
-              <Icon name="trash" className="w-4 h-4" /> Apagar
+              <Icon name="trash" className="w-4 h-4" /> {t('common.delete')}
             </button>
           )}
         </form>

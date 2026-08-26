@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { COURSE_COLORS } from '../lib/helpers.js'
+import { useT } from '../i18n/index.jsx'
 
 /**
  * Selector de cadeira reutilizavel. Permite escolher uma cadeira existente
@@ -8,6 +9,7 @@ import { COURSE_COLORS } from '../lib/helpers.js'
  */
 export default function CourseSelect({ value, onChange, allowNone = true }) {
   const { rows: courses, add } = useCourses()
+  const { t } = useT()
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
 
@@ -24,7 +26,7 @@ export default function CourseSelect({ value, onChange, allowNone = true }) {
   if (creating) {
     return (
       <div className="flex gap-2">
-        <input autoFocus className="input" placeholder="Nome da cadeira"
+        <input autoFocus className="input" placeholder={t('courseSelect.namePlaceholder')}
           value={name} onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && createCourse(e)} />
         <button type="button" className="btn-primary px-3" onClick={createCourse}>OK</button>
@@ -36,13 +38,13 @@ export default function CourseSelect({ value, onChange, allowNone = true }) {
   return (
     <div className="flex gap-2">
       <select className="input" value={value ?? ''} onChange={(e) => onChange(e.target.value || null)}>
-        {allowNone && <option value="">Sem cadeira</option>}
+        {allowNone && <option value="">{t('courseSelect.none')}</option>}
         {courses.map((c) => (
           <option key={c.id} value={c.id}>{c.name}</option>
         ))}
       </select>
       <button type="button" className="btn-ghost px-3 whitespace-nowrap" onClick={() => setCreating(true)}>
-        + Nova
+        + {t('courseSelect.new')}
       </button>
     </div>
   )

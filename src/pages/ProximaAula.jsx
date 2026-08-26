@@ -3,11 +3,13 @@ import { Link } from 'react-router-dom'
 import { useCollection } from '../lib/useCollection.js'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { Icon, Spinner } from '../components/ui.jsx'
-import { DAYS, upcomingClasses, whenLabel, classTimeRange } from '../lib/helpers.js'
+import { dayLong, upcomingClasses, whenLabel, classTimeRange } from '../lib/helpers.js'
+import { useT } from '../i18n/index.jsx'
 
-const dayLong = (n) => DAYS.find((d) => d.n === n)?.long || ''
+
 
 export default function ProximaAula() {
+  const { t, lang } = useT()
   const schedule = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
   const { rows: courses } = useCourses()
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
@@ -38,7 +40,7 @@ export default function ProximaAula() {
 
   const c = next ? courseById[next.block.course_id] : null
   const color = c?.color || '#3d78bf'
-  const label = whenLabel(next, next ? dayLong(next.day) : '')
+  const label = whenLabel(next, next ? dayLong(t, next.day) : '', t, lang)
 
   const chipTone = !next ? '' : next.inProgress
     ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30'
@@ -51,9 +53,9 @@ export default function ProximaAula() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Icon name="clock" className="w-5 h-5 text-nova-300" />
-          <h1 className="text-lg font-bold text-white">Próxima aula</h1>
+          <h1 className="text-lg font-bold text-white">{t('home.nextClass')}</h1>
         </div>
-        <Link to="/horario" className="text-xs font-semibold text-nova-300 hover:text-nova-200">Ver horário</Link>
+        <Link to="/horario" className="text-xs font-semibold text-nova-300 hover:text-nova-200">{t('next.seeSchedule')}</Link>
       </div>
 
       {schedule.loading ? (
@@ -61,8 +63,8 @@ export default function ProximaAula() {
       ) : !next ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
           <div className="w-16 h-16 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center mb-3 text-3xl">🎉</div>
-          <p className="font-semibold text-slate-200">Sem aulas à vista</p>
-          <p className="text-sm text-slate-500 mt-1">Não há aulas nos próximos dias no teu horário.</p>
+          <p className="font-semibold text-slate-200">{t('next.emptyTitle')}</p>
+          <p className="text-sm text-slate-500 mt-1">{t('next.emptyHint')}</p>
         </div>
       ) : (
         <div className="flex-1 flex flex-col">
@@ -76,7 +78,7 @@ export default function ProximaAula() {
                 {label}
               </span>
 
-              <p className="text-white/70 text-xs font-medium mt-4 uppercase tracking-wide">Sala</p>
+              <p className="text-white/70 text-xs font-medium mt-4 uppercase tracking-wide">{t('home.room')}</p>
               <p className="text-white font-bold tracking-tight leading-none mt-1"
                 style={{ fontSize: 'clamp(3rem, 22vw, 6rem)' }}>
                 {next.block.location || '—'}
@@ -85,11 +87,11 @@ export default function ProximaAula() {
               <p className="text-lg font-semibold text-white mt-4 leading-snug">{next.block.title}</p>
               <p className="text-nova-100/80 text-sm mt-1 flex items-center gap-1.5">
                 <Icon name="clock" className="w-4 h-4" />
-                {dayLong(next.day)} · {classTimeRange(next)}
+                {dayLong(t, next.day)} · {classTimeRange(next)}
               </p>
               {!next.block.location && (
                 <p className="text-white/50 text-xs mt-3">
-                  Esta aula não tem sala definida. Toca nela no Horário para a adicionar.
+                  {t('next.noRoom')}
                 </p>
               )}
             </div>
@@ -98,7 +100,7 @@ export default function ProximaAula() {
           {/* A seguir */}
           {after.length > 0 && (
             <div className="mt-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2 px-0.5">A seguir</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2 px-0.5">{t('next.after')}</p>
               <div className="space-y-2">
                 {after.map((e) => {
                   const cc = courseById[e.block.course_id]
@@ -108,7 +110,7 @@ export default function ProximaAula() {
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-slate-100 truncate">{e.block.title}</p>
                         <p className="text-xs text-slate-400 mt-0.5">
-                          {whenLabel(e, dayLong(e.day))} · {classTimeRange(e)}
+                          {whenLabel(e, dayLong(t, e.day), t, lang)} · {classTimeRange(e)}
                         </p>
                       </div>
                       {e.block.location && (

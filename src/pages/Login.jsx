@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { useT } from '../i18n/index.jsx'
 
 export default function Login() {
+  const { t } = useT()
   const [mode, setMode] = useState('signin') // signin | signup
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,7 +18,7 @@ export default function Login() {
       if (mode === 'signup') {
         const { error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
-        setMsg({ tone: 'ok', text: 'Conta criada! Ja podes entrar.' })
+        setMsg({ tone: 'ok', text: t('login.created') })
         setMode('signin')
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -24,7 +26,7 @@ export default function Login() {
         // O AuthContext trata do resto (onAuthStateChange).
       }
     } catch (err) {
-      setMsg({ tone: 'err', text: traduzErro(err.message) })
+      setMsg({ tone: 'err', text: authError(err.message, t) })
     } finally {
       setLoading(false)
     }
@@ -38,21 +40,21 @@ export default function Login() {
             <span className="text-2xl font-black tracking-tight">N</span>
           </div>
           <h1 className="text-2xl font-bold">Nova SBE Organizer</h1>
-          <p className="text-nova-200 text-sm mt-1">A tua vida academica, organizada.</p>
+          <p className="text-nova-200 text-sm mt-1">{t('login.tagline')}</p>
         </div>
 
         <form onSubmit={submit} className="space-y-3">
           <div>
-            <label className="text-sm text-nova-100">Email</label>
+            <label className="text-sm text-nova-100">{t('profile.email')}</label>
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
               className="w-full mt-1 rounded-xl bg-white/10 border border-white/20 px-3.5 py-3 outline-none focus:border-white/60 placeholder-nova-200"
-              placeholder="o.teu@novasbe.pt" />
+              placeholder={t('login.emailPlaceholder')} />
           </div>
           <div>
-            <label className="text-sm text-nova-100">Palavra-passe</label>
+            <label className="text-sm text-nova-100">{t('login.password')}</label>
             <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
               className="w-full mt-1 rounded-xl bg-white/10 border border-white/20 px-3.5 py-3 outline-none focus:border-white/60 placeholder-nova-200"
-              placeholder="minimo 6 caracteres" />
+              placeholder={t('login.passwordHint')} />
           </div>
 
           {msg && (
@@ -63,22 +65,24 @@ export default function Login() {
 
           <button disabled={loading}
             className="w-full rounded-xl bg-white text-nova-800 font-bold py-3 active:scale-[0.98] transition disabled:opacity-60">
-            {loading ? 'Aguarda...' : mode === 'signin' ? 'Entrar' : 'Criar conta'}
+            {loading ? t('login.wait') : mode === 'signin' ? t('login.signIn') : t('login.signUp')}
           </button>
         </form>
 
         <button onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setMsg(null) }}
           className="w-full text-center text-sm text-nova-200 mt-5">
-          {mode === 'signin' ? 'Nao tens conta? Cria uma.' : 'Ja tens conta? Entra.'}
+          {mode === 'signin' ? t('login.toSignUp') : t('login.toSignIn')}
         </button>
       </div>
     </div>
   )
 }
 
-function traduzErro(m = '') {
-  if (/invalid login/i.test(m)) return 'Email ou palavra-passe errados.'
-  if (/already registered/i.test(m)) return 'Este email ja tem conta.'
-  if (/rate limit/i.test(m)) return 'Demasiadas tentativas. Espera um pouco.'
+// As mensagens do Supabase vem sempre em ingles tecnico — traduzimos as que
+// o aluno pode mesmo encontrar e deixamos passar as restantes.
+function authError(m = '', t) {
+  if (/invalid login/i.test(m)) return t('login.errWrong')
+  if (/already registered/i.test(m)) return t('login.errExists')
+  if (/rate limit/i.test(m)) return t('login.errRate')
   return m
 }

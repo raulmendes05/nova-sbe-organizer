@@ -6,6 +6,7 @@ import { useCourses } from '../context/CoursesContext.jsx'
 import { useCollection } from '../lib/useCollection.js'
 import { PageHeader, Fab, Modal, Icon, EmptyState, Spinner } from '../components/ui.jsx'
 import { PROGRAMS, flatCatalog } from '../data/curriculum.js'
+import { useT } from '../i18n/index.jsx'
 
 const MAX_MB = 20
 
@@ -26,13 +27,15 @@ async function signUrl(body) {
   return out
 }
 
+// Os rotulos vem da traducao; so o tom de cor vive aqui.
 const KINDS = [
-  { v: 'exame', label: 'Exames', one: 'Exame', tone: 'bg-nova-500/20 text-nova-200' },
-  { v: 'teste', label: 'Midterms', one: 'Midterm', tone: 'bg-violet-500/20 text-violet-200' },
-  { v: 'recurso', label: 'Recursos', one: 'Recurso', tone: 'bg-amber-500/20 text-amber-200' },
-  { v: 'outro', label: 'Outros', one: 'Outro', tone: 'bg-slate-500/20 text-slate-300' },
+  { v: 'exame', tone: 'bg-nova-500/20 text-nova-200' },
+  { v: 'teste', tone: 'bg-violet-500/20 text-violet-200' },
+  { v: 'recurso', tone: 'bg-amber-500/20 text-amber-200' },
+  { v: 'outro', tone: 'bg-slate-500/20 text-slate-300' },
 ]
 const kindOf = (v) => KINDS.find((k) => k.v === v) || KINDS[3]
+const kindOne = (t, v) => t(`examKind.${kindOf(v).v}.one`)
 
 // Catálogo dos dois cursos, sem códigos repetidos
 const CATALOG = (() => {
@@ -102,6 +105,7 @@ export default function Exams() {
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(null)
   const [modal, setModal] = useState(false)
+  const { t } = useT()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -141,27 +145,27 @@ export default function Exams() {
     setBusy(row.storage_path)
     try {
       const ext = row.storage_path.split('.').pop()
-      const name = [row.course_code, kindOf(row.kind).one, row.school_year || '']
+      const name = [row.course_code, kindOne(t, row.kind), row.school_year || '']
         .filter(Boolean).join(' ').replace(/\//g, '-')
       const { url } = await signUrl({
         action: 'download', path: row.storage_path, downloadAs: `${name}.${ext}`,
       })
       window.open(url, '_blank', 'noopener')
     } catch (e) {
-      setError(e.message || 'Não consegui abrir o ficheiro.')
+      setError(e.message || t('exams.errOpen'))
     } finally {
       setBusy(null)
     }
   }
 
   async function removeFile(row) {
-    if (!window.confirm('Apagar este ficheiro da biblioteca?')) return
+    if (!window.confirm(t('exams.confirmDelete'))) return
     setBusy(row.storage_path)
     try {
       await signUrl({ action: 'delete', path: row.storage_path })
       setRows((prev) => prev.filter((r) => r.id !== row.id))
     } catch (e) {
-      setError(e.message || 'Não consegui apagar.')
+      setError(e.message || t('exams.errDelete'))
     } finally {
       setBusy(null)
     }
@@ -184,7 +188,7 @@ export default function Exams() {
         ? <CourseView {...shared} code={code} onBack={() => navigate('/provas')} onUpload={() => setModal(true)} />
         : <CourseList {...shared} currentCodes={currentCodes} onOpen={(c) => navigate(`/provas/${c}`)} onUpload={() => setModal(true)} />}
 
-      <Fab onClick={() => setModal(true)} label="Enviar prova" />
+      <Fab onClick={() => setModal(true)} label={t('exams.upload')} />
 
       <UploadModal
         open={modal}
@@ -201,6 +205,7 @@ export default function Exams() {
 
 /* ---------- Lista de cadeiras ---------- */
 function CourseList({ rows, loading, currentCodes, onOpen, errorBar }) {
+  const { t } = useT()
   const [q, setQ] = useState('')
   const [onlyMine, setOnlyMine] = useState(false)
 
@@ -222,30 +227,32 @@ function CourseList({ rows, loading, currentCodes, onOpen, errorBar }) {
   return (
     <>
       <PageHeader
-        title="Provas antigas"
-        subtitle={total ? `${total} ficheiros · ${new Set(rows.map((r) => r.course_code)).size} cadeiras` : 'Exames e testes de anos anteriores'}
+        title={t('exams.title')}
+        subtitle={total
+          ? `${t('exams.fileCount', { n: total })} · ${t('exams.courseCount', { n: new Set(rows.map((r) => r.course_code)).size })}`
+          : t('exams.subtitleEmpty')}
       />
 
-      <input className="input mb-2" placeholder="Pesquisar cadeira ou código..."
+      <input className="input mb-2" placeholder={t('picker.search')}
         value={q} onChange={(e) => setQ(e.target.value)} />
 
       <div className="grid grid-cols-2 gap-2 mb-4">
         <button type="button" onClick={() => setOnlyMine(false)}
-          className={`py-2 seg ${!onlyMine ? 'seg-on' : 'seg-off'}`}>Todas</button>
+          className={`py-2 seg ${!onlyMine ? 'seg-on' : 'seg-off'}`}>{t('exams.all')}</button>
         <button type="button" onClick={() => setOnlyMine(true)}
-          className={`py-2 seg ${onlyMine ? 'seg-on' : 'seg-off'}`}>Este semestre</button>
+          className={`py-2 seg ${onlyMine ? 'seg-on' : 'seg-off'}`}>{t('exams.thisTerm')}</button>
       </div>
 
       {errorBar}
 
       {loading ? <Spinner /> : groups.length === 0 ? (
         <EmptyState icon="archive"
-          title={onlyMine && currentCodes.size === 0 ? 'Sem cadeiras este semestre' : total === 0 ? 'A biblioteca está vazia' : 'Sem resultados'}
+          title={onlyMine && currentCodes.size === 0 ? t('exams.emptyTerm') : total === 0 ? t('exams.emptyLibrary') : t('deadlines.noResults')}
           hint={onlyMine && currentCodes.size === 0
-            ? 'Preenche o teu Horário — as cadeiras que lá tiveres aparecem aqui.'
-            : onlyMine ? 'Ainda não há provas das cadeiras que estás a fazer.'
-              : total === 0 ? 'Carrega no + para enviares exames ou testes antigos.'
-                : 'Tenta outra pesquisa.'} />
+            ? t('exams.emptyTermHint')
+            : onlyMine ? t('exams.emptyMineHint')
+              : total === 0 ? t('exams.emptyLibraryHint')
+                : t('exams.tryAnother')} />
       ) : (
         <div className="space-y-2">
           {groups.map((g) => (
@@ -257,8 +264,8 @@ function CourseList({ rows, loading, currentCodes, onOpen, errorBar }) {
               <span className="flex-1 min-w-0">
                 <span className="block text-sm font-semibold text-slate-100 truncate">{g.name}</span>
                 <span className="block text-xs text-slate-500 mt-0.5">
-                  #{g.code} · {g.n} ficheiro{g.n === 1 ? '' : 's'}
-                  {currentCodes.has(String(g.code)) && <span className="text-nova-300"> · este semestre</span>}
+                  #{g.code} · {t('exams.fileCount', { n: g.n })}
+                  {currentCodes.has(String(g.code)) && <span className="text-nova-300"> · {t('exams.thisTermTag')}</span>}
                 </span>
               </span>
               <Icon name="chevron" className="w-4 h-4 text-slate-500 shrink-0" />
@@ -272,6 +279,7 @@ function CourseList({ rows, loading, currentCodes, onOpen, errorBar }) {
 
 /* ---------- Uma cadeira, com separadores por tipo de avaliação ---------- */
 function CourseView({ rows, loading, code, onBack, busy, download, removeFile, user, errorBar }) {
+  const { t } = useT()
   const mine = useMemo(() => rows.filter((r) => String(r.course_code) === String(code)), [rows, code])
   const name = mine[0]?.course_name || CATALOG.find((c) => c.code === code)?.name || code
 
@@ -281,7 +289,7 @@ function CourseView({ rows, loading, code, onBack, busy, download, removeFile, u
     [mine]
   )
   const [tab, setTab] = useState(null)
-  const active = tab && tabs.some((t) => t.v === tab) ? tab : tabs[0]?.v
+  const active = tab && tabs.some((k) => k.v === tab) ? tab : tabs[0]?.v
 
   const files = useMemo(() => mine
     .filter((r) => r.kind === active)
@@ -293,12 +301,12 @@ function CourseView({ rows, loading, code, onBack, busy, download, removeFile, u
   const byYear = useMemo(() => {
     const m = new Map()
     for (const f of files) {
-      const y = f.school_year || 'Sem ano'
+      const y = f.school_year || t('exams.noYear')
       if (!m.has(y)) m.set(y, [])
       m.get(y).push(f)
     }
     return [...m.entries()]
-  }, [files])
+  }, [files, t])
 
   if (loading) return <Spinner />
 
@@ -306,23 +314,22 @@ function CourseView({ rows, loading, code, onBack, busy, download, removeFile, u
     <>
       <button onClick={onBack}
         className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 mb-3 -ml-1">
-        <Icon name="chevron" className="w-4 h-4 rotate-180" /> Todas as cadeiras
+        <Icon name="chevron" className="w-4 h-4 rotate-180" /> {t('exams.allCourses')}
       </button>
 
-      <PageHeader title={name} subtitle={`#${code} · ${mine.length} ficheiro${mine.length === 1 ? '' : 's'}`} />
+      <PageHeader title={name} subtitle={`#${code} · ${t('exams.fileCount', { n: mine.length })}`} />
 
       {errorBar}
 
       {tabs.length === 0 ? (
-        <EmptyState icon="archive" title="Ainda não há provas desta cadeira"
-          hint="Carrega no + para seres o primeiro a partilhar." />
+        <EmptyState icon="archive" title={t('exams.emptyCourse')} hint={t('exams.emptyCourseHint')} />
       ) : (
         <>
           <div className="grid gap-2 mb-4" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0,1fr))` }}>
-            {tabs.map((t) => (
-              <button key={t.v} type="button" onClick={() => setTab(t.v)}
-                className={`py-2 seg ${active === t.v ? 'seg-on' : 'seg-off'}`}>
-                {t.label} <span className="opacity-60">{t.n}</span>
+            {tabs.map((k) => (
+              <button key={k.v} type="button" onClick={() => setTab(k.v)}
+                className={`py-2 seg ${active === k.v ? 'seg-on' : 'seg-off'}`}>
+                {t(`examKind.${k.v}.plural`)} <span className="opacity-60">{k.n}</span>
               </button>
             ))}
           </div>
@@ -339,21 +346,21 @@ function CourseView({ rows, loading, code, onBack, busy, download, removeFile, u
                         <span className="flex-1 min-w-0">
                           <span className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-sm font-medium text-slate-100">
-                              {f.school_year || 'Sem ano'}
+                              {f.school_year || t('exams.noYear')}
                             </span>
                             {f.has_solutions && (
-                              <span className="chip bg-emerald-500/20 text-emerald-200">c/ resolução</span>
+                              <span className="chip bg-emerald-500/20 text-emerald-200">{t('exams.withSolutions')}</span>
                             )}
                           </span>
                           {f.title && <span className="block text-xs text-slate-500 mt-0.5 truncate">{f.title}</span>}
                           <span className="block text-[11px] text-slate-600 mt-0.5">{prettySize(f.file_size)}</span>
                         </span>
-                        <button onClick={() => download(f)} disabled={working} aria-label="Descarregar"
+                        <button onClick={() => download(f)} disabled={working} aria-label={t('exams.download')}
                           className="p-2 rounded-lg text-nova-300 hover:bg-white/10 disabled:opacity-40 shrink-0">
                           <Icon name="download" className="w-5 h-5" />
                         </button>
                         {f.uploaded_by === user?.id && (
-                          <button onClick={() => removeFile(f)} disabled={working} aria-label="Apagar"
+                          <button onClick={() => removeFile(f)} disabled={working} aria-label={t('common.delete')}
                             className="p-2 rounded-lg text-slate-500 hover:text-rose-300 hover:bg-white/10 disabled:opacity-40 shrink-0">
                             <Icon name="trash" className="w-4 h-4" />
                           </button>
@@ -373,6 +380,7 @@ function CourseView({ rows, loading, code, onBack, busy, download, removeFile, u
 
 /* ---------- Modal de envio (aceita vários ficheiros de uma vez) ---------- */
 function UploadModal({ open, onClose, user, displayName, currentCodes, lockedCode, onDone }) {
+  const { t } = useT()
   const preset = lockedCode ? CATALOG.find((c) => c.code === lockedCode) : null
   const [course, setCourse] = useState(preset || null)
   const [q, setQ] = useState('')
@@ -412,13 +420,13 @@ function UploadModal({ open, onClose, user, displayName, currentCodes, lockedCod
   async function submit() {
     if (!course || !files.length) return
     const tooBig = files.find((f) => f.size > MAX_MB * 1024 * 1024)
-    if (tooBig) { setErr(`"${tooBig.name}" tem mais de ${MAX_MB} MB.`); return }
+    if (tooBig) { setErr(t('exams.errTooBig', { name: tooBig.name, mb: MAX_MB })); return }
 
     setSaving(true); setErr(null)
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
-        setProgress(`A enviar ${i + 1} de ${files.length}...`)
+        setProgress(t('exams.uploading', { i: i + 1, total: files.length }))
         const { url, path } = await signUrl({
           action: 'upload',
           courseCode: course.code,
@@ -430,7 +438,7 @@ function UploadModal({ open, onClose, user, displayName, currentCodes, lockedCod
           headers: { 'Content-Type': file.type || 'application/pdf' },
           body: file,
         })
-        if (!put.ok) throw new Error(`Falha ao enviar "${file.name}" (${put.status}).`)
+        if (!put.ok) throw new Error(t('exams.errUpload', { name: file.name, status: put.status }))
 
         const { error: ie } = await supabase.from('exam_files').insert({
           course_code: course.code,
@@ -444,33 +452,33 @@ function UploadModal({ open, onClose, user, displayName, currentCodes, lockedCod
           uploaded_by: user.id,
           uploader_name: displayName || null,
         })
-        if (ie) throw new Error(`${ie.message} (ficheiro "${file.name}" ficou por registar)`)
+        if (ie) throw new Error(`${ie.message} — ${t('exams.errRecord', { name: file.name })}`)
       }
       await onDone()
       reset(); onClose()
     } catch (e) {
-      setErr(e.message || 'Não consegui enviar.')
+      setErr(e.message || t('exams.errSend'))
     } finally {
       setSaving(false); setProgress('')
     }
   }
 
   return (
-    <Modal open={open} onClose={close} title="Partilhar provas">
+    <Modal open={open} onClose={close} title={t('exams.shareTitle')}>
       {!course ? (
         <>
-          <p className="text-sm text-slate-400 mb-3">Primeiro, escolhe a cadeira.</p>
-          <input autoFocus className="input mb-3" placeholder="Pesquisar cadeira ou código..."
+          <p className="text-sm text-slate-400 mb-3">{t('exams.pickCourse')}</p>
+          <input autoFocus className="input mb-3" placeholder={t('picker.search')}
             value={q} onChange={(e) => setQ(e.target.value)} />
           <div className="space-y-1.5 max-h-80 overflow-y-auto">
-            {list.length === 0 && <p className="text-sm text-slate-500 text-center py-6">Sem resultados.</p>}
+            {list.length === 0 && <p className="text-sm text-slate-500 text-center py-6">{t('deadlines.noResults')}</p>}
             {list.map((c) => (
               <button key={c.code} type="button" onClick={() => setCourse(c)}
                 className="w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-left bg-white/[0.05] border border-white/10 hover:bg-white/10 active:scale-[0.99] transition">
                 <span className="flex-1 min-w-0">
                   <span className="block text-sm font-medium text-slate-100 truncate">{c.name}</span>
                   <span className="block text-xs text-slate-500">
-                    #{c.code}{currentCodes.has(c.code) ? ' · este semestre' : ''}
+                    #{c.code}{currentCodes.has(c.code) ? ` · ${t('exams.thisTermTag')}` : ''}
                   </span>
                 </span>
                 <Icon name="chevron" className="w-4 h-4 text-slate-500 shrink-0" />
@@ -484,25 +492,25 @@ function UploadModal({ open, onClose, user, displayName, currentCodes, lockedCod
             className="w-full flex items-center gap-2 rounded-xl px-3 py-2.5 bg-white/[0.05] border border-white/10 text-left disabled:opacity-50">
             <span className="flex-1 min-w-0">
               <span className="block text-sm font-medium text-slate-100 truncate">{course.name}</span>
-              <span className="block text-xs text-slate-500">#{course.code} · toca para mudar</span>
+              <span className="block text-xs text-slate-500">#{course.code} · {t('exams.tapToChange')}</span>
             </span>
             <Icon name="edit" className="w-4 h-4 text-slate-500 shrink-0" />
           </button>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Tipo</label>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{t('common.kind')}</label>
             <div className="grid grid-cols-2 gap-2">
               {KINDS.map((k) => (
                 <button key={k.v} type="button" onClick={() => setKind(k.v)} disabled={saving}
-                  className={`py-2 seg ${kind === k.v ? 'seg-on' : 'seg-off'}`}>{k.one}</button>
+                  className={`py-2 seg ${kind === k.v ? 'seg-on' : 'seg-off'}`}>{t(`examKind.${k.v}.one`)}</button>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Ano letivo</label>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{t('exams.schoolYear')}</label>
             <select className="input" value={year} onChange={(e) => setYear(e.target.value)} disabled={saving}>
-              <option value="">Não sei</option>
+              <option value="">{t('exams.dontKnow')}</option>
               {SCHOOL_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
@@ -511,12 +519,12 @@ function UploadModal({ open, onClose, user, displayName, currentCodes, lockedCod
             <input type="checkbox" checked={solutions} disabled={saving}
               onChange={(e) => setSolutions(e.target.checked)}
               className="w-5 h-5 rounded accent-nova-500" />
-            <span className="text-sm text-slate-200">Inclui resolução / soluções</span>
+            <span className="text-sm text-slate-200">{t('exams.hasSolutions')}</span>
           </label>
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
-              Ficheiros (podes escolher vários)
+              {t('exams.files')}
             </label>
             <input type="file" multiple disabled={saving}
               accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,.zip"
@@ -524,7 +532,7 @@ function UploadModal({ open, onClose, user, displayName, currentCodes, lockedCod
               className="block w-full text-sm text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-nova-600 file:text-white" />
             {files.length > 0 && (
               <p className="text-xs text-slate-500 mt-2">
-                {files.length} ficheiro{files.length === 1 ? '' : 's'} · máx. {MAX_MB} MB cada
+                {t('exams.fileCount', { n: files.length })} · {t('exams.maxSize', { mb: MAX_MB })}
               </p>
             )}
           </div>
@@ -535,10 +543,10 @@ function UploadModal({ open, onClose, user, displayName, currentCodes, lockedCod
           <button type="button" onClick={submit} disabled={saving || !files.length}
             className="w-full py-3 rounded-xl text-white font-semibold disabled:opacity-40 active:scale-[0.99] transition"
             style={{ backgroundImage: 'linear-gradient(135deg, #3d78bf 0%, #1f5aa3 100%)' }}>
-            {saving ? 'A enviar...' : 'Enviar para a biblioteca'}
+            {saving ? t('exams.sending') : t('exams.sendToLibrary')}
           </button>
           <p className="text-xs text-slate-600 text-center">
-            Fica visível para todos os alunos da app. Só tu podes apagar o que enviaste.
+            {t('exams.shareNote')}
           </p>
         </div>
       )}

@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { DAYS, hhmm, todayDow } from '../lib/helpers.js'
+import { days as weekDays, hhmm, todayDow } from '../lib/helpers.js'
+import { useT } from '../i18n/index.jsx'
 
 const PX_PER_MIN = 1.05          // 1h ≈ 63px
 const MIN_BLOCK = 26             // altura mínima para um bloco continuar legível
@@ -42,14 +43,15 @@ function layout(blocks) {
 }
 
 export default function WeekGrid({ blocks, courseById, onPick }) {
+  const { t } = useT()
   const today = todayDow()
 
   // Só se mostram os dias que têm aulas (o fim de semana raramente tem),
   // mas Seg–Sex aparecem sempre para a semana não ficar deformada.
   const days = useMemo(() => {
     const used = new Set(blocks.map((b) => b.day_of_week))
-    return DAYS.filter((d) => d.n <= 5 || used.has(d.n))
-  }, [blocks])
+    return weekDays(t).filter((d) => d.n <= 5 || used.has(d.n))
+  }, [blocks, t])
 
   // A grelha começa/acaba nas horas mesmo usadas, com folga de meia hora.
   const [from, to] = useMemo(() => {

@@ -3,16 +3,10 @@ import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { firstYearCourses } from '../data/curriculum.js'
 import { COURSE_COLORS, termKey } from '../lib/helpers.js'
+import { useT } from '../i18n/index.jsx'
 
-const YEARS = [
-  { v: '1', label: '1º ano' },
-  { v: '2', label: '2º ano' },
-  { v: '3', label: '3º ano' },
-]
-const SEMESTERS = [
-  { v: '1', label: '1º semestre' },
-  { v: '2', label: '2º semestre' },
-]
+const YEARS = ['1', '2', '3']
+const SEMESTERS = ['1', '2']
 
 /**
  * Ecra de boas-vindas — primeiro login. Recolhe nome, ano e semestre.
@@ -21,6 +15,7 @@ const SEMESTERS = [
  */
 export default function Onboarding() {
   const { user, displayName, program } = useAuth()
+  const { t } = useT()
   const [name, setName] = useState(displayName || '')
   const [year, setYear] = useState('')
   const [semester, setSemester] = useState('')
@@ -34,7 +29,7 @@ export default function Onboarding() {
   async function save(e) {
     e.preventDefault()
     if (!name.trim() || !year || !semester) {
-      setErr('Preenche o nome, o ano e o semestre.')
+      setErr(t('onboarding.errRequired'))
       return
     }
     setLoading(true)
@@ -70,7 +65,7 @@ export default function Onboarding() {
       const { error } = await supabase.auth.updateUser({ data })
       if (error) throw error
     } catch (e2) {
-      setErr('Algo correu mal. Tenta outra vez.')
+      setErr(t('common.error'))
       setLoading(false)
     }
   }
@@ -82,52 +77,52 @@ export default function Onboarding() {
           <div className="mx-auto w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mb-4">
             <span className="text-3xl">👋</span>
           </div>
-          <h1 className="text-2xl font-bold">Bem-vindo(a)!</h1>
-          <p className="text-nova-200 text-sm mt-1">Vamos configurar a tua conta.</p>
+          <h1 className="text-2xl font-bold">{t('onboarding.welcome')}</h1>
+          <p className="text-nova-200 text-sm mt-1">{t('onboarding.sub')}</p>
         </div>
 
         <form onSubmit={save} className="space-y-5">
           <div>
-            <label className="text-sm text-nova-100">Como te queres chamar?</label>
+            <label className="text-sm text-nova-100">{t('onboarding.name')}</label>
             <input autoFocus type="text" required maxLength={40} value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full mt-1 rounded-xl bg-white/10 border border-white/20 px-3.5 py-3 outline-none focus:border-white/60 placeholder-nova-200"
-              placeholder="O teu nome" />
+              placeholder={t('profile.namePlaceholder')} />
           </div>
 
           <div>
-            <label className="text-sm text-nova-100">Em que ano estás?</label>
+            <label className="text-sm text-nova-100">{t('onboarding.year')}</label>
             <div className="grid grid-cols-3 gap-2 mt-1.5">
-              {YEARS.map((y) => (
-                <button type="button" key={y.v} onClick={() => setYear(y.v)}
+              {YEARS.map((v) => (
+                <button type="button" key={v} onClick={() => setYear(v)}
                   className={`py-2.5 rounded-xl text-sm font-semibold border transition ${
-                    year === y.v ? 'bg-white text-nova-800 border-transparent' : 'bg-white/10 border-white/20 text-white'
-                  }`}>{y.label}</button>
+                    year === v ? 'bg-white text-nova-800 border-transparent' : 'bg-white/10 border-white/20 text-white'
+                  }`}>{t(`profile.year${v}`)}</button>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="text-sm text-nova-100">Que semestre?</label>
+            <label className="text-sm text-nova-100">{t('onboarding.semester')}</label>
             <div className="grid grid-cols-2 gap-2 mt-1.5">
-              {SEMESTERS.map((s) => (
-                <button type="button" key={s.v} onClick={() => setSemester(s.v)}
+              {SEMESTERS.map((v) => (
+                <button type="button" key={v} onClick={() => setSemester(v)}
                   className={`py-2.5 rounded-xl text-sm font-semibold border transition ${
-                    semester === s.v ? 'bg-white text-nova-800 border-transparent' : 'bg-white/10 border-white/20 text-white'
-                  }`}>{s.label}</button>
+                    semester === v ? 'bg-white text-nova-800 border-transparent' : 'bg-white/10 border-white/20 text-white'
+                  }`}>{t(`profile.sem${v}`)}</button>
               ))}
             </div>
           </div>
 
           <div>
-            <label className="text-sm text-nova-100">Qual é o teu objetivo de média para este semestre?</label>
+            <label className="text-sm text-nova-100">{t('onboarding.goal')}</label>
             <div className="flex items-center gap-2 mt-1.5">
               <input type="number" step="0.5" min="0" max="20" inputMode="decimal" value={goal}
                 onChange={(e) => setGoal(e.target.value)}
                 className="w-24 rounded-xl bg-white/10 border border-white/20 px-3.5 py-3 text-lg font-semibold outline-none focus:border-white/60 placeholder-nova-200"
-                placeholder="ex. 15" />
+                placeholder={t('profile.goalPlaceholder')} />
               <span className="text-nova-200">/ 20</span>
-              <span className="text-xs text-nova-300 ml-1">opcional</span>
+              <span className="text-xs text-nova-300 ml-1">{t('common.optional')}</span>
             </div>
           </div>
 
@@ -142,8 +137,8 @@ export default function Onboarding() {
                 )}
               </span>
               <span>
-                <span className="block text-sm font-semibold">Já concluí o 1º ano</span>
-                <span className="block text-xs text-nova-200 mt-0.5">Adicionar as 9 cadeiras do 1º ano para lançares as notas.</span>
+                <span className="block text-sm font-semibold">{t('onboarding.firstYearDone')}</span>
+                <span className="block text-xs text-nova-200 mt-0.5">{t('onboarding.firstYearHint')}</span>
               </span>
             </button>
           )}
@@ -152,10 +147,10 @@ export default function Onboarding() {
 
           <button disabled={loading}
             className="w-full rounded-xl bg-white text-nova-800 font-bold py-3 active:scale-[0.98] transition disabled:opacity-60">
-            {loading ? 'A guardar...' : 'Continuar'}
+            {loading ? t('common.saving') : t('onboarding.continue')}
           </button>
         </form>
-        <p className="text-center text-nova-300 text-xs mt-4">Podes mudar tudo isto mais tarde.</p>
+        <p className="text-center text-nova-300 text-xs mt-4">{t('onboarding.later')}</p>
       </div>
     </div>
   )

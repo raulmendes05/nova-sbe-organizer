@@ -4,6 +4,7 @@ import { useCourses } from '../context/CoursesContext.jsx'
 import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components/ui.jsx'
 import CourseSelect from '../components/CourseSelect.jsx'
 import { lighten } from '../lib/helpers.js'
+import { useT } from '../i18n/index.jsx'
 
 const empty = { title: '', body: '', course_id: null, is_task: false, done: false }
 
@@ -12,6 +13,7 @@ export default function Notes() {
     orderBy: 'created_at', ascending: false,
   })
   const { rows: courses } = useCourses()
+  const { t } = useT()
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
   const [open, setOpen] = useState(false)
@@ -40,10 +42,10 @@ export default function Notes() {
 
   return (
     <div>
-      <PageHeader title="Notas & Tarefas" subtitle={`${openTasks} tarefa(s) por fazer`} />
+      <PageHeader title={t('notes.title')} subtitle={t('notes.subtitle', { n: openTasks })} />
 
       <div className="flex gap-2 mb-4">
-        {[['all', 'Tudo'], ['tasks', 'Tarefas'], ['notes', 'Notas']].map(([v, label]) => (
+        {[['all', t('notes.all')], ['tasks', t('nav.tasks')], ['notes', t('notes.notes')]].map(([v, label]) => (
           <button key={v} onClick={() => setTab(v)}
             className={`flex-1 py-2 seg ${tab === v ? 'seg-on' : 'seg-off'}`}>{label}</button>
         ))}
@@ -52,7 +54,7 @@ export default function Notes() {
       {loading ? (
         <Spinner />
       ) : visible.length === 0 ? (
-        <EmptyState icon="note" title="Nada por aqui" hint="Toca no + para uma nota ou tarefa rapida." />
+        <EmptyState icon="note" title={t('notes.emptyTitle')} hint={t('notes.emptyHint')} />
       ) : (
         <div className="space-y-2.5">
           {visible.map((n) => {
@@ -88,34 +90,34 @@ export default function Notes() {
 
       <Fab onClick={() => openNew(tab === 'notes' ? false : true)} />
 
-      <Modal open={open} onClose={() => setOpen(false)} title={editId ? 'Editar' : 'Novo'}>
+      <Modal open={open} onClose={() => setOpen(false)} title={editId ? t('common.edit') : t('common.new')}>
         <form onSubmit={save} className="space-y-3">
           {/* Tipo */}
           <div className="grid grid-cols-2 gap-2">
             <button type="button" onClick={() => setForm({ ...form, is_task: true })}
               className={`py-2.5 seg ${form.is_task ? 'seg-on' : 'seg-off'}`}>
-              ✓ Tarefa
+              ✓ {t('notes.task')}
             </button>
             <button type="button" onClick={() => setForm({ ...form, is_task: false })}
               className={`py-2.5 seg ${!form.is_task ? 'seg-on' : 'seg-off'}`}>
-              📝 Nota
+              📝 {t('notes.note')}
             </button>
           </div>
           <div>
-            <label className="label">Titulo</label>
-            <input className="input" placeholder={form.is_task ? 'O que tens de fazer?' : 'Titulo da nota'}
+            <label className="label">{t('common.title')}</label>
+            <input className="input" placeholder={form.is_task ? t('notes.taskPlaceholder') : t('notes.notePlaceholder')}
               value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           </div>
           <div>
-            <label className="label">{form.is_task ? 'Detalhes (opcional)' : 'Conteudo'}</label>
-            <textarea className="input min-h-[100px]" placeholder="Escreve aqui..."
+            <label className="label">{form.is_task ? t('notes.details') : t('notes.content')}</label>
+            <textarea className="input min-h-[100px]" placeholder={t('notes.bodyPlaceholder')}
               value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} />
           </div>
           <div>
-            <label className="label">Cadeira (opcional)</label>
+            <label className="label">{t('notes.courseOptional')}</label>
             <CourseSelect value={form.course_id} onChange={(v) => setForm({ ...form, course_id: v })} />
           </div>
-          <button className="btn-primary w-full mt-2">{editId ? 'Guardar' : 'Adicionar'}</button>
+          <button className="btn-primary w-full mt-2">{editId ? t('common.save') : t('common.add')}</button>
         </form>
       </Modal>
     </div>

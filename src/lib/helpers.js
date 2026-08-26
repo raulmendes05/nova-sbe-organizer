@@ -1,14 +1,24 @@
 import { dayStatus } from '../data/calendar.js'
 
-export const DAYS = [
-  { n: 1, short: 'Seg', long: 'Segunda' },
-  { n: 2, short: 'Ter', long: 'Terça' },
-  { n: 3, short: 'Qua', long: 'Quarta' },
-  { n: 4, short: 'Qui', long: 'Quinta' },
-  { n: 5, short: 'Sex', long: 'Sexta' },
-  { n: 6, short: 'Sáb', long: 'Sábado' },
-  { n: 7, short: 'Dom', long: 'Domingo' },
-]
+// ---------------------------------------------------------------------------
+//  Texto visivel ao utilizador
+//
+//  Estes helpers vivem fora do React, por isso nao podem usar o hook useT().
+//  Recebem `t` como argumento — quem os chama ja o tem. O fallback devolve a
+//  propria chave (ex.: "day.1.long"), o que torna uma chamada esquecida obvia
+//  no ecra em vez de a esconder atras de portugues codificado ou de rebentar.
+// ---------------------------------------------------------------------------
+const KEY = (k) => k
+
+// Locale do Intl para cada idioma da app.
+export const localeOf = (lang) => (lang === 'en' ? 'en-GB' : 'pt-PT')
+
+// 1=Segunda .. 7=Domingo. Os rotulos vem da traducao.
+export const DAY_NUMBERS = [1, 2, 3, 4, 5, 6, 7]
+export const days = (t = KEY) =>
+  DAY_NUMBERS.map((n) => ({ n, short: t(`day.${n}.short`), long: t(`day.${n}.long`) }))
+export const dayLong = (t = KEY, n) => t(`day.${n}.long`)
+export const dayShort = (t = KEY, n) => t(`day.${n}.short`)
 
 // JS getDay(): 0=Domingo..6=Sabado  ->  o nosso 1=Segunda..7=Domingo
 export const todayDow = () => {
@@ -21,20 +31,13 @@ export const COURSE_COLORS = [
   '#be123c', '#2563eb', '#059669', '#c2410c',
 ]
 
-export const ASSIGNMENT_KINDS = [
-  { v: 'trabalho', label: 'Trabalho' },
-  { v: 'exame', label: 'Exame' },
-  { v: 'teste', label: 'Teste' },
-  { v: 'apresentacao', label: 'Apresentacao' },
-  { v: 'outro', label: 'Outro' },
-]
+export const ASSIGNMENT_KIND_VALUES = ['trabalho', 'exame', 'teste', 'apresentacao', 'outro']
+export const assignmentKinds = (t = KEY) =>
+  ASSIGNMENT_KIND_VALUES.map((v) => ({ v, label: t(`kind.assignment.${v}`) }))
 
-export const SCHEDULE_KINDS = [
-  { v: 'aula', label: 'Aula' },
-  { v: 'pratica', label: 'Pratica' },
-  { v: 'seminario', label: 'Seminario' },
-  { v: 'outro', label: 'Outro' },
-]
+export const SCHEDULE_KIND_VALUES = ['aula', 'pratica', 'seminario', 'outro']
+export const scheduleKinds = (t = KEY) =>
+  SCHEDULE_KIND_VALUES.map((v) => ({ v, label: t(`kind.schedule.${v}`) }))
 
 // "14:30:00" -> "14:30"
 export const hhmm = (t) => (t ? t.slice(0, 5) : '')
@@ -48,16 +51,16 @@ export function lighten(hex = '#3d78bf', amount = 0.5) {
   return `rgb(${r}, ${g}, ${b})`
 }
 
-export function formatDate(iso) {
+export function formatDate(iso, lang = 'pt') {
   if (!iso) return ''
   const d = new Date(iso)
-  return d.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' })
+  return d.toLocaleDateString(localeOf(lang), { day: '2-digit', month: 'short' })
 }
 
-export function formatDateTime(iso) {
+export function formatDateTime(iso, lang = 'pt') {
   if (!iso) return ''
   const d = new Date(iso)
-  return d.toLocaleString('pt-PT', {
+  return d.toLocaleString(localeOf(lang), {
     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
   })
 }
@@ -73,20 +76,19 @@ export function daysUntil(iso) {
   return Math.round((b - a) / (1000 * 60 * 60 * 24))
 }
 
-export function dueLabel(iso) {
+export function dueLabel(iso, t = KEY) {
   const d = daysUntil(iso)
-  if (d === null) return { text: 'Sem data', tone: 'slate' }
-  if (d < 0) return { text: 'Atrasado', tone: 'rose' }
-  if (d === 0) return { text: 'Hoje', tone: 'rose' }
-  if (d === 1) return { text: 'Amanha', tone: 'amber' }
-  if (d <= 7) return { text: `${d} dias`, tone: 'amber' }
-  return { text: `${d} dias`, tone: 'emerald' }
+  if (d === null) return { text: t('due.none'), tone: 'slate' }
+  if (d < 0) return { text: t('due.late'), tone: 'rose' }
+  if (d === 0) return { text: t('due.today'), tone: 'rose' }
+  if (d === 1) return { text: t('due.tomorrow'), tone: 'amber' }
+  return { text: t('due.days', { n: d }), tone: d <= 7 ? 'amber' : 'emerald' }
 }
 
 // Etiqueta de grupo ano/semestre para agrupar cadeiras
-export function termLabel(year, term) {
-  if (!year) return 'Outras cadeiras'
-  return `${year}º ano${term ? ` · ${term}º semestre` : ''}`
+export function termLabel(year, term, t = KEY) {
+  if (!year) return t('term.other')
+  return term ? t('term.yearAndTerm', { year, term }) : t('term.year', { year })
 }
 
 // Chave ordenavel para agrupar (ano sem definir vai para o fim)
@@ -166,7 +168,6 @@ const toMinutes = (t) => {
 const fmtMinutes = (min) =>
   `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
 
-const MONTHS_ABBR = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 const isoOf = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
@@ -204,19 +205,19 @@ export function upcomingClasses(blocks, now = new Date(), limit = 3, horizonDays
 }
 
 // Etiqueta de quando é a aula (relativa a agora).
-export function whenLabel(entry, dayLong) {
+export function whenLabel(entry, dayName, t = KEY, lang = 'pt') {
   if (!entry) return ''
-  if (entry.inProgress) return `A decorrer · até ${fmtMinutes(entry.eMin)}`
+  if (entry.inProgress) return t('when.now', { end: fmtMinutes(entry.eMin) })
   if (entry.offset === 0) {
     const d = entry.minsUntil
-    if (d < 60) return `Começa em ${d} min`
-    return `Hoje às ${fmtMinutes(entry.sMin)}`
+    if (d < 60) return t('when.inMin', { n: d })
+    return t('when.today', { time: fmtMinutes(entry.sMin) })
   }
-  if (entry.offset === 1) return `Amanhã às ${fmtMinutes(entry.sMin)}`
-  if (entry.offset <= 6) return `${dayLong} às ${fmtMinutes(entry.sMin)}`
+  if (entry.offset === 1) return t('when.tomorrow', { time: fmtMinutes(entry.sMin) })
+  if (entry.offset <= 6) return t('when.weekday', { day: dayName, time: fmtMinutes(entry.sMin) })
   // mais de uma semana → mostra a data, senão "Segunda" seria ambíguo
-  const dt = entry.date
-  return `${dt.getDate()} ${MONTHS_ABBR[dt.getMonth()]} às ${fmtMinutes(entry.sMin)}`
+  const date = entry.date.toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'short' })
+  return t('when.date', { date, time: fmtMinutes(entry.sMin) })
 }
 
 export const classTimeRange = (entry) => `${fmtMinutes(entry.sMin)}–${fmtMinutes(entry.eMin)}`
@@ -233,17 +234,17 @@ export function weightedAvg(items) {
 // Estado do objetivo de média: compara a média atual com a meta e devolve
 // como mostrar (cor, barra, texto). tone: emerald=atingido, amber=perto,
 // sky=ainda longe, slate=sem notas.
-export function goalStatus(current, goal) {
+export function goalStatus(current, goal, t = KEY) {
   const g = Number(goal)
   if (!g || isNaN(g)) return null
   if (current === null || current === undefined) {
     return { pct: 0, tone: 'slate', reached: false, distance: null,
-      label: 'Ainda sem notas lançadas este semestre' }
+      label: t('goal.noGrades') }
   }
   const diff = current - g
   if (diff >= -0.05) {
     return { pct: 1, tone: 'emerald', reached: true, distance: diff,
-      label: diff > 0.05 ? `Objetivo atingido · +${diff.toFixed(1)}` : 'Objetivo atingido' }
+      label: diff > 0.05 ? t('goal.reachedBy', { n: diff.toFixed(1) }) : t('goal.reached') }
   }
   const gap = -diff
   return {
@@ -251,6 +252,6 @@ export function goalStatus(current, goal) {
     tone: gap <= 1 ? 'amber' : 'sky',
     reached: false,
     distance: gap,
-    label: `A ${gap.toFixed(1)} valores do objetivo`,
+    label: t('goal.away', { n: gap.toFixed(1) }),
   }
 }

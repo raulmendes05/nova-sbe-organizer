@@ -3,7 +3,8 @@ import { useCollection } from '../lib/useCollection.js'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components/ui.jsx'
 import CourseSelect from '../components/CourseSelect.jsx'
-import { ASSIGNMENT_KINDS, dueLabel, formatDateTime, lighten, isCourseDone } from '../lib/helpers.js'
+import { assignmentKinds, dueLabel, formatDateTime, lighten, isCourseDone, localeOf } from '../lib/helpers.js'
+import { useT } from '../i18n/index.jsx'
 import { upcomingExams, allUpcomingExams } from '../data/exams.js'
 
 const toneClasses = {
@@ -13,10 +14,10 @@ const toneClasses = {
   slate: 'bg-white/10 text-slate-300 border border-white/10',
 }
 
-const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
-const examDayMonth = (iso) => {
-  const [, m, d] = iso.split('-').map(Number)
-  return { d, mon: MESES[m - 1] }
+const examDayMonth = (iso, lang) => {
+  const [y, m, d] = iso.split('-').map(Number)
+  const mon = new Date(y, m - 1, d).toLocaleDateString(localeOf(lang), { month: 'short' })
+  return { d, mon: mon.replace('.', '') }
 }
 
 const empty = { title: '', course_id: null, description: '', due_date: '', kind: 'trabalho', status: 'todo' }
@@ -30,6 +31,7 @@ export default function Assignments() {
     orderBy: 'due_date', ascending: true,
   })
   const { rows: courses } = useCourses()
+  const { t, lang } = useT()
   const grades = useCollection('grades', { orderBy: 'created_at', ascending: true })
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
@@ -90,24 +92,24 @@ export default function Assignments() {
 
   return (
     <div>
-      <PageHeader title="Prazos" subtitle="Os teus prazos e a época de exames" />
+      <PageHeader title={t('nav.deadlines')} subtitle={t('deadlines.subtitle')} />
 
       {/* Seletor principal: Prazos / Exames (cápsula com ícones) */}
       <div className="flex gap-1 p-1 mb-4 rounded-2xl bg-white/[0.04] border border-white/10">
         {[
-          { v: 'prazos', label: 'Prazos', icon: 'clipboard' },
-          { v: 'exames', label: 'Exames', icon: 'cap', badge: myExams.length },
-        ].map((t) => {
-          const on = view === t.v
+          { v: 'prazos', label: t('nav.deadlines'), icon: 'clipboard' },
+          { v: 'exames', label: t('deadlines.exams'), icon: 'cap', badge: myExams.length },
+        ].map((tabItem) => {
+          const on = view === tabItem.v
           return (
-            <button key={t.v} onClick={() => setView(t.v)}
+            <button key={tabItem.v} onClick={() => setView(tabItem.v)}
               className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition ${
                 on ? 'text-white shadow-glow' : 'text-slate-400 hover:text-slate-200'
               }`}
               style={on ? { backgroundImage: 'linear-gradient(135deg, #3d78bf 0%, #1f5aa3 100%)' } : undefined}>
-              <Icon name={t.icon} className="w-4 h-4" />
-              {t.label}
-              {t.badge > 0 && <span className={`text-xs ${on ? 'text-nova-100' : 'text-slate-500'}`}>· {t.badge}</span>}
+              <Icon name={tabItem.icon} className="w-4 h-4" />
+              {tabItem.label}
+              {tabItem.badge > 0 && <span className={`text-xs ${on ? 'text-nova-100' : 'text-slate-500'}`}>· {tabItem.badge}</span>}
             </button>
           )
         })}
@@ -117,7 +119,7 @@ export default function Assignments() {
         <>
         {/* As minhas cadeiras vs Todas */}
         <div className="flex gap-2 mb-4">
-          {[['minhas', 'As minhas cadeiras'], ['todas', 'Todas']].map(([v, label]) => {
+          {[['minhas', t('deadlines.myCourses')], ['todas', t('deadlines.allCourses')]].map(([v, label]) => {
             const on = examScope === v
             return (
               <button key={v} onClick={() => setExamScope(v)}
@@ -130,26 +132,26 @@ export default function Assignments() {
         </div>
 
         {examScope === 'todas' && (
-          <input className="input mb-3" placeholder="Pesquisar cadeira..."
+          <input className="input mb-3" placeholder={t('deadlines.searchCourse')}
             value={examSearch} onChange={(e) => setExamSearch(e.target.value)} />
         )}
 
         {exams.length === 0 ? (
           <EmptyState icon="cap"
-            title={examScope === 'minhas' ? 'Sem exames por fazer' : (examSearch.trim() ? 'Sem resultados' : 'Sem exames a chegar')}
+            title={examScope === 'minhas' ? t('deadlines.noExams') : (examSearch.trim() ? t('deadlines.noResults') : t('deadlines.noUpcomingExams'))}
             hint={examScope === 'minhas'
-              ? 'São mostrados só os exames das cadeiras que ainda vais fazer. Adiciona essas cadeiras nas Notas, ou toca em "Todas" para ver o calendário completo.'
-              : (examSearch.trim() ? `Nenhuma cadeira encontrada com "${examSearch}".` : 'Não há exames futuros no calendário.')} />
+              ? t('deadlines.noExamsHint')
+              : (examSearch.trim() ? t('deadlines.noResultsHint', { q: examSearch }) : t('deadlines.noUpcomingExamsHint'))} />
         ) : (
           <div className="space-y-2.5">
             {examClash.size > 0 && (
               <div className="text-xs text-amber-200 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2">
-                ⚠️ Tens exames marcados para o mesmo dia — atenção às datas assinaladas.
+                ⚠️ {t('deadlines.clashWarning')}
               </div>
             )}
             {exams.map((e, i) => {
-              const dl = dueLabel(e.when)
-              const { d, mon } = examDayMonth(e.date)
+              const dl = dueLabel(e.when, t)
+              const { d, mon } = examDayMonth(e.date, lang)
               const clash = examClash.has(e.date)
               return (
                 <div key={i} className={`card p-3.5 flex items-center gap-3.5 ${clash ? 'border-amber-500/30' : ''}`}>
@@ -161,15 +163,15 @@ export default function Assignments() {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-slate-100 truncate">{e.course}</p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      {e.typeLabel} · {e.time}
-                      {clash && <span className="text-amber-300"> · ⚠️ mesmo dia que outro exame</span>}
+                      {t(`examType.${e.type}`)} · {e.time}
+                      {clash && <span className="text-amber-300"> · ⚠️ {t('deadlines.sameDay')}</span>}
                     </p>
                   </div>
                   <span className={`chip ${toneClasses[dl.tone]}`}>{dl.text}</span>
                 </div>
               )
             })}
-            <p className="text-[11px] text-slate-500 text-center pt-1">Calendário oficial S1 26/27 · inclui testes, exames e recursos</p>
+            <p className="text-[11px] text-slate-500 text-center pt-1">{t('deadlines.officialCalendar')}</p>
           </div>
         )}
         </>
@@ -178,7 +180,7 @@ export default function Assignments() {
       ) : (
       <>
       <div className="flex gap-2 mb-4">
-        {[['open', 'Por fazer'], ['done', 'Concluídos']].map(([v, label]) => {
+        {[['open', t('deadlines.todo')], ['done', t('deadlines.done')]].map(([v, label]) => {
           const on = tab === v
           return (
             <button key={v} onClick={() => setTab(v)}
@@ -191,13 +193,13 @@ export default function Assignments() {
       </div>
 
       {list.length === 0 ? (
-        <EmptyState icon="clipboard" title={tab === 'done' ? 'Nada concluído ainda' : 'Sem prazos pendentes'}
-          hint={tab === 'done' ? undefined : 'Toca no + para adicionar um trabalho ou exame.'} />
+        <EmptyState icon="clipboard" title={tab === 'done' ? t('deadlines.emptyDone') : t('deadlines.emptyTodo')}
+          hint={tab === 'done' ? undefined : t('deadlines.emptyTodoHint')} />
       ) : (
         <div className="space-y-2.5">
           {list.map((a) => {
             const c = courseById[a.course_id]
-            const dl = dueLabel(a.due_date)
+            const dl = dueLabel(a.due_date, t)
             const done = a.status === 'done'
             return (
               <div key={a.id} className="card p-3.5 flex items-start gap-3">
@@ -211,8 +213,8 @@ export default function Assignments() {
                   <p className={`font-semibold ${done ? 'text-slate-500 line-through' : 'text-slate-100'}`}>{a.title}</p>
                   <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
                     {c && <span className="chip" style={{ background: (c.color || '#3d78bf') + '2e', color: lighten(c.color) }}>{c.name}</span>}
-                    <span className="capitalize">{a.kind}</span>
-                    {a.due_date && <>· {formatDateTime(a.due_date)}</>}
+                    <span>{t(`kind.assignment.${a.kind}`)}</span>
+                    {a.due_date && <>· {formatDateTime(a.due_date, lang)}</>}
                   </p>
                 </div>
                 {!done && a.due_date && <span className={`chip ${toneClasses[dl.tone]}`}>{dl.text}</span>}
@@ -229,36 +231,36 @@ export default function Assignments() {
       </>
       )}
 
-      <Modal open={open} onClose={() => setOpen(false)} title={editId ? 'Editar prazo' : 'Novo prazo'}>
+      <Modal open={open} onClose={() => setOpen(false)} title={editId ? t('deadlines.edit') : t('deadlines.new')}>
         <form onSubmit={save} className="space-y-3">
           <div>
-            <label className="label">Titulo</label>
-            <input className="input" required placeholder="Ex: Case study de Marketing"
+            <label className="label">{t('common.title')}</label>
+            <input className="input" required placeholder={t('deadlines.titlePlaceholder')}
               value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           </div>
           <div>
-            <label className="label">Cadeira</label>
+            <label className="label">{t('common.course')}</label>
             <CourseSelect value={form.course_id} onChange={(v) => setForm({ ...form, course_id: v })} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Tipo</label>
+              <label className="label">{t('common.kind')}</label>
               <select className="input" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
-                {ASSIGNMENT_KINDS.map((k) => <option key={k.v} value={k.v}>{k.label}</option>)}
+                {assignmentKinds(t).map((k) => <option key={k.v} value={k.v}>{k.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="label">Data limite</label>
+              <label className="label">{t('deadlines.dueDate')}</label>
               <input type="datetime-local" className="input" value={form.due_date}
                 onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
             </div>
           </div>
           <div>
-            <label className="label">Notas (opcional)</label>
-            <textarea className="input min-h-[80px]" placeholder="Detalhes, requisitos, links..."
+            <label className="label">{t('deadlines.notes')}</label>
+            <textarea className="input min-h-[80px]" placeholder={t('deadlines.notesPlaceholder')}
               value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
-          <button className="btn-primary w-full mt-2">{editId ? 'Guardar' : 'Adicionar'}</button>
+          <button className="btn-primary w-full mt-2">{editId ? t('common.save') : t('common.add')}</button>
         </form>
       </Modal>
     </div>

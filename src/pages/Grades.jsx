@@ -6,6 +6,7 @@ import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components
 import CoursePicker from '../components/CoursePicker.jsx'
 import GoalCard from '../components/GoalCard.jsx'
 import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg } from '../lib/helpers.js'
+import { useT } from '../i18n/index.jsx'
 
 const YEAR_OPTS = [1, 2, 3]
 const TERM_OPTS = [1, 2]
@@ -21,6 +22,7 @@ export default function Grades() {
   const { rows: courses, add: addCourse, update: updateCourse, remove: removeCourse, loading: coursesLoading } = useCourses()
   const { rows: grades, loading: gradesLoading, add: addGrade, update: updateGrade, remove: removeGrade } = useCollection('grades', { orderBy: 'created_at', ascending: true })
   const { academicYear, semester, goalAvg, currentTermKey, updateGoal } = useAuth()
+  const { t } = useT()
   const defYear = Number(academicYear) || null
   const defTerm = Number(semester) || null
 
@@ -77,7 +79,7 @@ export default function Grades() {
   const groups = Object.values(
     regular.reduce((acc, item) => {
       const k = termKey(item.c.year, item.c.term)
-      if (!acc[k]) acc[k] = { key: k, label: termLabel(item.c.year, item.c.term), items: [] }
+      if (!acc[k]) acc[k] = { key: k, label: termLabel(item.c.year, item.c.term, t), items: [] }
       acc[k].items.push(item)
       return acc
     }, {})
@@ -115,7 +117,7 @@ export default function Grades() {
     setCourseModal(false)
   }
   async function deleteCourse(id) {
-    if (!confirm('Apagar a cadeira e todas as suas notas?')) return
+    if (!confirm(t('grades.confirmDeleteCourse'))) return
     await removeCourse(id)
   }
 
@@ -156,7 +158,7 @@ export default function Grades() {
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-slate-100 truncate">{c.name}</p>
             <p className="text-xs text-slate-400">
-              {c.ects} ECTS{usesComponents && <> · {gw}% avaliado</>}
+              {c.ects} ECTS{usesComponents && <> · {t('grades.assessedPct', { n: gw })}</>}
             </p>
           </div>
           <div className="text-right">
@@ -167,9 +169,9 @@ export default function Grades() {
         {isOpen && (
           <div className="border-t border-white/10 p-3.5 bg-white/[0.02] space-y-3.5">
             <div>
-              <label className="label">Nota final (0–20)</label>
+              <label className="label">{t('grades.finalGrade')}</label>
               <input type="number" step="0.1" min="0" max="20" inputMode="decimal"
-                className="input text-lg font-semibold" placeholder="Ainda sem nota"
+                className="input text-lg font-semibold" placeholder={t('grades.noGradeYet')}
                 value={finalDraft}
                 onChange={(e) => setFinalDraft(e.target.value)}
                 onBlur={() => saveFinal(c)} />
@@ -178,14 +180,14 @@ export default function Grades() {
             <div>
               <button onClick={() => setShowComps(!showComps)}
                 className="w-full flex items-center justify-between text-sm text-slate-300 hover:text-white py-1">
-                <span className="font-medium">Detalhar por componentes {usesComponents && <span className="text-slate-500">(a contar)</span>}</span>
+                <span className="font-medium">{t('grades.breakdown')} {usesComponents && <span className="text-slate-500">({t('grades.counting')})</span>}</span>
                 <span className={`transition ${showComps ? 'rotate-180' : ''}`}>▾</span>
               </button>
 
               {showComps && (
                 <div className="mt-1.5">
                   <p className="text-xs text-slate-500 mb-2">
-                    Se tiveres nota final acima, os componentes servem só para simular. Sem nota final, a média vem daqui.
+                    {t('grades.breakdownHint')}
                   </p>
                   {comps.length > 0 && (
                     <div className="space-y-1.5 mb-2.5">
@@ -193,7 +195,7 @@ export default function Grades() {
                         <div key={g.id} className="flex items-center gap-2 bg-white/[0.05] border border-white/5 rounded-lg px-3 py-2">
                           <div className="flex-1 min-w-0" onClick={() => openEditGrade(g)}>
                             <p className="text-sm font-medium text-slate-200 truncate">{g.title}</p>
-                            <p className="text-xs text-slate-500">peso {g.weight}%</p>
+                            <p className="text-xs text-slate-500">{t('grades.weight', { n: g.weight })}</p>
                           </div>
                           <span className={`font-bold ${g.grade === null ? 'text-slate-500' : gradeColor(Number(g.grade))}`}>
                             {g.grade === null ? '—' : Number(g.grade).toFixed(1)}
@@ -206,7 +208,7 @@ export default function Grades() {
                     </div>
                   )}
                   <button onClick={() => openNewGrade(c.id)} className="btn-ghost w-full py-2 text-sm">
-                    <Icon name="plus" className="w-4 h-4" /> Adicionar componente
+                    <Icon name="plus" className="w-4 h-4" /> {t('grades.addComponent')}
                   </button>
 
                   {/* Simulador — que nota preciso? */}
@@ -214,25 +216,25 @@ export default function Grades() {
                     const pass = simulateGrade(comps, 9.5)
                     const goal = simTarget !== '' && !isNaN(Number(simTarget)) ? simulateGrade(comps, Number(simTarget)) : null
                     const line = (sim) => {
-                      if (!sim || sim.done) return { txt: 'Todas as componentes já têm nota — média fechada.', cls: 'text-slate-400' }
-                      if (sim.guaranteed) return { txt: `✅ Já garantido — mesmo com 0 no resto ficas acima.`, cls: 'text-emerald-300' }
-                      if (sim.impossible) return { txt: `❌ Já não dá — precisavas de mais de 20 nos ${sim.remainingPct}% que faltam.`, cls: 'text-rose-300' }
-                      return { txt: `Precisas de ${sim.needed.toFixed(1)} nos ${sim.remainingPct}% que faltam.`, cls: 'text-slate-100' }
+                      if (!sim || sim.done) return { txt: t('grades.simDone'), cls: 'text-slate-400' }
+                        if (sim.guaranteed) return { txt: t('grades.simGuaranteed'), cls: 'text-emerald-300' }
+                        if (sim.impossible) return { txt: t('grades.simImpossible', { pct: sim.remainingPct }), cls: 'text-rose-300' }
+                        return { txt: t('grades.simNeeded', { n: sim.needed.toFixed(1), pct: sim.remainingPct }), cls: 'text-slate-100' }
                     }
                     const p = line(pass)
                     const g = goal ? line(goal) : null
                     return (
                       <div className="mt-3 rounded-xl bg-nova-500/10 border border-nova-500/25 p-3">
-                        <p className="text-xs font-semibold text-nova-200 mb-2">🎯 Simulador — que nota preciso?</p>
-                        <p className={`text-sm ${p.cls}`}><span className="text-slate-400">Para passar (9,5):</span> {p.txt}</p>
+                        <p className="text-xs font-semibold text-nova-200 mb-2">🎯 {t('grades.simTitle')}</p>
+                        <p className={`text-sm ${p.cls}`}><span className="text-slate-400">{t('grades.simToPass')}</span> {p.txt}</p>
                         <div className="flex items-center gap-2 mt-2.5">
-                          <label className="text-sm text-slate-400">Objetivo:</label>
+                          <label className="text-sm text-slate-400">{t('grades.simTarget')}</label>
                           <input type="number" step="0.5" min="0" max="20" inputMode="decimal"
-                            className="input w-20 py-1.5 text-sm" placeholder="ex. 16"
+                            className="input w-20 py-1.5 text-sm" placeholder={t('grades.simPlaceholder')}
                             value={simTarget} onChange={(e) => setSimTarget(e.target.value)} />
                           <span className="text-sm text-slate-500">/ 20</span>
                         </div>
-                        {g && <p className={`text-sm mt-2 ${g.cls}`}><span className="text-slate-400">Para {Number(simTarget)}:</span> {g.txt}</p>}
+                        {g && <p className={`text-sm mt-2 ${g.cls}`}><span className="text-slate-400">{t('grades.simFor', { n: Number(simTarget) })}</span> {g.txt}</p>}
                       </div>
                     )
                   })()}
@@ -242,7 +244,7 @@ export default function Grades() {
 
             <div className="flex gap-2 pt-1">
               <button onClick={() => openEditCourse(c)} className="btn-ghost flex-1 py-2 text-sm">
-                <Icon name="edit" className="w-4 h-4" /> Editar cadeira
+                <Icon name="edit" className="w-4 h-4" /> {t('grades.editCourse')}
               </button>
               <button onClick={() => deleteCourse(c.id)} className="btn-ghost px-3 py-2 text-sm text-rose-400">
                 <Icon name="trash" className="w-4 h-4" />
@@ -256,7 +258,7 @@ export default function Grades() {
 
   return (
     <div>
-      <PageHeader title="Notas" subtitle="Escala 0–20 · média ponderada por ECTS" />
+      <PageHeader title={t('nav.grades')} subtitle={t('grades.subtitle')} />
 
       {/* Cartao media global */}
       <div className="relative overflow-hidden rounded-3xl p-5 mb-4 shadow-glow"
@@ -264,13 +266,13 @@ export default function Grades() {
         <div className="absolute -top-10 -right-8 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
         <div className="absolute -bottom-12 -left-6 w-40 h-40 rounded-full bg-accent-400/20 blur-2xl" />
         <div className="relative">
-          <p className="text-nova-100/90 text-sm font-medium">Média global · ponderada por ECTS</p>
+          <p className="text-nova-100/90 text-sm font-medium">{t('home.avg')}</p>
           <div className="flex items-end gap-2 mt-1">
             <span className="text-5xl font-bold text-white tracking-tight">{globalAvg !== null ? globalAvg.toFixed(2) : '—'}</span>
             <span className="text-nova-200 mb-1.5 font-medium">/ 20</span>
           </div>
           <p className="text-nova-200/80 text-xs mt-2">
-            {withAvg.length} de {courses.length} cadeiras com notas · {totalEcts} ECTS
+            {t('home.avgSub', { n: withAvg.length, total: courses.length, ects: totalEcts })}
           </p>
         </div>
       </div>
@@ -278,14 +280,14 @@ export default function Grades() {
       {/* Objetivo de média do semestre atual */}
       <div className="mb-4">
         <GoalCard current={currentAvg} goal={goalAvg} onSave={updateGoal}
-          subtitle={termLabel(defYear, defTerm)} />
+          subtitle={termLabel(defYear, defTerm, t)} />
       </div>
 
       {/* Separadores */}
       <div className="flex gap-2 mb-4">
-        <button onClick={() => setTab('semesters')} className={`flex-1 py-2 seg ${tab === 'semesters' ? 'seg-on' : 'seg-off'}`}>Semestres</button>
+        <button onClick={() => setTab('semesters')} className={`flex-1 py-2 seg ${tab === 'semesters' ? 'seg-on' : 'seg-off'}`}>{t('grades.semesters')}</button>
         <button onClick={() => setTab('equivalences')} className={`flex-1 py-2 seg ${tab === 'equivalences' ? 'seg-on' : 'seg-off'}`}>
-          Equivalências{equivalences.length > 0 && <span className="ml-1 opacity-70">· {equivalences.length}</span>}
+          {t('grades.equivalences')}{equivalences.length > 0 && <span className="ml-1 opacity-70">· {equivalences.length}</span>}
         </button>
       </div>
 
@@ -293,7 +295,7 @@ export default function Grades() {
         <Spinner />
       ) : tab === 'semesters' ? (
         groups.length === 0 ? (
-          <EmptyState icon="chart" title="Ainda sem cadeiras" hint="Toca no + para adicionar do catálogo Nova SBE." />
+          <EmptyState icon="chart" title={t('grades.emptyTitle')} hint={t('grades.emptyHint')} />
         ) : (
           <div className="space-y-3">
             {groups.map((group) => {
@@ -307,8 +309,8 @@ export default function Grades() {
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-slate-100">{group.label}</p>
                       <p className="text-xs text-slate-400 mt-0.5">
-                        {group.items.length} cadeira{group.items.length !== 1 ? 's' : ''}
-                        {gAvg !== null && <> · média <span className={gradeColor(gAvg)}>{gAvg.toFixed(1)}</span></>}
+                        {t('grades.courseCount', { n: group.items.length })}
+                          {gAvg !== null && <> · {t('grades.average')} <span className={gradeColor(gAvg)}>{gAvg.toFixed(1)}</span></>}
                       </p>
                     </div>
                     <span className={`text-slate-400 text-lg transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>▾</span>
@@ -326,23 +328,23 @@ export default function Grades() {
       ) : (
         // Separador Equivalências
         equivalences.length === 0 ? (
-          <EmptyState icon="note" title="Sem equivalências" hint="Cadeiras creditadas de outra universidade. Toca no + para adicionar." />
+          <EmptyState icon="note" title={t('grades.emptyEquiv')} hint={t('grades.emptyEquivHint')} />
         ) : (
           <div className="space-y-2.5">
-            <p className="text-xs text-slate-500 px-0.5">Cadeiras creditadas de outra universidade. Contam para a média global e ECTS.</p>
+            <p className="text-xs text-slate-500 px-0.5">{t('grades.equivHint')}</p>
             {equivalences.map(courseCard)}
           </div>
         )
       )}
 
-      <Fab onClick={onFab} label={tab === 'equivalences' ? 'Nova equivalência' : 'Nova cadeira'} />
+      <Fab onClick={onFab} label={tab === 'equivalences' ? t('grades.newEquiv') : t('grades.newCourse')} />
 
       {/* Modal cadeira */}
-      <Modal open={courseModal} onClose={() => setCourseModal(false)} title={courseEditId ? 'Editar cadeira' : courseForm.is_equivalence ? 'Nova equivalência' : 'Nova cadeira'}>
+      <Modal open={courseModal} onClose={() => setCourseModal(false)} title={courseEditId ? t('grades.editCourse') : courseForm.is_equivalence ? t('grades.newEquiv') : t('grades.newCourse')}>
         <form onSubmit={saveCourse} className="space-y-3">
           <div>
-            <label className="label">Nome{courseForm.code && <span className="text-slate-500 font-normal"> · #{courseForm.code}</span>}</label>
-            <input className="input" required placeholder="Ex: Financial Accounting"
+            <label className="label">{t('schedule.name')}{courseForm.code && <span className="text-slate-500 font-normal"> · #{courseForm.code}</span>}</label>
+            <input className="input" required placeholder={t('grades.namePlaceholder')}
               value={courseForm.name} onChange={(e) => setCourseForm({ ...courseForm, name: e.target.value })} />
           </div>
 
@@ -353,28 +355,28 @@ export default function Grades() {
               {courseForm.is_equivalence && <Icon name="check" className="w-4 h-4 text-white" />}
             </span>
             <span>
-              <span className="block text-sm font-semibold text-slate-100">Equivalência de outra universidade</span>
-              <span className="block text-xs text-slate-500">Fica no separador Equivalências. Conta para a média e ECTS.</span>
+              <span className="block text-sm font-semibold text-slate-100">{t('grades.equivToggle')}</span>
+              <span className="block text-xs text-slate-500">{t('grades.equivToggleHint')}</span>
             </span>
           </button>
 
           {!courseForm.is_equivalence && (
             <>
               <div>
-                <label className="label">Ano</label>
+                <label className="label">{t('profile.year')}</label>
                 <div className="grid grid-cols-3 gap-2">
                   {YEAR_OPTS.map((y) => (
                     <button type="button" key={y} onClick={() => setCourseForm({ ...courseForm, year: y })}
-                      className={`py-2 seg ${courseForm.year === y ? 'seg-on' : 'seg-off'}`}>{y}º ano</button>
+                      className={`py-2 seg ${courseForm.year === y ? 'seg-on' : 'seg-off'}`}>{t('term.year', { year: y })}</button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="label">Semestre</label>
+                <label className="label">{t('profile.semester')}</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {TERM_OPTS.map((t) => (
-                    <button type="button" key={t} onClick={() => setCourseForm({ ...courseForm, term: courseForm.term === t ? null : t })}
-                      className={`py-2 seg ${courseForm.term === t ? 'seg-on' : 'seg-off'}`}>{t}º semestre</button>
+                  {TERM_OPTS.map((opt) => (
+                      <button type="button" key={opt} onClick={() => setCourseForm({ ...courseForm, term: courseForm.term === opt ? null : opt })}
+                        className={`py-2 seg ${courseForm.term === opt ? 'seg-on' : 'seg-off'}`}>{t('grades.termN', { n: opt })}</button>
                   ))}
                 </div>
               </div>
@@ -388,12 +390,12 @@ export default function Grades() {
                 value={courseForm.ects} onChange={(e) => setCourseForm({ ...courseForm, ects: e.target.value })} />
             </div>
             <div>
-              <label className="label">Professor</label>
-              <input className="input" placeholder="opcional" value={courseForm.professor}
+              <label className="label">{t('grades.professor')}</label>
+              <input className="input" placeholder={t('common.optional')} value={courseForm.professor}
                 onChange={(e) => setCourseForm({ ...courseForm, professor: e.target.value })} />
             </div>
           </div>
-          <button className="btn-primary w-full mt-2">{courseEditId ? 'Guardar' : 'Adicionar'}</button>
+          <button className="btn-primary w-full mt-2">{courseEditId ? t('common.save') : t('common.add')}</button>
         </form>
       </Modal>
 
@@ -402,27 +404,27 @@ export default function Grades() {
         onPick={pickFromCatalog} onManual={openManual} existingCodes={existingCodes} defaultProgram="management" />
 
       {/* Modal componente */}
-      <Modal open={gradeModal} onClose={() => setGradeModal(false)} title={gradeEditId ? 'Editar componente' : 'Novo componente'}>
+      <Modal open={gradeModal} onClose={() => setGradeModal(false)} title={gradeEditId ? t('grades.editComponent') : t('grades.newComponent')}>
         <form onSubmit={saveGrade} className="space-y-3">
           <div>
-            <label className="label">Nome</label>
-            <input className="input" required placeholder="Ex: Exame Final"
+            <label className="label">{t('schedule.name')}</label>
+            <input className="input" required placeholder={t('grades.componentPlaceholder')}
               value={gradeForm.title} onChange={(e) => setGradeForm({ ...gradeForm, title: e.target.value })} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">Peso (%)</label>
+              <label className="label">{t('grades.weightLabel')}</label>
               <input type="number" step="1" min="0" max="100" className="input" required placeholder="40"
                 value={gradeForm.weight} onChange={(e) => setGradeForm({ ...gradeForm, weight: e.target.value })} />
             </div>
             <div>
-              <label className="label">Nota (0–20)</label>
-              <input type="number" step="0.1" min="0" max="20" className="input" placeholder="ainda sem nota"
+              <label className="label">{t('grades.gradeLabel')}</label>
+              <input type="number" step="0.1" min="0" max="20" className="input" placeholder={t('grades.noGradeYetShort')}
                 value={gradeForm.grade} onChange={(e) => setGradeForm({ ...gradeForm, grade: e.target.value })} />
             </div>
           </div>
-          <p className="text-xs text-slate-400">Deixa a nota vazia se ainda não saiu — o peso conta para a percentagem avaliada.</p>
-          <button className="btn-primary w-full mt-2">{gradeEditId ? 'Guardar' : 'Adicionar'}</button>
+          <p className="text-xs text-slate-400">{t('grades.componentHint')}</p>
+          <button className="btn-primary w-full mt-2">{gradeEditId ? t('common.save') : t('common.add')}</button>
         </form>
       </Modal>
     </div>
