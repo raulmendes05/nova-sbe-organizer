@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useCollection } from '../lib/useCollection.js'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -6,6 +6,8 @@ import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon, ErrorBox } from '../
 import CourseSelect from '../components/CourseSelect.jsx'
 import { days as weekDays, scheduleKinds, hhmm, todayDow } from '../lib/helpers.js'
 import { officialBlock } from '../lib/enroll.js'
+import { weekOf, isoOf } from '../lib/week.js'
+import { localeOf } from '../lib/helpers.js'
 import EnrollFlow from '../components/EnrollFlow.jsx'
 import { useT } from '../i18n/index.jsx'
 import CalendarBanner from '../components/CalendarBanner.jsx'
@@ -22,12 +24,14 @@ export default function Schedule() {
     orderBy: 'start_time', ascending: true,
   })
   const { rows: courses } = useCourses()
-  const { semester, academicYear } = useAuth()
+  const { semester, academicYear, lang } = useAuth()
+  const prazos = useCollection('assignments', { orderBy: 'due_date', ascending: true })
   const { t } = useT()
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
   const [open, setOpen] = useState(false)
   const [turmasAberto, setTurmasAberto] = useState(false)
+  const [semana, setSemana] = useState(0)   // 0 = esta semana
   const [form, setForm] = useState(empty)
   const [editId, setEditId] = useState(null)
   const [exported, setExported] = useState(null)
@@ -91,6 +95,38 @@ export default function Schedule() {
     return { preSelect: codigos, preTurnos: porCodigo }
   })()
 
+  // A semana a mostrar: as aulas que la correm mesmo (T1/T2, feriados, pausas
+  // e dias de compensacao) mais os prazos que caem nesses dias.
+  const dias = useMemo(() => {
+    const base = weekOf(rows, new Date(), semana)
+    const porDia = {}
+    for (const a of prazos.rows) {
+      if (!a.due_date || a.status === 'done') continue
+      const d = new Date(a.due_date)
+      const iso = isoOf(d)
+      const ini = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+      const fim = new Date(d.getTime() + 30 * 60000)
+      ;(porDia[iso] ||= []).push({
+        id: `prazo-${a.id}`, title: a.title, course_id: a.course_id, __prazo: true,
+        start_time: ini,
+        end_time: `${String(fim.getHours()).padStart(2, '0')}:${String(fim.getMinutes()).padStart(2, '0')}`,
+      })
+    }
+    return base.map((d) => {
+      const st = d.status
+      const semAulas = !d.blocks.length && (st.type === 'holiday' || st.type === 'break')
+      const aviso = st.type === 'holiday' || st.type === 'break'
+        ? (lang === 'en' ? st.labelEn : st.label)
+        : st.type === 'makeup' ? t('schedule.makeup') : null
+      return { ...d, semAulas, aviso, blocks: [...d.blocks, ...(porDia[d.iso] || [])] }
+    })
+  }, [rows, prazos.rows, semana, lang, t])
+
+  const intervalo = (() => {
+    const fmt = (d) => d.toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'short' })
+    return `${fmt(dias[0].date)} – ${fmt(dias[6].date)}`
+  })()
+
   const hoursPerWeek = rows.reduce((a, b) => {
     const [sh, sm] = hhmm(b.start_time).split(':').map(Number)
     const [eh, em] = hhmm(b.end_time).split(':').map(Number)
@@ -145,7 +181,33 @@ export default function Schedule() {
       ) : rows.length === 0 ? (
         <EmptyState icon="calendar" title={t('schedule.emptyTitle')} hint={t('schedule.emptyHint')} />
       ) : (
-        <WeekGrid blocks={rows} courseById={courseById} onPick={openEdit} />
+        <>
+          {/* Navegar entre semanas: o horário não é igual todas elas */}
+          <div className="flex items-center gap-2 mb-2">
+            <button onClick={() => setSemana(semana - 1)} aria-label={t('schedule.prevWeek')}
+              className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 text-slate-300 flex items-center justify-center active:scale-95 transition">
+              <Icon name="chevron" className="w-4 h-4 rotate-180" />
+            </button>
+            <div className="flex-1 text-center">
+              <p className="text-sm font-semibold text-slate-200 tabular-nums">{intervalo}</p>
+              <p className="text-[11px] text-slate-500">
+                {semana === 0 ? t('schedule.thisWeek') : t('schedule.weeksAway', { n: Math.abs(semana) })}
+              </p>
+            </div>
+            <button onClick={() => setSemana(semana + 1)} aria-label={t('schedule.nextWeek')}
+              className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 text-slate-300 flex items-center justify-center active:scale-95 transition">
+              <Icon name="chevron" className="w-4 h-4" />
+            </button>
+          </div>
+          {semana !== 0 && (
+            <button onClick={() => setSemana(0)}
+              className="w-full text-center text-xs text-nova-300 mb-2 py-1">
+              {t('schedule.backToThisWeek')}
+            </button>
+          )}
+
+          <WeekGrid days={dias} courseById={courseById} onPick={openEdit} />
+        </>
       )}
 
       <Fab onClick={openNew} />

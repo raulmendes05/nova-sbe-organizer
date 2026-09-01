@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { days as weekDays, hhmm, todayDow } from '../lib/helpers.js'
+import { hhmm } from '../lib/helpers.js'
 import { useT } from '../i18n/index.jsx'
 
 const PX_PER_MIN = 1.05          // 1h ≈ 63px
@@ -42,16 +42,18 @@ function layout(blocks) {
   return out
 }
 
-export default function WeekGrid({ blocks, courseById, onPick }) {
+/**
+ * Grelha de UMA semana concreta. Os dias vêm de fora já resolvidos (data, o que
+ * o calendário académico diz do dia e as aulas que lá correm) — ver lib/week.js.
+ */
+export default function WeekGrid({ days: semana, courseById, onPick }) {
   const { t } = useT()
-  const today = todayDow()
 
-  // Só se mostram os dias que têm aulas (o fim de semana raramente tem),
-  // mas Seg–Sex aparecem sempre para a semana não ficar deformada.
-  const days = useMemo(() => {
-    const used = new Set(blocks.map((b) => b.day_of_week))
-    return weekDays(t).filter((d) => d.n <= 5 || used.has(d.n))
-  }, [blocks, t])
+  // Seg–Sex aparecem sempre para a semana não ficar deformada; fim de semana só
+  // se tiver mesmo alguma coisa.
+  const days = useMemo(
+    () => semana.filter((d) => d.n <= 5 || d.blocks.length), [semana])
+  const blocks = useMemo(() => days.flatMap((d) => d.blocks), [days])
 
   // A grelha começa/acaba nas horas mesmo usadas, com folga de meia hora.
   const [from, to] = useMemo(() => {
@@ -67,9 +69,9 @@ export default function WeekGrid({ blocks, courseById, onPick }) {
 
   const byDay = useMemo(() => {
     const m = {}
-    for (const d of days) m[d.n] = layout(blocks.filter((b) => b.day_of_week === d.n))
+    for (const d of days) m[d.n] = layout(d.blocks)
     return m
-  }, [blocks, days])
+  }, [days])
 
   return (
     <div className="card overflow-x-auto">
@@ -79,10 +81,15 @@ export default function WeekGrid({ blocks, courseById, onPick }) {
           <div className="w-11 shrink-0" />
           {days.map((d) => (
             <div key={d.n} className="flex-1 text-center py-2">
-              <span className={`text-xs font-semibold ${d.n === today ? 'text-nova-300' : 'text-slate-400'}`}>
-                {d.short}
+              <span className={`text-xs font-semibold ${d.hoje ? 'text-nova-300' : 'text-slate-400'}`}>
+                {t(`day.${d.n}.short`)} <span className="tabular-nums opacity-70">{d.date.getDate()}</span>
               </span>
-              {d.n === today && <span className="block mx-auto mt-1 h-0.5 w-6 rounded-full bg-nova-400" />}
+              {d.hoje && <span className="block mx-auto mt-1 h-0.5 w-6 rounded-full bg-nova-400" />}
+              {d.aviso && (
+                <span className="block text-[9px] text-amber-300/80 leading-tight px-0.5 mt-0.5 line-clamp-2">
+                  {d.aviso}
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -108,24 +115,25 @@ export default function WeekGrid({ blocks, courseById, onPick }) {
             <div className="flex h-full">
               {days.map((d) => (
                 <div key={d.n}
-                  className={`flex-1 relative border-l border-white/[0.06] ${d.n === today ? 'bg-nova-500/[0.04]' : ''}`}>
+                  className={`flex-1 relative border-l border-white/[0.06] ${d.hoje ? 'bg-nova-500/[0.04]' : ''} ${d.semAulas ? 'bg-white/[0.02]' : ''}`}>
                   {(byDay[d.n] || []).map((b) => {
                     const s = toMin(b.start_time)
                     const e = toMin(b.end_time)
                     const c = courseById[b.course_id]
-                    const color = c?.color || '#3d78bf'
+                    const color = b.__prazo ? '#f59e0b' : (c?.color || '#3d78bf')
                     const h = Math.max(MIN_BLOCK, (e - s) * PX_PER_MIN)
                     const w = 100 / (b.cols || 1)
                     return (
-                      <button key={b.id} onClick={() => onPick(b)} title={`${b.title} · ${hhmm(b.start_time)}-${hhmm(b.end_time)}`}
-                        className="absolute rounded-lg px-1.5 py-1 text-left overflow-hidden active:scale-[0.98] transition"
+                      <button key={b.id} onClick={() => !b.__prazo && onPick(b)}
+                        title={`${b.title} · ${hhmm(b.start_time)}-${hhmm(b.end_time)}`}
+                        className={`absolute rounded-lg px-1.5 py-1 text-left overflow-hidden transition ${b.__prazo ? 'cursor-default' : 'active:scale-[0.98]'}`}
                         style={{
                           top: (s - from) * PX_PER_MIN + 1,
                           height: h - 2,
                           left: `calc(${b.col * w}% + 2px)`,
                           width: `calc(${w}% - 4px)`,
                           background: `linear-gradient(180deg, ${color}38, ${color}22)`,
-                          borderLeft: `3px solid ${color}`,
+                          borderLeft: `3px ${b.__prazo ? 'dashed' : 'solid'} ${color}`,
                         }}>
                         <span className="block text-[11px] font-semibold text-slate-100 leading-tight line-clamp-2">
                           {b.title}
