@@ -6,7 +6,6 @@ export const en = {
   'nav.schedule': 'Schedule',
   'nav.deadlines': 'Deadlines',
   'nav.grades': 'Grades',
-  'nav.tasks': 'Tasks',
   'nav.exams': 'Papers',   // rotulo curto: na barra inferior 'Past papers' quebrava em duas linhas
   'nav.claudio': 'Cláudio',
   'nav.profile': 'Profile',
@@ -141,8 +140,6 @@ export const en = {
   'common.add': 'Add',
   'common.delete': 'Delete',
   'common.remove': 'Remove',
-  'common.edit': 'Edit',
-  'common.new': 'New',
   'common.title': 'Title',
   'common.course': 'Course',
   'common.kind': 'Type',
@@ -189,6 +186,7 @@ export const en = {
 
   // ---- Deadlines ----
   'deadlines.subtitle': 'Your deadlines and the exam period',
+  'deadlines.untitled': 'Untitled',
   'deadlines.exams': 'Exams',
   'deadlines.myCourses': 'My courses',
   'deadlines.allCourses': 'All',
@@ -272,20 +270,6 @@ export const en = {
   'goalPrompt.set': 'Set target',
 
   // ---- Notes & Tasks ----
-  'notes.title': 'Notes & Tasks',
-  'notes.subtitle': '{n} tasks to do',
-  'notes.all': 'All',
-  'notes.notes': 'Notes',
-  'notes.task': 'Task',
-  'notes.note': 'Note',
-  'notes.emptyTitle': 'Nothing here yet',
-  'notes.emptyHint': 'Tap + for a quick note or task.',
-  'notes.taskPlaceholder': 'What do you need to do?',
-  'notes.notePlaceholder': 'Note title',
-  'notes.details': 'Details (optional)',
-  'notes.content': 'Content',
-  'notes.bodyPlaceholder': 'Write here...',
-  'notes.courseOptional': 'Course (optional)',
 
   // ---- Course select ----
   'courseSelect.none': 'No course',
@@ -391,7 +375,6 @@ export const en = {
   'exams.fileCount.one': '{n} file',
   'exams.courseCount': '{n} courses',
   'exams.courseCount.one': '{n} course',
-  'notes.subtitle.one': '{n} task to do',
   'schedule.subtitle.one': '{n} class · {h}h per week',
 
   'profile.version': 'version {v} · built {d} UTC',

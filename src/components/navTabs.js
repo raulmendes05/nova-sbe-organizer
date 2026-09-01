@@ -5,12 +5,11 @@ export const NAV_TABS = [
   { to: '/horario', icon: 'calendar', key: 'nav.schedule' },
   { to: '/prazos', icon: 'clipboard', key: 'nav.deadlines' },
   { to: '/notas', icon: 'chart', key: 'nav.grades' },
-  { to: '/tarefas', icon: 'note', key: 'nav.tasks' },
   { to: '/provas', icon: 'archive', key: 'nav.exams' },
   { to: '/claudio', icon: 'spark', key: 'nav.claudio' },
 ]
 
 // O Perfil fica à parte: no computador vai para o fundo da barra lateral, e no
-// telemóvel entra pelo cabeçalho do Início — a barra inferior já leva 7 e um
-// oitavo separador deixaria os rótulos ilegíveis.
+// telemóvel entra pelo cabeçalho do Início, para a barra inferior não ficar
+// com separadores a mais e os rótulos ilegíveis.
 export const PROFILE_TAB = { to: '/perfil', icon: 'user', key: 'nav.profile' }

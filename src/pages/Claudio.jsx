@@ -76,7 +76,6 @@ export default function Claudio() {
   const schedule = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
   const assignments = useCollection('assignments', { orderBy: 'due_date', ascending: true })
   const grades = useCollection('grades', { orderBy: 'created_at', ascending: true })
-  const notes = useCollection('notes', { orderBy: 'created_at', ascending: false })
 
   const [chat, setChat] = useState([])       // mensagens para mostrar
   const [apiMsgs, setApiMsgs] = useState([])  // mensagens em formato Anthropic
@@ -138,13 +137,16 @@ export default function Claudio() {
   // Executar uma ação (tool) do Cláudio na base de dados do utilizador
   async function execTool(name, input) {
     const inp = input || {}
+    // As tarefas e as notas deixaram de ter separador proprio: sao prazos sem
+    // data. As ferramentas mantem o nome para o prompt do servidor nao mudar.
     if (name === 'criar_tarefa') {
-      await notes.add({ title: inp.titulo, body: inp.detalhes || null, is_task: true, done: false, course_id: findCourseId(inp.cadeira) })
-      return `✓ Tarefa criada: "${inp.titulo}"`
+      await assignments.add({ title: inp.titulo, description: inp.detalhes || null, kind: 'outro', due_date: null, status: 'todo', course_id: findCourseId(inp.cadeira) })
+      return `✓ Tarefa criada nos Prazos: "${inp.titulo}"`
     }
     if (name === 'criar_nota') {
-      await notes.add({ title: inp.titulo || null, body: inp.texto, is_task: false, done: false, course_id: findCourseId(inp.cadeira) })
-      return `✓ Nota criada${inp.titulo ? `: "${inp.titulo}"` : ''}`
+      const titulo = (inp.titulo || '').trim() || String(inp.texto || '').split('\n')[0].trim().slice(0, 80)
+      await assignments.add({ title: titulo, description: inp.texto || null, kind: 'outro', due_date: null, status: 'todo', course_id: findCourseId(inp.cadeira) })
+      return `✓ Nota guardada nos Prazos${titulo ? `: "${titulo}"` : ''}`
     }
     if (name === 'criar_prazo') {
       const d = inp.data ? new Date(inp.data) : null

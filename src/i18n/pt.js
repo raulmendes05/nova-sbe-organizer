@@ -6,7 +6,6 @@ export const pt = {
   'nav.schedule': 'Horário',
   'nav.deadlines': 'Prazos',
   'nav.grades': 'Notas',
-  'nav.tasks': 'Tarefas',
   'nav.exams': 'Provas',
   'nav.claudio': 'Cláudio',
   'nav.profile': 'Perfil',
@@ -141,8 +140,6 @@ export const pt = {
   'common.add': 'Adicionar',
   'common.delete': 'Apagar',
   'common.remove': 'Remover',
-  'common.edit': 'Editar',
-  'common.new': 'Novo',
   'common.title': 'Título',
   'common.course': 'Cadeira',
   'common.kind': 'Tipo',
@@ -189,6 +186,7 @@ export const pt = {
 
   // ---- Prazos ----
   'deadlines.subtitle': 'Os teus prazos e a época de exames',
+  'deadlines.untitled': 'Sem título',
   'deadlines.exams': 'Exames',
   'deadlines.myCourses': 'As minhas cadeiras',
   'deadlines.allCourses': 'Todas',
@@ -272,20 +270,6 @@ export const pt = {
   'goalPrompt.set': 'Definir objetivo',
 
   // ---- Notas & Tarefas ----
-  'notes.title': 'Notas & Tarefas',
-  'notes.subtitle': '{n} tarefas por fazer',
-  'notes.all': 'Tudo',
-  'notes.notes': 'Notas',
-  'notes.task': 'Tarefa',
-  'notes.note': 'Nota',
-  'notes.emptyTitle': 'Nada por aqui',
-  'notes.emptyHint': 'Toca no + para uma nota ou tarefa rápida.',
-  'notes.taskPlaceholder': 'O que tens de fazer?',
-  'notes.notePlaceholder': 'Título da nota',
-  'notes.details': 'Detalhes (opcional)',
-  'notes.content': 'Conteúdo',
-  'notes.bodyPlaceholder': 'Escreve aqui...',
-  'notes.courseOptional': 'Cadeira (opcional)',
 
   // ---- Selector de cadeira ----
   'courseSelect.none': 'Sem cadeira',
@@ -391,7 +375,6 @@ export const pt = {
   'exams.fileCount.one': '{n} ficheiro',
   'exams.courseCount': '{n} cadeiras',
   'exams.courseCount.one': '{n} cadeira',
-  'notes.subtitle.one': '{n} tarefa por fazer',
   'schedule.subtitle.one': '{n} aula · {h}h por semana',
 
   'profile.version': 'versão {v} · compilada a {d} UTC',

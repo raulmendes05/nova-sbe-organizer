@@ -5,11 +5,14 @@ import GoalPrompt from './GoalPrompt.jsx'
 import CoursesPrompt from './CoursesPrompt.jsx'
 import { CoursesProvider } from '../context/CoursesContext.jsx'
 import { useRoomBackfill } from '../lib/useRoomBackfill.js'
+import { useNotesMerge } from '../lib/useNotesMerge.js'
 
 export default function Layout() {
   // As salas so foram publicadas a meio do semestre: preenche as que faltam
   // nos horarios ja criados.
   useRoomBackfill()
+  // O separador "Notas & Tarefas" saiu: o que la estava passa para os Prazos.
+  useNotesMerge()
 
   return (
     <CoursesProvider>

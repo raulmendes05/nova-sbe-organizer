@@ -35,7 +35,7 @@ const CLAUDIO_ENABLED = true
 const TOOLS = [
   {
     name: 'criar_tarefa',
-    description: 'Cria uma tarefa (to-do) no separador "Notas & Tarefas". Usa quando o utilizador pede para adicionar/criar uma tarefa, lembrete ou coisa a fazer.',
+    description: 'Cria uma tarefa (to-do) nos Prazos, sem data marcada. Usa quando o utilizador pede para adicionar/criar uma tarefa, lembrete ou coisa a fazer.',
     input_schema: {
       type: 'object',
       properties: {
@@ -48,7 +48,7 @@ const TOOLS = [
   },
   {
     name: 'criar_nota',
-    description: 'Cria uma nota/apontamento (NÃO é tarefa) no separador "Notas & Tarefas".',
+    description: 'Guarda uma nota/apontamento nos Prazos, sem data marcada (NÃO é tarefa com prazo).',
     input_schema: {
       type: 'object',
       properties: {
@@ -185,7 +185,7 @@ function buildSystemPrompt(context = {}, lang = 'pt') {
 - **Horário**: blocos de aulas por dia da semana (nome, horas, sala, tipo).
 - **Prazos**: trabalhos/testes/exames com contagem decrescente e separadores "Por fazer"/"Concluídos".
 - **Notas**: escala **0–20**. Cada cadeira tem uma **nota final** (principal) e, opcionalmente, **componentes** de avaliação com pesos (média ponderada). As cadeiras estão agrupadas por **ano e semestre** (dropdowns), e há um separador **Equivalências** para cadeiras creditadas de outra universidade (contam para a média e ECTS). Adicionam-se cadeiras pelo **Catálogo Nova SBE** (pesquisa por nome/código, preenche ECTS automaticamente).
-- **Notas & Tarefas**: apontamentos e checklist.
+- As tarefas e os apontamentos vivem nos **Prazos**, como entradas sem data — não há separador separado.
 - No **primeiro login** a app pergunta nome, ano e semestre; quem já fez o 1º ano pode pré-carregar as 9 cadeiras nucleares do 1º ano.
 
 # Plano de estudos e Transição 26/27 (factos-chave)
