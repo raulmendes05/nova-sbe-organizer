@@ -88,3 +88,21 @@ export function roomFor(title, day, startTime) {
   const exato = hits.filter((h) => h.nome === nome)
   return exato.length === 1 ? exato[0].r : null
 }
+
+/**
+ * Le o titulo de um bloco criado a partir da grelha oficial
+ * ("Microeconomics — TXA (T1)") e devolve { code, g }.
+ *
+ * Devolve null para tudo o resto — inclusive aulas que o aluno escreveu a mao.
+ * E o que permite acertar os turnos sem lhe apagar o que ele proprio criou.
+ */
+export function officialBlock(title) {
+  const partes = String(title || '').split(SEP)
+  const g = (partes[1] || '').split('(')[0].trim()
+  const nome = (partes[0] || '').trim().toLowerCase()
+  if (!g || !nome) return null
+  for (const [code, c] of Object.entries(SCHEDULES)) {
+    if (c.name.toLowerCase() === nome && c.sessions.some((s) => s.g === g)) return { code, g }
+  }
+  return null
+}

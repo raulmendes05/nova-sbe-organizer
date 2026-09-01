@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon, ErrorBox } from '../components/ui.jsx'
 import CourseSelect from '../components/CourseSelect.jsx'
 import { days as weekDays, scheduleKinds, hhmm, todayDow } from '../lib/helpers.js'
+import { officialBlock } from '../lib/enroll.js'
+import EnrollFlow from '../components/EnrollFlow.jsx'
 import { useT } from '../i18n/index.jsx'
 import CalendarBanner from '../components/CalendarBanner.jsx'
 import WeekGrid from '../components/WeekGrid.jsx'
@@ -16,15 +18,16 @@ const empty = {
 }
 
 export default function Schedule() {
-  const { rows, loading, error, clearError, add, update, remove } = useCollection('schedule_blocks', {
+  const { rows, loading, error, clearError, add, update, remove, reload } = useCollection('schedule_blocks', {
     orderBy: 'start_time', ascending: true,
   })
   const { rows: courses } = useCourses()
-  const { semester } = useAuth()
+  const { semester, academicYear } = useAuth()
   const { t } = useT()
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
   const [open, setOpen] = useState(false)
+  const [turmasAberto, setTurmasAberto] = useState(false)
   const [form, setForm] = useState(empty)
   const [editId, setEditId] = useState(null)
   const [exported, setExported] = useState(null)
@@ -67,6 +70,27 @@ export default function Schedule() {
     } catch { /* o useCollection ja pos a mensagem em `error` — o modal fica aberto */ }
   }
 
+  // O que ja esta gravado, para o ecra das turmas abrir com tudo marcado em vez
+  // de obrigar a escolher outra vez do zero.
+  const { preSelect, preTurnos } = (() => {
+    const codigos = []
+    const porCodigo = {}
+    for (const b of rows) {
+      const info = officialBlock(b.title)
+      if (!info) continue
+      if (!codigos.includes(info.code)) codigos.push(info.code)
+      porCodigo[info.code] = [...new Set([...(porCodigo[info.code] || []), info.g])]
+    }
+    // cadeiras deste semestre que ainda nao tem nenhum bloco no horario
+    const ano = Number(academicYear) || null
+    const termo = Number(semester) || null
+    for (const c of courses) {
+      const code = c.code ? String(c.code) : null
+      if (code && c.year === ano && c.term === termo && !codigos.includes(code)) codigos.push(code)
+    }
+    return { preSelect: codigos, preTurnos: porCodigo }
+  })()
+
   const hoursPerWeek = rows.reduce((a, b) => {
     const [sh, sm] = hhmm(b.start_time).split(':').map(Number)
     const [eh, em] = hhmm(b.end_time).split(':').map(Number)
@@ -88,6 +112,24 @@ export default function Schedule() {
         )} />
 
       <ErrorBox error={error} onClose={clearError} className="mb-4" />
+
+      {/* Para quem deu skip ao pop-up de inscricao — ou quer trocar de turno */}
+      <button onClick={() => setTurmasAberto(true)}
+        className="card w-full p-3.5 mb-4 flex items-center gap-3 text-left active:scale-[0.99] transition">
+        <span className="w-9 h-9 rounded-xl bg-nova-500/15 text-nova-200 flex items-center justify-center shrink-0">
+          <Icon name="cap" className="w-5 h-5" />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-semibold text-slate-200">{t('schedule.myShifts')}</span>
+          <span className="block text-xs text-slate-500">{t('schedule.myShiftsHint')}</span>
+        </span>
+        <Icon name="chevron" className="w-4 h-4 text-slate-500 shrink-0" />
+      </button>
+
+      {turmasAberto && (
+        <EnrollFlow preSelect={preSelect} preTurnos={preTurnos}
+          onSaved={reload} onClose={() => setTurmasAberto(false)} />
+      )}
 
       {exported && (
         <div className="card p-2.5 mb-3 text-sm text-emerald-200 bg-emerald-500/10 border-emerald-500/20 flex items-center gap-2">

@@ -161,6 +161,8 @@ export const pt = {
   'schedule.subtitle': '{n} aulas · {h}h por semana',
   'schedule.subtitleEmpty': 'A tua semana, aula a aula',
   'schedule.addToCalendar': 'Adicionar ao Calendário',
+  'schedule.myShifts': 'As minhas turmas',
+  'schedule.myShiftsHint': 'Escolhe as cadeiras e os turnos deste semestre',
   'schedule.icsName': 'Horário Nova SBE',
   'schedule.icsHint': 'abre o ficheiro .ics para o adicionares ao Google Calendar ou ao Calendário.',
   'schedule.nothingToExport': 'Nada para exportar',

@@ -161,6 +161,8 @@ export const en = {
   'schedule.subtitle': '{n} classes · {h}h per week',
   'schedule.subtitleEmpty': 'Your week, class by class',
   'schedule.addToCalendar': 'Add to Calendar',
+  'schedule.myShifts': 'My classes',
+  'schedule.myShiftsHint': 'Pick this semester\'s courses and shifts',
   'schedule.icsName': 'Nova SBE Schedule',
   'schedule.icsHint': 'open the .ics file to add it to Google Calendar or Calendar.',
   'schedule.nothingToExport': 'Nothing to export',
