@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useCourses } from '../context/CoursesContext.jsx'
 import { Modal } from './ui.jsx'
 import { useT } from '../i18n/index.jsx'
 
@@ -12,6 +13,7 @@ const DISMISS_KEY = 'goalPromptDismissed'
  */
 export default function GoalPrompt() {
   const { goalAvg, updateGoal, currentTermKey } = useAuth()
+  const { rows: courses, loading: coursesLoading } = useCourses()
   const { t } = useT()
   const dismissed = typeof sessionStorage !== 'undefined'
     && sessionStorage.getItem(DISMISS_KEY) === String(currentTermKey)
@@ -19,7 +21,9 @@ export default function GoalPrompt() {
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
 
-  if (goalAvg != null || dismissed) return null
+  // Espera pelo CoursesPrompt: sem cadeiras nao ha media para ter meta, e os
+  // dois modais abertos ao mesmo tempo ficavam um por cima do outro.
+  if (goalAvg != null || dismissed || coursesLoading || !courses.length) return null
 
   function dismiss() {
     try { sessionStorage.setItem(DISMISS_KEY, String(currentTermKey)) } catch { /* ignore */ }

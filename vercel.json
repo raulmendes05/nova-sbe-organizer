@@ -1,6 +1,7 @@
 {
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "functions": {
-    "api/claudio.js": { "maxDuration": 300 }
+    "api/claudio.js": { "maxDuration": 300 },
+    "api/horario.js": { "maxDuration": 60 }
   }
 }

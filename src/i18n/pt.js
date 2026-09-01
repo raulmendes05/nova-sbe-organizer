@@ -395,4 +395,28 @@ export const pt = {
   'schedule.subtitle.one': '{n} aula · {h}h por semana',
 
   'profile.version': 'versão {v} · compilada a {d} UTC',
+
+  // ---- Pop-up de inscricao nas cadeiras ----
+  'coursesPrompt.title': 'Em que cadeiras estás inscrito?',
+  'coursesPrompt.body': 'Falta só isto para o horário, os prazos e as notas ficarem a funcionar. Escolhe como preferes.',
+  'coursesPrompt.upload': 'Enviar o horário do NETPA',
+  'coursesPrompt.uploadHint': 'Uma captura de ecrã chega — eu leio as cadeiras e os turnos.',
+  'coursesPrompt.manual': 'Escolher à mão',
+  'coursesPrompt.manualHint': 'Da lista de cadeiras da Nova SBE.',
+  'coursesPrompt.later': 'Agora não',
+  'coursesPrompt.reading': 'A ler o teu horário...',
+  'coursesPrompt.readNone': 'Não reconheci nenhuma cadeira nessa imagem. Escolhe-as aqui.',
+  'coursesPrompt.unmatched': 'Li isto mas não consegui ligar ao catálogo: {list}',
+  'coursesPrompt.pickHint': 'Confirma as cadeiras deste semestre. O relógio marca as que têm horário publicado.',
+  'coursesPrompt.search': 'Procurar cadeira ou código',
+  'coursesPrompt.selected': '{n} escolhidas',
+  'coursesPrompt.selected.one': '1 escolhida',
+  'coursesPrompt.next': 'Continuar',
+  'coursesPrompt.finish': 'Concluir',
+  'coursesPrompt.back': 'Voltar',
+  'coursesPrompt.turnosTitle': 'E em que turnos?',
+  'coursesPrompt.turnosHint': 'Um turno de cada tipo. Salta os que não souberes — dá para acertar depois no Horário.',
+  'coursesPrompt.kindT': 'Teórica',
+  'coursesPrompt.kindP': 'Prática',
+  'coursesPrompt.kindTP': 'Teórico-prática',
 }

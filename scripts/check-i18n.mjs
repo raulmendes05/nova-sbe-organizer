@@ -48,8 +48,9 @@ const DYNAMIC = [
   ...['mandatory', 'area', 'general', 'additional'].map((v) => `area.${v}`),
   ...['exame', 'teste', 'recurso', 'outro'].flatMap((v) => [`examKind.${v}.one`, `examKind.${v}.plural`]),
   ...['mid', 't1', 't2', 'apr', 'exame', 'recurso'].map((v) => `examType.${v}`),
+  ...['T', 'P', 'TP'].map((k) => `coursesPrompt.kind${k}`),
 ]
-for (const k of DYNAMIC) if (!used.has(k)) used.set(k, ['src/lib/helpers.js'])
+for (const k of DYNAMIC) if (!used.has(k)) used.set(k, ['(construida dinamicamente)'])
 
 const problems = []
 const ptKeys = new Set(Object.keys(pt))

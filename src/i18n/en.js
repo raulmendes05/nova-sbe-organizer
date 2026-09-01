@@ -395,4 +395,28 @@ export const en = {
   'schedule.subtitle.one': '{n} class · {h}h per week',
 
   'profile.version': 'version {v} · built {d} UTC',
+
+  // ---- Pop-up de inscricao nas cadeiras ----
+  'coursesPrompt.title': 'Which courses are you taking?',
+  'coursesPrompt.body': 'This is the last step before your schedule, deadlines and grades start working. Pick how you\'d rather do it.',
+  'coursesPrompt.upload': 'Send your NETPA schedule',
+  'coursesPrompt.uploadHint': 'A screenshot is enough — I\'ll read the courses and shifts.',
+  'coursesPrompt.manual': 'Pick them myself',
+  'coursesPrompt.manualHint': 'From the Nova SBE course list.',
+  'coursesPrompt.later': 'Not now',
+  'coursesPrompt.reading': 'Reading your schedule...',
+  'coursesPrompt.readNone': 'I couldn\'t recognise any course in that image. Pick them here.',
+  'coursesPrompt.unmatched': 'I read these but couldn\'t match them to the catalogue: {list}',
+  'coursesPrompt.pickHint': 'Confirm this semester\'s courses. The clock marks the ones with a published schedule.',
+  'coursesPrompt.search': 'Search course or code',
+  'coursesPrompt.selected': '{n} selected',
+  'coursesPrompt.selected.one': '1 selected',
+  'coursesPrompt.next': 'Continue',
+  'coursesPrompt.finish': 'Done',
+  'coursesPrompt.back': 'Back',
+  'coursesPrompt.turnosTitle': 'And which shifts?',
+  'coursesPrompt.turnosHint': 'One shift of each type. Skip any you\'re unsure about — you can fix it later in Schedule.',
+  'coursesPrompt.kindT': 'Lecture',
+  'coursesPrompt.kindP': 'Practical',
+  'coursesPrompt.kindTP': 'Lecture + practical',
 }
