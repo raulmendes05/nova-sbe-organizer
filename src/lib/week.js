@@ -74,7 +74,8 @@ export function weekOf(blocks, base, offset = 0, hojeIso = isoOf(new Date())) {
 
 // Separador entre o nome da cadeira e o turno: "Ethics — TPA (T1)".
 const SEP = /\s+[—–]\s+|\s+-\s+/
-const nomeDoBloco = (title) => String(title || '').split(SEP)[0].trim().toLowerCase()
+const semAcentos = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim()
+const nomeDoBloco = (title) => semAcentos(String(title || '').split(SEP)[0])
 
 const toMin = (t) => {
   const [h, m] = String(t || '').split(':').map(Number)
@@ -83,18 +84,42 @@ const toMin = (t) => {
 const pad = (n) => String(n).padStart(2, '0')
 const horaDe = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`
 
-/** Este bloco de horario e desta cadeira? */
-function mesmaCadeira(block, prazo, cursos) {
-  if (!prazo.course_id) return false
-  if (block.course_id) return block.course_id === prazo.course_id
-  // Blocos escritos a mao nao tem cadeira ligada — resta o nome no titulo.
-  const c = cursos.get(prazo.course_id)
-  return Boolean(c?.name) && nomeDoBloco(block.title) === String(c.name).trim().toLowerCase()
+/**
+ * A cadeira de um prazo. A escolhida no Prazos manda; se nao houver nenhuma
+ * (e o que acontece a quem escreve so o titulo), tenta o nome da cadeira
+ * dentro do proprio titulo — "Apresentacao de Ethics" e de Ethics.
+ */
+function cadeiraDoPrazo(prazo, cursos) {
+  const escolhida = prazo.course_id ? cursos.get(prazo.course_id) : null
+  if (escolhida) return semAcentos(escolhida.name)
+  if (prazo.course_id) return null   // cadeira apagada: nao adivinhar
+  const titulo = semAcentos(prazo.title)
+  const nomes = [...cursos.values()]
+    .map((c) => semAcentos(c.name))
+    .filter((n) => n.length >= 4 && titulo.includes(n))
+  // So com um candidato — se o titulo apanha duas cadeiras nao ha certeza.
+  const unicos = [...new Set(nomes)]
+  return unicos.length === 1 ? unicos[0] : null
+}
+
+/**
+ * Este bloco de horario e desta cadeira?
+ *
+ * Compara pelo NOME e nao so pelo id: o mesmo Ethics pode estar duas vezes na
+ * lista de cadeiras (uma criada pelo catalogo, outra pela inscricao dos
+ * turnos) e ai os ids nao batem certo, mas o prazo continua a ser daquela aula.
+ */
+function mesmaCadeira(block, prazo, cursos, nomeCadeira) {
+  if (prazo.course_id && block.course_id && block.course_id === prazo.course_id) return true
+  if (!nomeCadeira) return false
+  const daAula = block.course_id ? semAcentos(cursos.get(block.course_id)?.name) : ''
+  return (daAula && daAula === nomeCadeira) || nomeDoBloco(block.title) === nomeCadeira
 }
 
 /** A aula em que este prazo acontece: a que o apanha a hora certa; senao, a mais perto. */
 function aulaDoPrazo(blocks, prazo, cursos, minuto) {
-  const candidatas = blocks.filter((b) => !b.__prazo && mesmaCadeira(b, prazo, cursos))
+  const nomeCadeira = cadeiraDoPrazo(prazo, cursos)
+  const candidatas = blocks.filter((b) => !b.__prazo && mesmaCadeira(b, prazo, cursos, nomeCadeira))
   if (!candidatas.length) return null
   const dentro = candidatas.find((b) => minuto >= toMin(b.start_time) && minuto < toMin(b.end_time))
   if (dentro) return dentro

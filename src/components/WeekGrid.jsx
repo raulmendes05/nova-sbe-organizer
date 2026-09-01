@@ -4,6 +4,7 @@ import { useT } from '../i18n/index.jsx'
 
 const PX_PER_MIN = 1.05          // 1h ≈ 63px
 const MIN_BLOCK = 26             // altura mínima para um bloco continuar legível
+const PRAZO_H = 20               // etiqueta de um prazo solto (não é uma aula)
 
 const toMin = (t) => {
   const [h, m] = hhmm(t).split(':').map(Number)
@@ -120,34 +121,55 @@ export default function WeekGrid({ days: semana, courseById, onPick }) {
                     const s = toMin(b.start_time)
                     const e = toMin(b.end_time)
                     const c = courseById[b.course_id]
-                    const color = b.__prazo ? '#f59e0b' : (c?.color || '#3d78bf')
-                    const h = Math.max(MIN_BLOCK, (e - s) * PX_PER_MIN)
                     const w = 100 / (b.cols || 1)
+                    const lado = { left: `calc(${b.col * w}% + 2px)`, width: `calc(${w}% - 4px)` }
+
+                    // Um prazo que não tem aula onde encaixar aparece como uma
+                    // etiqueta fina à hora a que é — não é uma aula, não deve
+                    // ocupar o espaço de uma.
+                    if (b.__prazo) {
+                      return (
+                        <div key={b.id} title={`${b.title} · ${hhmm(b.start_time)}`}
+                          className="absolute flex items-center gap-1.5 rounded-md px-1.5 border border-amber-400/40 bg-amber-400/[0.12]"
+                          style={{ ...lado, top: (s - from) * PX_PER_MIN + 1, height: PRAZO_H }}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                          <span className="text-[10px] font-semibold text-amber-100 truncate">
+                            <span className="tabular-nums text-amber-200/70">{hhmm(b.start_time)}</span> {b.title}
+                          </span>
+                        </div>
+                      )
+                    }
+
+                    const color = c?.color || '#3d78bf'
+                    const h = Math.max(MIN_BLOCK, (e - s) * PX_PER_MIN)
                     // Prazos que acontecem NESTA aula (ver lib/week.js) — a
                     // apresentação de Ética aparece na aula de Ética.
                     const prazos = b.prazos || []
-                    const etiqueta = (p) => (p.dentro ? p.title : `${p.title} · ${p.hora}`)
+                    // Fora da hora da aula, a hora vem à frente: o título é
+                    // que fica cortado numa coluna estreita, não ela.
+                    const etiqueta = (p) => (p.dentro ? p.title : `${p.hora} · ${p.title}`)
                     const titulo = [`${b.title} · ${hhmm(b.start_time)}-${hhmm(b.end_time)}`,
                       ...prazos.map((p) => `${t(p.dentro ? 'schedule.deadlineInClass' : 'schedule.deadlineSameDay')}: ${etiqueta(p)}`)].join('\n')
                     return (
-                      <button key={b.id} onClick={() => !b.__prazo && onPick(b)}
+                      <button key={b.id} onClick={() => onPick(b)}
                         title={titulo}
-                        className={`absolute rounded-lg px-1.5 py-1 text-left overflow-hidden transition ${b.__prazo ? 'cursor-default' : 'active:scale-[0.98]'}`}
+                        className="absolute rounded-lg px-1.5 py-1 text-left overflow-hidden transition active:scale-[0.98]"
                         style={{
+                          ...lado,
                           top: (s - from) * PX_PER_MIN + 1,
                           height: h - 2,
-                          left: `calc(${b.col * w}% + 2px)`,
-                          width: `calc(${w}% - 4px)`,
                           background: `linear-gradient(180deg, ${color}38, ${color}22)`,
-                          borderLeft: `3px ${b.__prazo ? 'dashed' : 'solid'} ${color}`,
+                          borderLeft: `3px solid ${color}`,
                           boxShadow: prazos.length ? 'inset 0 0 0 1.5px rgba(245, 158, 11, 0.55)' : undefined,
                         }}>
                         <span className="block text-[11px] font-semibold text-slate-100 leading-tight line-clamp-2">
                           {b.title}
                         </span>
                         {prazos.map((p) => (
-                          <span key={p.id} className="block text-[9px] font-semibold text-amber-200 leading-tight line-clamp-2 mt-0.5">
-                            ◆ {etiqueta(p)}
+                          <span key={p.id}
+                            className="mt-1 flex items-center gap-1 rounded bg-amber-400/20 px-1 py-0.5 text-[9px] font-semibold text-amber-100 leading-tight">
+                            <span className="w-1 h-1 rounded-full bg-amber-300 shrink-0" />
+                            <span className="truncate">{etiqueta(p)}</span>
                           </span>
                         ))}
                         {h > 44 + prazos.length * 13 && (
