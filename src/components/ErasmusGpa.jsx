@@ -9,11 +9,11 @@ import { useT } from '../i18n/index.jsx'
  *
  * A media e os ECTS ja feitos vêm das Notas; os semestres tem de ser o aluno a
  * dizer. Os ECTS sao SO os feitos na Nova — creditos vindos de outra faculdade
- * nao contam para o ritmo. Ficam editaveis de proposito: a folha da escola
- * conta ai as cadeiras Pass/Fail (Data Handling, Careers with Impact), que a
- * app nao distingue das outras.
+ * nao contam para o ritmo. Ja incluem os modulos Pass/Fail dados como feitos
+ * (Careers with Impact), que valem ECTS sem valer nota; ficam editaveis para o
+ * aluno poder acrescentar outros casos que a app nao conheca.
  */
-export default function ErasmusGpa({ gpa, ects, ectsDeFora = 0, equivalencias = 0 }) {
+export default function ErasmusGpa({ gpa, ects, ectsDeFora = 0, equivalencias = 0, ectsPassFail = 0 }) {
   const { t } = useT()
   const [aberto, setAberto] = useState(false)
   const [semestres, setSemestres] = useState('')
@@ -66,6 +66,12 @@ export default function ErasmusGpa({ gpa, ects, ectsDeFora = 0, equivalencias = 
       {ectsDeFora > 0 && ectsDraft === null && (
         <p className="text-xs text-slate-500 mt-2">
           {t('erasmus.excluded', { ects: ectsDeFora, n: equivalencias })}
+        </p>
+      )}
+
+      {ectsPassFail > 0 && ectsDraft === null && (
+        <p className="text-xs text-slate-500 mt-2">
+          {t('erasmus.passFail', { ects: ectsPassFail })}
         </p>
       )}
 

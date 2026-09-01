@@ -6,7 +6,9 @@ import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon, ErrorBox } from '../
 import CoursePicker from '../components/CoursePicker.jsx'
 import GoalCard from '../components/GoalCard.jsx'
 import ErasmusGpa from '../components/ErasmusGpa.jsx'
-import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg } from '../lib/helpers.js'
+import CwiModules from '../components/CwiModules.jsx'
+import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, passFailEcts } from '../lib/helpers.js'
+import { cwiTitle, cwiRow, cwiDone, CWI_MODULES } from '../data/cwi.js'
 import { useT } from '../i18n/index.jsx'
 
 const YEAR_OPTS = [1, 2, 3]
@@ -85,8 +87,13 @@ export default function Grades() {
   // Para a GPA de Erasmus, o ritmo de creditos conta so os ECTS feitos NA NOVA:
   // creditos vindos de outra faculdade nao entram.
   const feitasNaNova = withAvg.filter((x) => !x.c.is_equivalence)
-  const ectsNaNova = feitasNaNova.reduce((s, x) => s + Number(x.c.ects || 0), 0)
-  const ectsDeFora = totalEcts - ectsNaNova
+  // As cadeiras Pass/Fail nao tem nota, mas os ECTS ja feitos contam para o
+  // ritmo — e o que a folha da escola faz com os modulos de Careers with
+  // Impact ("Done" na celula da nota, ECTS a somar).
+  const ectsPassFail = perCourse.reduce(
+    (s, x) => s + (x.c.is_equivalence ? 0 : passFailEcts(x.c, compsOf(x.c.id))), 0)
+  const ectsNaNova = feitasNaNova.reduce((s, x) => s + Number(x.c.ects || 0), 0) + ectsPassFail
+  const ectsDeFora = totalEcts - feitasNaNova.reduce((s, x) => s + Number(x.c.ects || 0), 0)
 
   // Agrupar regulares por ano/semestre
   const groups = Object.values(
@@ -162,6 +169,29 @@ export default function Grades() {
     } catch { /* o modal fica aberto com a mensagem a vista */ }
   }
 
+  // ----- Careers with Impact: 4 modulos feito/nao feito -----
+  // Cada modulo concluido e uma linha em `grades` (sem nota, peso 0): existe =
+  // feito. Assim nao ha nota nenhuma inventada na base de dados.
+  async function toggleCwi(course, id, feito) {
+    try {
+      if (feito) await addGrade({ course_id: course.id, title: cwiTitle(id), weight: 0, grade: null })
+      else {
+        const row = cwiRow(compsOf(course.id), id)
+        if (row) await removeGrade(row.id)
+      }
+    } catch { /* mensagem ja em `error` */ }
+  }
+
+  // Limpa o que sobrou de quando a app tratava esta cadeira como as outras:
+  // a nota final e as componentes de avaliacao que nao sao modulos.
+  async function limparCwi(course) {
+    const modulos = new Set(CWI_MODULES.map((m) => cwiTitle(m.id)))
+    try {
+      for (const g of compsOf(course.id)) if (!modulos.has(g.title)) await removeGrade(g.id)
+      if ((course.final_grade ?? null) !== null) await updateCourse(course.id, { final_grade: null })
+    } catch { /* mensagem ja em `error` */ }
+  }
+
   const loading = coursesLoading || gradesLoading
 
   // ----- cartao de uma cadeira (reutilizado nos dois separadores) -----
@@ -170,6 +200,9 @@ export default function Grades() {
     const gw = gradedWeight(comps)
     const isOpen = expanded === c.id
     const usesComponents = (c.final_grade ?? null) === null && comps.length > 0
+    // Careers with Impact nao tem nota: no lugar dela vao os 4 modulos.
+    const cwi = isCwi(c)
+    const cwiFeitos = cwi ? cwiDone(comps).length : 0
     return (
       <div key={c.id} className="rounded-xl bg-white/[0.04] border border-white/10 overflow-hidden">
         <button onClick={() => toggleExpand(c)} className="w-full p-3.5 flex items-center gap-3 text-left">
@@ -177,15 +210,39 @@ export default function Grades() {
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-slate-100 truncate">{c.name}</p>
             <p className="text-xs text-slate-400">
-              {c.ects} ECTS{usesComponents && <> · {t('grades.assessedPct', { n: gw })}</>}
+              {c.ects} ECTS
+              {cwi
+                ? <> · {t('grades.passFail')}</>
+                : usesComponents && <> · {t('grades.assessedPct', { n: gw })}</>}
             </p>
           </div>
           <div className="text-right">
-            <p className={`text-xl font-bold ${gradeColor(avg)}`}>{avg !== null ? avg.toFixed(1) : '—'}</p>
+            {cwi ? (
+              <p className={`text-xl font-bold tabular-nums ${cwiFeitos === CWI_MODULES.length ? 'text-emerald-400' : 'text-slate-300'}`}>
+                {cwiFeitos}<span className="text-slate-500 text-sm">/{CWI_MODULES.length}</span>
+              </p>
+            ) : (
+              <p className={`text-xl font-bold ${gradeColor(avg)}`}>{avg !== null ? avg.toFixed(1) : '—'}</p>
+            )}
           </div>
         </button>
 
-        {isOpen && (
+        {isOpen && cwi && (
+          <div className="border-t border-white/10 p-3.5 bg-white/[0.02] space-y-3.5">
+            <CwiModules rows={comps} onToggle={(id, feito) => toggleCwi(c, id, feito)}
+              notaAntiga={c.final_grade ?? null} onLimpar={() => limparCwi(c)} />
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => openEditCourse(c)} className="btn-ghost flex-1 py-2 text-sm">
+                <Icon name="edit" className="w-4 h-4" /> {t('grades.editCourse')}
+              </button>
+              <button onClick={() => deleteCourse(c.id)} className="btn-ghost px-3 py-2 text-sm text-rose-400">
+                <Icon name="trash" className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isOpen && !cwi && (
           <div className="border-t border-white/10 p-3.5 bg-white/[0.02] space-y-3.5">
             <div>
               <label className="label">{t('grades.finalGrade')}</label>
@@ -306,7 +363,7 @@ export default function Grades() {
 
       {/* Candidatura a mobilidade: outra metrica, a partir dos mesmos numeros */}
       <div className="mb-4">
-        <ErasmusGpa gpa={globalAvg} ects={ectsNaNova}
+        <ErasmusGpa gpa={globalAvg} ects={ectsNaNova} ectsPassFail={ectsPassFail}
           ectsDeFora={ectsDeFora} equivalencias={equivalences.filter((x) => x.avg !== null).length} />
       </div>
 

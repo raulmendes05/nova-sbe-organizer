@@ -5,7 +5,8 @@ import { errorText, apiError } from '../lib/errors.js'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon } from '../components/ui.jsx'
-import { hhmm, COURSE_COLORS, simulateGrade } from '../lib/helpers.js'
+import { hhmm, COURSE_COLORS, simulateGrade, isCwi } from '../lib/helpers.js'
+import { CWI_MODULES, cwiDone } from '../data/cwi.js'
 import { pt } from '../i18n/pt.js'
 
 const SUGGESTION_KEYS = ['claudio.s1', 'claudio.s2', 'claudio.s3', 'claudio.s4']
@@ -89,18 +90,27 @@ export default function Claudio() {
     }, [chat, loading])
 
   function buildContext() {
-    const compsOf = (id) => grades.rows.filter((g) => g.course_id === id)
-      .map((g) => ({ titulo: g.title, peso: g.weight, nota: g.grade }))
+    const linhasDe = (id) => grades.rows.filter((g) => g.course_id === id)
+    const compsOf = (id) => linhasDe(id).map((g) => ({ titulo: g.title, peso: g.weight, nota: g.grade }))
     // Em português mesmo quando a app está em inglês: o prompt do Cláudio e os
     // horários oficiais estão em pt, e misturar as duas línguas no contexto só
     // dá ao modelo mais uma coisa para desencontrar.
     const dayName = (n) => pt[`day.${n}.long`] || n
     return {
       aluno: { nome: displayName, curso: program, ano: academicYear, semestre: semester },
-      cadeiras: courses.map((c) => ({
-        nome: c.name, codigo: c.code, ects: c.ects, ano: c.year, semestre: c.term,
-        equivalencia: !!c.is_equivalence, nota_final: c.final_grade, componentes: compsOf(c.id),
-      })),
+      cadeiras: courses.map((c) => {
+        const base = { nome: c.name, codigo: c.code, ects: c.ects, ano: c.year, semestre: c.term,
+          equivalencia: !!c.is_equivalence }
+        // Careers with Impact nao tem nota: sao 4 modulos feito/nao feito. Dar
+        // os "componentes" ao modelo faria-o falar de pesos que nao existem.
+        if (isCwi(c)) {
+          const feitos = cwiDone(linhasDe(c.id)).map((m) => m.id)
+          return { ...base, sem_nota: true, avaliacao: 'pass/fail por modulos (1 ECTS cada)',
+            modulos_feitos: feitos,
+            modulos_por_fazer: CWI_MODULES.map((m) => m.id).filter((id) => !feitos.includes(id)) }
+        }
+        return { ...base, nota_final: c.final_grade, componentes: compsOf(c.id) }
+      }),
       horario: schedule.rows.map((b) => ({
         id: b.id, titulo: b.title, dia: dayName(b.day_of_week), dia_num: b.day_of_week,
         inicio: hhmm(b.start_time), fim: hhmm(b.end_time), sala: b.location, tipo: b.kind,

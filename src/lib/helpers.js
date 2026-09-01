@@ -1,4 +1,5 @@
 import { dayStatus } from '../data/calendar.js'
+import { CWI_CODE, CWI_MODULES, cwiDone } from '../data/cwi.js'
 
 // ---------------------------------------------------------------------------
 //  Texto visivel ao utilizador
@@ -98,9 +99,27 @@ export function termKey(year, term) {
   return y * 10 + t
 }
 
+// ---------------------------------------------------------------------------
+//  Cadeiras Pass/Fail — feito / não feito, sem nota
+//
+//  Careers with Impact não tem nota: são 4 módulos de 1 ECTS marcados como
+//  feitos. A folha oficial da escola trata-os assim (escreve "Done" na célula
+//  da nota), o que os deixa FORA da média mas com os ECTS a contar assim que
+//  estão concluídos — é exatamente o que estes helpers fazem.
+// ---------------------------------------------------------------------------
+export const isCwi = (course) => String(course?.code || '') === CWI_CODE
+export const isPassFail = (course) => isCwi(course)
+
+// ECTS já ganhos numa cadeira Pass/Fail (1 por módulo concluído).
+export function passFailEcts(course, components) {
+  if (!isCwi(course)) return 0
+  return cwiDone(components).reduce((s, m) => s + m.ects, 0)
+}
+
 // Uma cadeira está "concluída" se já tem nota final OU todas as componentes com nota.
 // (usado para não mostrar exames de cadeiras que o aluno já fez)
 export function isCourseDone(course, components) {
+  if (isCwi(course)) return cwiDone(components).length === CWI_MODULES.length
   const f = course?.final_grade
   if (f !== null && f !== undefined && f !== '') return true
   const comps = components || []
@@ -115,6 +134,9 @@ export function isCourseDone(course, components) {
 // Nota de uma cadeira: a nota final (principal) tem prioridade;
 // caso nao exista, usa a media ponderada dos componentes.
 export function resolveGrade(course, components) {
+  // Pass/Fail não tem nota — nem sequer uma escrita à mão por engano pode
+  // entrar na média.
+  if (isPassFail(course)) return null
   const f = course?.final_grade
   if (f !== null && f !== undefined && f !== '') return Number(f)
   return courseAverage(components)

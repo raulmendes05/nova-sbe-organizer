@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Modal, Icon } from './ui.jsx'
 import { PROGRAMS, flatCatalog } from '../data/curriculum.js'
+import { isPassFail } from '../lib/helpers.js'
 import { useT } from '../i18n/index.jsx'
 
 const AREA_TONE = {
@@ -73,7 +74,9 @@ export default function CoursePicker({ open, onClose, onPick, onManual, existing
                     <span className={`chip ${AREA_TONE[c.area]} shrink-0`}>{c.ects}</span>
                     <span className="flex-1 min-w-0">
                       <span className="block text-sm font-medium text-slate-100 truncate">{c.name}</span>
-                      <span className="block text-xs text-slate-500">#{c.code}</span>
+                      <span className="block text-xs text-slate-500">
+                        #{c.code}{isPassFail(c) && <> · {t('grades.passFail')}</>}
+                      </span>
                     </span>
                     {added
                       ? <Icon name="check" className="w-4 h-4 text-emerald-400 shrink-0" />
