@@ -5,7 +5,7 @@ import { errorText, apiError } from '../lib/errors.js'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon } from '../components/ui.jsx'
-import { hhmm, COURSE_COLORS, simulateGrade, isCwi } from '../lib/helpers.js'
+import { hhmm, COURSE_COLORS, simulateGrade, isCwi, checkNumber, LIMITS } from '../lib/helpers.js'
 import { CWI_MODULES, cwiDone } from '../data/cwi.js'
 import { pt } from '../i18n/pt.js'
 
@@ -145,6 +145,18 @@ export default function Claudio() {
   }
 
   // Executar uma ação (tool) do Cláudio na base de dados do utilizador
+  // O Cláudio escreve na base de dados como o aluno escreveria — e uma aula
+  // das 18:00 às 09:00, ou uma cadeira de 900 ECTS, estraga as contas na mesma.
+  // Devolver a razão é melhor que gravar: ele lê-a e corrige-se.
+  const horaValida = (v) => /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/.test(String(v || ''))
+  function validarAula({ dia, inicio, fim }) {
+    if (dia !== undefined && !(Number(dia) >= 1 && Number(dia) <= 7)) return 'O dia da semana tem de ser de 1 (segunda) a 7 (domingo).'
+    if (inicio !== undefined && !horaValida(inicio)) return 'A hora de início tem de ser no formato HH:MM.'
+    if (fim !== undefined && !horaValida(fim)) return 'A hora de fim tem de ser no formato HH:MM.'
+    if (inicio && fim && String(fim).slice(0, 5) <= String(inicio).slice(0, 5)) return t('valid.endBeforeStart')
+    return null
+  }
+
   async function execTool(name, input) {
     const inp = input || {}
     // As tarefas e as notas deixaram de ter separador proprio: sao prazos sem
@@ -165,6 +177,8 @@ export default function Claudio() {
       return `✓ Prazo criado: "${inp.titulo}"`
     }
     if (name === 'adicionar_aula') {
+      const mal = validarAula({ dia: inp.dia, inicio: inp.inicio, fim: inp.fim })
+      if (mal) return `Não adicionei a aula: ${mal}`
       await schedule.add({ title: inp.titulo, day_of_week: Number(inp.dia), start_time: inp.inicio, end_time: inp.fim, location: inp.sala || null, kind: inp.tipo || 'aula', course_id: findCourseId(inp.cadeira) })
       return `✓ Aula adicionada ao horário: "${inp.titulo}"`
     }
@@ -188,10 +202,18 @@ export default function Claudio() {
       if (inp.sala !== undefined) patch.location = inp.sala || null
       if (inp.tipo) patch.kind = inp.tipo
       if (!Object.keys(patch).length) return 'Não indicaste o que alterar na aula.'
+      const mal = validarAula({
+        dia: inp.novo_dia,
+        inicio: patch.start_time ?? hhmm(r.block.start_time),
+        fim: patch.end_time ?? hhmm(r.block.end_time),
+      })
+      if (mal) return `Não alterei a aula: ${mal}`
       await schedule.update(r.block.id, patch)
       return `✓ Aula atualizada: "${patch.title || r.block.title}"`
     }
     if (name === 'criar_cadeira') {
+      const malEcts = inp.ects == null ? null : checkNumber(inp.ects, LIMITS.ects, t)
+      if (malEcts) return `Não criei a cadeira: ${malEcts}`
       const color = COURSE_COLORS[courses.length % COURSE_COLORS.length]
       await coursesCtx.add({ name: inp.nome, code: inp.codigo || null, ects: inp.ects ?? 6, year: inp.ano ?? null, term: inp.semestre ?? null, color })
       return `✓ Cadeira criada: "${inp.nome}"`

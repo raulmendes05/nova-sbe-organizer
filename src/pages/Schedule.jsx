@@ -34,6 +34,7 @@ export default function Schedule() {
   const [semana, setSemana] = useState(0)   // 0 = esta semana
   const [form, setForm] = useState(empty)
   const [editId, setEditId] = useState(null)
+  const [aviso, setAviso] = useState(null)
   const [exported, setExported] = useState(null)
 
   function exportCalendar() {
@@ -58,18 +59,22 @@ export default function Schedule() {
     setTimeout(() => setExported(null), 4000)
   }
 
-  function openNew() { setForm({ ...empty, day_of_week: todayDow() }); setEditId(null); setOpen(true) }
+  function openNew() { setForm({ ...empty, day_of_week: todayDow() }); setEditId(null); setAviso(null); setOpen(true) }
   function openEdit(b) {
     setForm({
       title: b.title, course_id: b.course_id, day_of_week: b.day_of_week,
       start_time: hhmm(b.start_time), end_time: hhmm(b.end_time),
       location: b.location || '', kind: b.kind || 'aula',
     })
-    setEditId(b.id); setOpen(true)
+    setEditId(b.id); setAviso(null); setOpen(true)
   }
 
   async function save(e) {
     e.preventDefault()
+    // O <input type="time"> aceita qualquer par de horas: sem isto dava para
+    // gravar uma aula das 18:00 as 09:00, que nem se via na grelha.
+    if (form.end_time <= form.start_time) { setAviso(t('valid.endBeforeStart')); return }
+    setAviso(null)
     try {
       if (editId) await update(editId, form)
       else await add(form)
@@ -247,7 +252,7 @@ export default function Schedule() {
               </select>
             </div>
           </div>
-          <ErrorBox error={error} onClose={clearError} />
+          <ErrorBox error={aviso || error} onClose={() => { setAviso(null); clearError() }} />
           <button className="btn-primary w-full mt-2">{editId ? t('common.save') : t('common.add')}</button>
           {/* Na grelha não cabe um botão por bloco — apaga-se aqui. */}
           {editId && (

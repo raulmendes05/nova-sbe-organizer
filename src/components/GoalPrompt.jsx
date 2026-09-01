@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { Modal } from './ui.jsx'
 import { useT } from '../i18n/index.jsx'
+import { checkNumber, LIMITS } from '../lib/helpers.js'
 
 const DISMISS_KEY = 'goalPromptDismissed'
 
@@ -20,6 +21,7 @@ export default function GoalPrompt() {
   const [open, setOpen] = useState(true)
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
+  const [aviso, setAviso] = useState(null)
 
   // Espera pelo CoursesPrompt: sem cadeiras nao ha media para ter meta, e os
   // dois modais abertos ao mesmo tempo ficavam um por cima do outro.
@@ -31,10 +33,12 @@ export default function GoalPrompt() {
   }
 
   async function save() {
-    if (draft.trim() === '' || isNaN(Number(draft))) return
+    const mal = checkNumber(draft, LIMITS.grade, t, { required: true })
+    if (mal) { setAviso(mal); return }
+    setAviso(null)
     setSaving(true)
     try {
-      await updateGoal(Math.max(0, Math.min(20, Number(draft))))
+      await updateGoal(Number(draft))
       setOpen(false)
     } finally { setSaving(false) }
   }
@@ -47,10 +51,11 @@ export default function GoalPrompt() {
       <div className="flex items-center gap-2 mt-4">
         <input autoFocus type="number" step="0.5" min="0" max="20" inputMode="decimal"
           className="input w-24 text-xl font-bold" placeholder={t('profile.goalPlaceholder')}
-          value={draft} onChange={(e) => setDraft(e.target.value)}
+          value={draft} onChange={(e) => { setDraft(e.target.value); if (aviso) setAviso(null) }}
           onKeyDown={(e) => e.key === 'Enter' && save()} />
         <span className="text-slate-500">/ 20</span>
       </div>
+      {aviso && <p role="alert" className="text-xs text-rose-300 mt-2">{aviso}</p>}
       <div className="flex gap-2 mt-5">
         <button onClick={dismiss} disabled={saving} className="btn-ghost flex-1 py-2.5 text-sm">{t('goalPrompt.later')}</button>
         <button onClick={save} disabled={saving || draft.trim() === ''} className="btn-primary flex-1 py-2.5">

@@ -431,6 +431,12 @@ export const pt = {
   'erasmus.passFail': 'Inclui {ects} ECTS de módulos Pass/Fail já feitos — sem nota, mas os créditos contam para o ritmo.',
   'erasmus.source': 'Fórmula do «GPA Calculators Bachelors» da Nova SBE. Os ECTS vêm das tuas notas, já com os módulos Pass/Fail que marcaste como feitos, e dá para corrigir à mão. Confirma sempre no NetPA.',
 
+  // ---- Validação do que se escreve ----
+  'valid.range': 'Escreve um número entre {min} e {max}.',
+  'valid.notNumber': 'Isto não é um número.',
+  'valid.required': 'Falta preencher isto.',
+  'valid.endBeforeStart': 'A aula tem de acabar depois de começar.',
+
   // ---- Careers with Impact (4 modulos, sem nota) ----
   'grades.passFail': 'Pass/Fail',
   'cwi.progress': '{n} de {total} módulos · {ects} de {totalEcts} ECTS',

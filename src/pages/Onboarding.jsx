@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { firstYearCourses } from '../data/curriculum.js'
-import { COURSE_COLORS, termKey } from '../lib/helpers.js'
+import { COURSE_COLORS, termKey, checkNumber, LIMITS } from '../lib/helpers.js'
 import { useT } from '../i18n/index.jsx'
 import { errorText } from '../lib/errors.js'
 
@@ -33,6 +33,8 @@ export default function Onboarding() {
       setErr(t('onboarding.errRequired'))
       return
     }
+    const malGoal = checkNumber(goal, LIMITS.grade, t)
+    if (malGoal) { setErr(malGoal); return }
     setLoading(true)
     setErr(null)
     try {
@@ -59,9 +61,8 @@ export default function Onboarding() {
 
       // Guardar preferencias (dispara USER_UPDATED -> app abre)
       const data = { display_name: name.trim(), year, semester, program }
-      if (goal.trim() !== '' && !isNaN(Number(goal))) {
-        const v = Math.max(0, Math.min(20, Number(goal)))
-        data.goals = { [termKey(Number(year), Number(semester))]: v }
+      if (goal.trim() !== '') {
+        data.goals = { [termKey(Number(year), Number(semester))]: Number(goal) }
       }
       const { error } = await supabase.auth.updateUser({ data })
       if (error) throw error

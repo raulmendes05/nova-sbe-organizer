@@ -7,7 +7,7 @@ import CoursePicker from '../components/CoursePicker.jsx'
 import GoalCard from '../components/GoalCard.jsx'
 import ErasmusGpa from '../components/ErasmusGpa.jsx'
 import CwiModules from '../components/CwiModules.jsx'
-import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, passFailEcts } from '../lib/helpers.js'
+import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, passFailEcts, checkNumber, LIMITS } from '../lib/helpers.js'
 import { cwiTitle, cwiRow, cwiDone, CWI_MODULES } from '../data/cwi.js'
 import { useT } from '../i18n/index.jsx'
 
@@ -44,6 +44,8 @@ export default function Grades() {
     return next
   })
   const [finalDraft, setFinalDraft] = useState('')
+  const [avisoNota, setAvisoNota] = useState(null)   // nota fora da escala 0–20
+  const [avisoForm, setAvisoForm] = useState(null)   // nos modais
   const [showComps, setShowComps] = useState(false)
   const [simTarget, setSimTarget] = useState('') // objetivo do simulador (0-20)
   const [courseModal, setCourseModal] = useState(false)
@@ -62,11 +64,17 @@ export default function Grades() {
     const open = expanded === c.id
     setExpanded(open ? null : c.id)
     setShowComps(false)
+    setAvisoNota(null)
     setFinalDraft(open ? '' : (c.final_grade ?? null) === null ? '' : String(c.final_grade))
   }
 
   async function saveFinal(c) {
-    const v = finalDraft === '' ? null : Number(finalDraft)
+    // A escala é 0–20: um 38 não é uma nota, é um engano — e o max do <input>
+    // não chega para o travar, porque isto guarda-se ao sair do campo.
+    const mal = checkNumber(finalDraft, LIMITS.grade, t)
+    if (mal) { setAvisoNota(mal); return }
+    setAvisoNota(null)
+    const v = finalDraft.trim() === '' ? null : Number(finalDraft)
     const cur = c.final_grade ?? null
     if (v === cur) return
     try { await updateCourse(c.id, { final_grade: v }) } catch { /* mensagem ja em `error` */ }
@@ -112,11 +120,11 @@ export default function Grades() {
   // ----- cadeira -----
   function openNewCourse(isEquiv = false) {
     setCourseForm({ name: '', code: '', ects: 6, professor: '', year: isEquiv ? null : defYear, term: isEquiv ? null : defTerm, is_equivalence: isEquiv })
-    setCourseEditId(null); setCourseModal(true)
+    setCourseEditId(null); setAvisoForm(null); setCourseModal(true)
   }
   function openEditCourse(c) {
     setCourseForm({ name: c.name, code: c.code || '', ects: c.ects ?? 6, professor: c.professor || '', year: c.year ?? null, term: c.term ?? null, is_equivalence: c.is_equivalence ?? false })
-    setCourseEditId(c.id); setCourseModal(true)
+    setCourseEditId(c.id); setAvisoForm(null); setCourseModal(true)
   }
 
   async function pickFromCatalog(course) {
@@ -129,6 +137,9 @@ export default function Grades() {
 
   async function saveCourse(e) {
     e.preventDefault()
+    const mal = checkNumber(courseForm.ects, LIMITS.ects, t, { required: true })
+    if (mal) { setAvisoForm(mal); return }
+    setAvisoForm(null)
     const payload = { ...courseForm, ects: Number(courseForm.ects) || 0 }
     if (payload.is_equivalence) { payload.year = null; payload.term = null }
     try {
@@ -152,10 +163,14 @@ export default function Grades() {
   }
 
   // ----- componente de avaliacao -----
-  function openNewGrade(courseId) { setGradeForm({ course_id: courseId, title: '', weight: '', grade: '' }); setGradeEditId(null); setGradeModal(true) }
-  function openEditGrade(g) { setGradeForm({ course_id: g.course_id, title: g.title, weight: g.weight ?? '', grade: g.grade ?? '' }); setGradeEditId(g.id); setGradeModal(true) }
+  function openNewGrade(courseId) { setGradeForm({ course_id: courseId, title: '', weight: '', grade: '' }); setGradeEditId(null); setAvisoForm(null); setGradeModal(true) }
+  function openEditGrade(g) { setGradeForm({ course_id: g.course_id, title: g.title, weight: g.weight ?? '', grade: g.grade ?? '' }); setGradeEditId(g.id); setAvisoForm(null); setGradeModal(true) }
   async function saveGrade(e) {
     e.preventDefault()
+    const mal = checkNumber(gradeForm.weight, LIMITS.weight, t, { required: true })
+      || checkNumber(gradeForm.grade, LIMITS.grade, t)
+    if (mal) { setAvisoForm(mal); return }
+    setAvisoForm(null)
     const payload = {
       course_id: gradeForm.course_id,
       title: gradeForm.title,
@@ -247,10 +262,13 @@ export default function Grades() {
             <div>
               <label className="label">{t('grades.finalGrade')}</label>
               <input type="number" step="0.1" min="0" max="20" inputMode="decimal"
-                className="input text-lg font-semibold" placeholder={t('grades.noGradeYet')}
+                aria-invalid={avisoNota ? 'true' : undefined}
+                className={`input text-lg font-semibold ${avisoNota ? 'border-rose-500/60' : ''}`}
+                placeholder={t('grades.noGradeYet')}
                 value={finalDraft}
-                onChange={(e) => setFinalDraft(e.target.value)}
+                onChange={(e) => { setFinalDraft(e.target.value); if (avisoNota) setAvisoNota(null) }}
                 onBlur={() => saveFinal(c)} />
+              {avisoNota && <p role="alert" className="text-xs text-rose-300 mt-1.5">{avisoNota}</p>}
             </div>
 
             <div>
@@ -290,7 +308,8 @@ export default function Grades() {
                   {/* Simulador — que nota preciso? */}
                   {comps.length > 0 && (() => {
                     const pass = simulateGrade(comps, 9.5)
-                    const goal = simTarget !== '' && !isNaN(Number(simTarget)) ? simulateGrade(comps, Number(simTarget)) : null
+                    const malAlvo = checkNumber(simTarget, LIMITS.grade, t)
+                    const goal = !malAlvo && simTarget !== '' ? simulateGrade(comps, Number(simTarget)) : null
                     const line = (sim) => {
                       if (!sim || sim.done) return { txt: t('grades.simDone'), cls: 'text-slate-400' }
                         if (sim.guaranteed) return { txt: t('grades.simGuaranteed'), cls: 'text-emerald-300' }
@@ -310,6 +329,7 @@ export default function Grades() {
                             value={simTarget} onChange={(e) => setSimTarget(e.target.value)} />
                           <span className="text-sm text-slate-500">/ 20</span>
                         </div>
+                        {malAlvo && <p role="alert" className="text-xs text-rose-300 mt-2">{malAlvo}</p>}
                         {g && <p className={`text-sm mt-2 ${g.cls}`}><span className="text-slate-400">{t('grades.simFor', { n: Number(simTarget) })}</span> {g.txt}</p>}
                       </div>
                     )
@@ -470,7 +490,7 @@ export default function Grades() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">ECTS</label>
-              <input type="number" step="0.5" min="0" className="input"
+              <input type="number" step="0.5" min="0" max={LIMITS.ects.max} className="input"
                 value={courseForm.ects} onChange={(e) => setCourseForm({ ...courseForm, ects: e.target.value })} />
             </div>
             <div>
@@ -479,7 +499,7 @@ export default function Grades() {
                 onChange={(e) => setCourseForm({ ...courseForm, professor: e.target.value })} />
             </div>
           </div>
-          <ErrorBox error={error} onClose={clearError} />
+          <ErrorBox error={avisoForm || error} onClose={() => { setAvisoForm(null); clearError() }} />
           <button className="btn-primary w-full mt-2">{courseEditId ? t('common.save') : t('common.add')}</button>
         </form>
       </Modal>
@@ -509,7 +529,7 @@ export default function Grades() {
             </div>
           </div>
           <p className="text-xs text-slate-400">{t('grades.componentHint')}</p>
-          <ErrorBox error={error} onClose={clearError} />
+          <ErrorBox error={avisoForm || error} onClose={() => { setAvisoForm(null); clearError() }} />
           <button className="btn-primary w-full mt-2">{gradeEditId ? t('common.save') : t('common.add')}</button>
         </form>
       </Modal>

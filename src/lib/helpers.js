@@ -86,6 +86,35 @@ export function dueLabel(iso, t = KEY) {
   return { text: t('due.days', { n: d }), tone: d <= 7 ? 'amber' : 'emerald' }
 }
 
+// ---------------------------------------------------------------------------
+//  Números escritos à mão
+//
+//  Os atributos min/max de um <input type="number"> não impedem nada por si:
+//  só contam quando o browser valida um FORMULÁRIO, e boa parte destes campos
+//  guarda-se ao sair do campo ou com um botão próprio. Era assim que uma nota
+//  de 38 entrava numa escala de 0 a 20.
+//
+//  A verificação diz o que está mal em vez de corrigir por conta própria: um
+//  38 encurtado para 20 em silêncio seria inventar uma nota que ninguém teve.
+// ---------------------------------------------------------------------------
+export const LIMITS = {
+  grade: { min: 0, max: 20 },        // escala portuguesa
+  weight: { min: 0, max: 100 },      // peso de uma componente, em %
+  ects: { min: 0, max: 60 },         // ECTS de uma cadeira (um semestre inteiro são 30)
+  ectsTotal: { min: 0, max: 360 },   // ECTS de um percurso completo
+  semesters: { min: 1, max: 12 },
+}
+
+/** null se o valor serve; senão a mensagem do que está mal. */
+export function checkNumber(raw, { min, max }, t = KEY, { required = false } = {}) {
+  const s = String(raw ?? '').trim()
+  if (s === '') return required ? t('valid.required') : null
+  const n = Number(s)
+  if (!isFinite(n)) return t('valid.notNumber')
+  if (n < min || n > max) return t('valid.range', { min, max })
+  return null
+}
+
 // Etiqueta de grupo ano/semestre para agrupar cadeiras
 export function termLabel(year, term, t = KEY) {
   if (!year) return t('term.other')

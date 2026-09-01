@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Icon } from './ui.jsx'
-import { goalStatus } from '../lib/helpers.js'
+import { goalStatus, checkNumber, LIMITS } from '../lib/helpers.js'
 import { useT } from '../i18n/index.jsx'
 
 const TONE = {
@@ -20,15 +20,20 @@ export default function GoalCard({ current, goal, onSave, subtitle, compact = fa
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(goal != null ? String(goal) : '')
   const [saving, setSaving] = useState(false)
+  const [aviso, setAviso] = useState(null)
 
   async function save() {
-    const v = draft.trim() === '' ? null : Math.max(0, Math.min(20, Number(draft)))
-    if (draft.trim() !== '' && isNaN(Number(draft))) return
+    // Antes cortava um 38 para 20 sem dizer nada — a meta que ficava gravada
+    // não era a que a pessoa escreveu.
+    const mal = checkNumber(draft, LIMITS.grade, t)
+    if (mal) { setAviso(mal); return }
+    setAviso(null)
+    const v = draft.trim() === '' ? null : Number(draft)
     setSaving(true)
     try { await onSave(v); setEditing(false) } finally { setSaving(false) }
   }
 
-  function startEdit() { setDraft(goal != null ? String(goal) : ''); setEditing(true) }
+  function startEdit() { setDraft(goal != null ? String(goal) : ''); setAviso(null); setEditing(true) }
 
   // ---- modo edição ----
   if (editing) {
@@ -39,7 +44,7 @@ export default function GoalCard({ current, goal, onSave, subtitle, compact = fa
         <div className="flex items-center gap-2">
           <input autoFocus type="number" step="0.5" min="0" max="20" inputMode="decimal"
             className="input w-24 text-lg font-semibold" placeholder={t('profile.goalPlaceholder')}
-            value={draft} onChange={(e) => setDraft(e.target.value)}
+            value={draft} onChange={(e) => { setDraft(e.target.value); if (aviso) setAviso(null) }}
             onKeyDown={(e) => e.key === 'Enter' && save()} />
           <span className="text-slate-500">/ 20</span>
           <div className="flex-1" />
@@ -50,6 +55,7 @@ export default function GoalCard({ current, goal, onSave, subtitle, compact = fa
           <button onClick={() => setEditing(false)} disabled={saving} className="btn-ghost px-3 py-2 text-sm">{t('common.cancel')}</button>
           <button onClick={save} disabled={saving} className="btn-primary px-4 py-2 text-sm">{t('common.save')}</button>
         </div>
+        {aviso && <p role="alert" className="text-xs text-rose-300 mt-2">{aviso}</p>}
       </div>
     )
   }

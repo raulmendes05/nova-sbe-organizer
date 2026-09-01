@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useT, LANGS } from '../i18n/index.jsx'
 import { PageHeader, Icon } from '../components/ui.jsx'
 import { PROGRAMS } from '../data/curriculum.js'
-import { termKey } from '../lib/helpers.js'
+import { termKey, checkNumber, LIMITS } from '../lib/helpers.js'
 import { errorText } from '../lib/errors.js'
 
 /* ---------- Seccao com titulo e ajuda ---------- */
@@ -74,12 +74,14 @@ export default function Profile() {
   const canSave = dirty && !!name.trim() && !!year && !!term && !saving
 
   async function save() {
+    const mal = checkNumber(goal, LIMITS.grade, t)
+    if (mal) { setErr(mal); return }
     setSaving(true); setErr(null); setSaved(false)
     try {
       const nextGoals = { ...(goals || {}) }
       const raw = goal.trim()
-      if (raw === '' || isNaN(Number(raw))) delete nextGoals[draftKey]
-      else nextGoals[draftKey] = Math.max(0, Math.min(20, Number(raw)))
+      if (raw === '') delete nextGoals[draftKey]
+      else nextGoals[draftKey] = Number(raw)
 
       await updateProfile({
         display_name: name.trim(),

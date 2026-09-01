@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Icon } from './ui.jsx'
-import { erasmusGpa } from '../lib/helpers.js'
+import { erasmusGpa, checkNumber, LIMITS } from '../lib/helpers.js'
 import { useT } from '../i18n/index.jsx'
 
 /**
@@ -20,7 +20,11 @@ export default function ErasmusGpa({ gpa, ects, ectsDeFora = 0, equivalencias = 
   const [ectsDraft, setEctsDraft] = useState(null)   // null = usa o das Notas
 
   const ectsUsados = ectsDraft === null ? ects : ectsDraft
-  const r = erasmusGpa(gpa, ectsUsados, semestres)
+  // Nem 0 semestres nem 500 ECTS dizem alguma coisa — mais vale explicar do
+  // que devolver um número que não quer dizer nada.
+  const malSemestres = checkNumber(semestres, LIMITS.semesters, t)
+  const malEcts = checkNumber(ectsUsados, LIMITS.ectsTotal, t)
+  const r = malSemestres || malEcts ? null : erasmusGpa(gpa, ectsUsados, semestres)
 
   if (!aberto) {
     return (
@@ -51,15 +55,17 @@ export default function ErasmusGpa({ gpa, ects, ectsDeFora = 0, equivalencias = 
       <div className="grid grid-cols-2 gap-3">
         <label className="block">
           <span className="text-xs text-slate-400">{t('erasmus.semesters')}</span>
-          <input type="number" min="1" max="6" step="1" inputMode="numeric" autoFocus
+          <input type="number" min={LIMITS.semesters.min} max={LIMITS.semesters.max} step="1" inputMode="numeric" autoFocus
             className="input mt-1" placeholder="2"
             value={semestres} onChange={(e) => setSemestres(e.target.value)} />
+          {malSemestres && <span role="alert" className="block text-xs text-rose-300 mt-1">{malSemestres}</span>}
         </label>
         <label className="block">
           <span className="text-xs text-slate-400">{t('erasmus.ects')}</span>
-          <input type="number" min="0" step="0.5" inputMode="decimal"
+          <input type="number" min="0" max={LIMITS.ectsTotal.max} step="0.5" inputMode="decimal"
             className="input mt-1"
             value={ectsUsados ?? ''} onChange={(e) => setEctsDraft(e.target.value)} />
+          {malEcts && <span role="alert" className="block text-xs text-rose-300 mt-1">{malEcts}</span>}
         </label>
       </div>
 

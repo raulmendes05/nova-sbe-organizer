@@ -431,6 +431,12 @@ export const en = {
   'erasmus.passFail': 'Includes {ects} ECTS from Pass/Fail modules already done — no grade, but the credits count towards the pace.',
   'erasmus.source': 'Formula from Nova SBE\'s GPA Calculators Bachelors sheet. The ECTS come from your grades, including the Pass/Fail modules you ticked as done, and can be corrected by hand. Always confirm on NetPA.',
 
+  // ---- Input validation ----
+  'valid.range': 'Enter a number between {min} and {max}.',
+  'valid.notNumber': 'That is not a number.',
+  'valid.required': 'This still needs filling in.',
+  'valid.endBeforeStart': 'The class has to end after it starts.',
+
   // ---- Careers with Impact (4 modules, no grade) ----
   'grades.passFail': 'Pass/Fail',
   'cwi.progress': '{n} of {total} modules · {ects} of {totalEcts} ECTS',
