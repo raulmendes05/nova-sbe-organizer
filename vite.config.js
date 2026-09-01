@@ -72,6 +72,38 @@ function examUrlDevApi(env) {
   }
 }
 
+// Idem para /api/horario (leitura da captura do horario do NETPA).
+function horarioDevApi(env) {
+  return {
+    name: 'horario-dev-api',
+    configureServer(server) {
+      server.middlewares.use('/api/horario', (req, res) => {
+        let body = ''
+        req.on('data', (c) => (body += c))
+        req.on('end', async () => {
+          const fake = {
+            method: req.method,
+            body: (() => { try { return JSON.parse(body || '{}') } catch { return {} } })(),
+          }
+          const out = {
+            statusCode: 200,
+            status(c) { this.statusCode = c; return this },
+            json(v) {
+              res.statusCode = this.statusCode
+              res.setHeader('content-type', 'application/json')
+              res.end(JSON.stringify(v))
+            },
+          }
+          // A chave nao esta no process.env do vite dev — vem do .env.local.
+          process.env.GEMINI_API_KEY ||= env.GEMINI_API_KEY || ''
+          const { default: handler } = await import('./api/horario.js')
+          await handler(fake, out)
+        })
+      })
+    },
+  }
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -88,6 +120,7 @@ export default defineConfig(({ mode }) => {
       react(),
       claudioDevApi(env),
       examUrlDevApi(env),
+      horarioDevApi(env),
       VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
