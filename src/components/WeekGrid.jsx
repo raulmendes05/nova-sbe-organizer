@@ -123,9 +123,15 @@ export default function WeekGrid({ days: semana, courseById, onPick }) {
                     const color = b.__prazo ? '#f59e0b' : (c?.color || '#3d78bf')
                     const h = Math.max(MIN_BLOCK, (e - s) * PX_PER_MIN)
                     const w = 100 / (b.cols || 1)
+                    // Prazos que acontecem NESTA aula (ver lib/week.js) — a
+                    // apresentação de Ética aparece na aula de Ética.
+                    const prazos = b.prazos || []
+                    const etiqueta = (p) => (p.dentro ? p.title : `${p.title} · ${p.hora}`)
+                    const titulo = [`${b.title} · ${hhmm(b.start_time)}-${hhmm(b.end_time)}`,
+                      ...prazos.map((p) => `${t(p.dentro ? 'schedule.deadlineInClass' : 'schedule.deadlineSameDay')}: ${etiqueta(p)}`)].join('\n')
                     return (
                       <button key={b.id} onClick={() => !b.__prazo && onPick(b)}
-                        title={`${b.title} · ${hhmm(b.start_time)}-${hhmm(b.end_time)}`}
+                        title={titulo}
                         className={`absolute rounded-lg px-1.5 py-1 text-left overflow-hidden transition ${b.__prazo ? 'cursor-default' : 'active:scale-[0.98]'}`}
                         style={{
                           top: (s - from) * PX_PER_MIN + 1,
@@ -134,11 +140,17 @@ export default function WeekGrid({ days: semana, courseById, onPick }) {
                           width: `calc(${w}% - 4px)`,
                           background: `linear-gradient(180deg, ${color}38, ${color}22)`,
                           borderLeft: `3px ${b.__prazo ? 'dashed' : 'solid'} ${color}`,
+                          boxShadow: prazos.length ? 'inset 0 0 0 1.5px rgba(245, 158, 11, 0.55)' : undefined,
                         }}>
                         <span className="block text-[11px] font-semibold text-slate-100 leading-tight line-clamp-2">
                           {b.title}
                         </span>
-                        {h > 44 && (
+                        {prazos.map((p) => (
+                          <span key={p.id} className="block text-[9px] font-semibold text-amber-200 leading-tight line-clamp-2 mt-0.5">
+                            ◆ {etiqueta(p)}
+                          </span>
+                        ))}
+                        {h > 44 + prazos.length * 13 && (
                           <span className="block text-[9px] text-slate-400 mt-0.5 leading-tight">
                             {hhmm(b.start_time)}–{hhmm(b.end_time)}
                             {b.location ? ` · ${b.location}` : ''}

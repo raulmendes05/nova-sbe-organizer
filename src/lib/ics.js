@@ -62,14 +62,17 @@ const termOf = (title) => (String(title).match(/\((T[1-4])\)/i)?.[1] || '').toUp
 
 /**
  * @param blocks  linhas de schedule_blocks (day_of_week, start_time, end_time, title, location, id)
- * @param opts    { semester: 1|2, name, dtstamp }
- * @returns { text, count }
+ * @param opts    { semester: 1|2, name, dtstamp, deadlines }
+ *                `deadlines` sao linhas de assignments — vao para o mesmo
+ *                ficheiro, para o calendario do telemovel mostrar as aulas e
+ *                as entregas lado a lado.
+ * @returns { text, count, deadlineCount }
  */
-export function buildICS(blocks, { semester = 1, name = 'Horário Nova SBE', dtstamp } = {}) {
+export function buildICS(blocks, { semester = 1, name = 'Horário Nova SBE', dtstamp, deadlines = [] } = {}) {
   const halves = Number(semester) === 2 ? ['T3', 'T4'] : ['T1', 'T2']
   const p1 = PERIODS.find((p) => p.key === halves[0])
   const p2 = PERIODS.find((p) => p.key === halves[1])
-  if (!p1 || !p2 || !blocks?.length) return { text: '', count: 0 }
+  if (!p1 || !p2 || (!blocks?.length && !deadlines?.length)) return { text: '', count: 0, deadlineCount: 0 }
 
   const stamp = dtstamp || new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
   const events = []
@@ -106,6 +109,29 @@ export function buildICS(blocks, { semester = 1, name = 'Horário Nova SBE', dts
     }
   }
 
+  const count = events.filter((l) => l === 'BEGIN:VEVENT').length
+
+  // Prazos: um evento de meia hora à hora da entrega. A data vem do fuso do
+  // telemóvel (é assim que foi escrita no Prazos), por isso lê-se do Date local.
+  let deadlineCount = 0
+  for (const a of deadlines || []) {
+    const d = a?.due_date ? new Date(a.due_date) : null
+    if (!d || isNaN(d.getTime())) continue
+    const fim = new Date(d.getTime() + 30 * 60000)
+    const isoDe = (x) => `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`
+    const horaDe = (x) => `${pad(x.getHours())}:${pad(x.getMinutes())}`
+    events.push(
+      'BEGIN:VEVENT',
+      `UID:prazo-${a.id}@nova-sbe-organizer`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART;TZID=Europe/Lisbon:${stampFrom(isoDe(d), horaDe(d))}`,
+      `DTEND;TZID=Europe/Lisbon:${stampFrom(isoDe(fim), horaDe(fim))}`,
+      `SUMMARY:${esc(a.title)}`,
+      'END:VEVENT',
+    )
+    deadlineCount++
+  }
+
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -118,6 +144,5 @@ export function buildICS(blocks, { semester = 1, name = 'Horário Nova SBE', dts
     ...events,
     'END:VCALENDAR',
   ]
-  const count = events.filter((l) => l === 'BEGIN:VEVENT').length
-  return { text: lines.map(fold).join('\r\n') + '\r\n', count }
+  return { text: lines.map(fold).join('\r\n') + '\r\n', count, deadlineCount }
 }

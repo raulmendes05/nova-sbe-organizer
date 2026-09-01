@@ -60,3 +60,79 @@ export function weekOf(blocks, base, offset = 0, hojeIso = isoOf(new Date())) {
     return dia
   })
 }
+
+// ---------------------------------------------------------------------------
+//  Prazos no horario
+//
+//  Um prazo que caia num dia em que ha aula DESSA cadeira acontece, quase
+//  sempre, na propria aula: a apresentacao de Etica do dia 15 e na aula de
+//  Etica desse dia. Nesse caso fica agarrado a aula (`aula.prazos`) em vez de
+//  aparecer como um bloco a parte, que so faria a grelha parecer mais cheia do
+//  que esta. Os outros — entregas online, prazos de cadeiras sem aula nesse
+//  dia — continuam a ter bloco proprio, a hora a que sao.
+// ---------------------------------------------------------------------------
+
+// Separador entre o nome da cadeira e o turno: "Ethics — TPA (T1)".
+const SEP = /\s+[—–]\s+|\s+-\s+/
+const nomeDoBloco = (title) => String(title || '').split(SEP)[0].trim().toLowerCase()
+
+const toMin = (t) => {
+  const [h, m] = String(t || '').split(':').map(Number)
+  return (h || 0) * 60 + (m || 0)
+}
+const pad = (n) => String(n).padStart(2, '0')
+const horaDe = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}`
+
+/** Este bloco de horario e desta cadeira? */
+function mesmaCadeira(block, prazo, cursos) {
+  if (!prazo.course_id) return false
+  if (block.course_id) return block.course_id === prazo.course_id
+  // Blocos escritos a mao nao tem cadeira ligada — resta o nome no titulo.
+  const c = cursos.get(prazo.course_id)
+  return Boolean(c?.name) && nomeDoBloco(block.title) === String(c.name).trim().toLowerCase()
+}
+
+/** A aula em que este prazo acontece: a que o apanha a hora certa; senao, a mais perto. */
+function aulaDoPrazo(blocks, prazo, cursos, minuto) {
+  const candidatas = blocks.filter((b) => !b.__prazo && mesmaCadeira(b, prazo, cursos))
+  if (!candidatas.length) return null
+  const dentro = candidatas.find((b) => minuto >= toMin(b.start_time) && minuto < toMin(b.end_time))
+  if (dentro) return dentro
+  return candidatas.reduce((melhor, b) =>
+    Math.abs(toMin(b.start_time) - minuto) < Math.abs(toMin(melhor.start_time) - minuto) ? b : melhor)
+}
+
+/**
+ * Junta os prazos aos dias de `weekOf`. Devolve dias novos: os blocos ganham
+ * `prazos` (os que acontecem naquela aula) e, para os que nao encaixam em
+ * nenhuma, um bloco proprio marcado com `__prazo`.
+ */
+export function withDeadlines(dias, prazos, courses = []) {
+  const cursos = new Map((courses || []).map((c) => [c.id, c]))
+  const validos = (prazos || []).filter((a) => a.due_date && a.status !== 'done')
+  if (!validos.length) return dias
+
+  return dias.map((dia) => {
+    const doDia = validos.filter((a) => isoOf(new Date(a.due_date)) === dia.iso)
+    if (!doDia.length) return dia
+
+    const blocks = dia.blocks.map((b) => ({ ...b }))
+    const soltos = []
+    for (const a of doDia) {
+      const d = new Date(a.due_date)
+      const minuto = d.getHours() * 60 + d.getMinutes()
+      const aula = aulaDoPrazo(blocks, a, cursos, minuto)
+      if (aula) {
+        const dentro = minuto >= toMin(aula.start_time) && minuto < toMin(aula.end_time)
+        aula.prazos = [...(aula.prazos || []), { id: a.id, title: a.title, kind: a.kind, hora: horaDe(d), dentro }]
+      } else {
+        const fim = new Date(d.getTime() + 30 * 60000)
+        soltos.push({
+          id: `prazo-${a.id}`, title: a.title, course_id: a.course_id, kind: a.kind, __prazo: true,
+          start_time: horaDe(d), end_time: horaDe(fim),
+        })
+      }
+    }
+    return { ...dia, blocks: [...blocks, ...soltos] }
+  })
+}

@@ -6,7 +6,7 @@ import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon, ErrorBox } from '../
 import CourseSelect from '../components/CourseSelect.jsx'
 import { days as weekDays, scheduleKinds, hhmm, todayDow } from '../lib/helpers.js'
 import { officialBlock } from '../lib/enroll.js'
-import { weekOf, isoOf } from '../lib/week.js'
+import { weekOf, withDeadlines } from '../lib/week.js'
 import { localeOf } from '../lib/helpers.js'
 import EnrollFlow from '../components/EnrollFlow.jsx'
 import { useT } from '../i18n/index.jsx'
@@ -37,11 +37,13 @@ export default function Schedule() {
   const [exported, setExported] = useState(null)
 
   function exportCalendar() {
-    const { text, count } = buildICS(rows, {
+    const porEntregar = prazos.rows.filter((a) => a.due_date && a.status !== 'done')
+    const { text, count, deadlineCount } = buildICS(rows, {
       semester: Number(semester) || 1,
       name: t('schedule.icsName'),
+      deadlines: porEntregar,
     })
-    if (!count) { setExported(t('schedule.nothingToExport')); return }
+    if (!count && !deadlineCount) { setExported(t('schedule.nothingToExport')); return }
     const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -51,7 +53,8 @@ export default function Schedule() {
     a.click()
     a.remove()
     setTimeout(() => URL.revokeObjectURL(url), 2000)
-    setExported(t('schedule.exported', { n: count }))
+    setExported([t('schedule.exported', { n: count }),
+      deadlineCount ? t('schedule.plusDeadlines', { n: deadlineCount }) : ''].join(' ').trim())
     setTimeout(() => setExported(null), 4000)
   }
 
@@ -98,29 +101,16 @@ export default function Schedule() {
   // A semana a mostrar: as aulas que la correm mesmo (T1/T2, feriados, pausas
   // e dias de compensacao) mais os prazos que caem nesses dias.
   const dias = useMemo(() => {
-    const base = weekOf(rows, new Date(), semana)
-    const porDia = {}
-    for (const a of prazos.rows) {
-      if (!a.due_date || a.status === 'done') continue
-      const d = new Date(a.due_date)
-      const iso = isoOf(d)
-      const ini = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-      const fim = new Date(d.getTime() + 30 * 60000)
-      ;(porDia[iso] ||= []).push({
-        id: `prazo-${a.id}`, title: a.title, course_id: a.course_id, __prazo: true,
-        start_time: ini,
-        end_time: `${String(fim.getHours()).padStart(2, '0')}:${String(fim.getMinutes()).padStart(2, '0')}`,
-      })
-    }
+    const base = withDeadlines(weekOf(rows, new Date(), semana), prazos.rows, courses)
     return base.map((d) => {
       const st = d.status
       const semAulas = !d.blocks.length && (st.type === 'holiday' || st.type === 'break')
       const aviso = st.type === 'holiday' || st.type === 'break'
         ? (lang === 'en' ? st.labelEn : st.label)
         : st.type === 'makeup' ? t('schedule.makeup') : null
-      return { ...d, semAulas, aviso, blocks: [...d.blocks, ...(porDia[d.iso] || [])] }
+      return { ...d, semAulas, aviso }
     })
-  }, [rows, prazos.rows, semana, lang, t])
+  }, [rows, prazos.rows, courses, semana, lang, t])
 
   const intervalo = (() => {
     const fmt = (d) => d.toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'short' })
