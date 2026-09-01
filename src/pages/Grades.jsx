@@ -82,6 +82,12 @@ export default function Grades() {
     ? withAvg.reduce((s, x) => s + x.avg * Number(x.c.ects || 0), 0) / totalEcts
     : null
 
+  // Para a GPA de Erasmus, o ritmo de creditos conta so os ECTS feitos NA NOVA:
+  // creditos vindos de outra faculdade nao entram.
+  const feitasNaNova = withAvg.filter((x) => !x.c.is_equivalence)
+  const ectsNaNova = feitasNaNova.reduce((s, x) => s + Number(x.c.ects || 0), 0)
+  const ectsDeFora = totalEcts - ectsNaNova
+
   // Agrupar regulares por ano/semestre
   const groups = Object.values(
     regular.reduce((acc, item) => {
@@ -300,7 +306,8 @@ export default function Grades() {
 
       {/* Candidatura a mobilidade: outra metrica, a partir dos mesmos numeros */}
       <div className="mb-4">
-        <ErasmusGpa gpa={globalAvg} ects={totalEcts} />
+        <ErasmusGpa gpa={globalAvg} ects={ectsNaNova}
+          ectsDeFora={ectsDeFora} equivalencias={equivalences.filter((x) => x.avg !== null).length} />
       </div>
 
       {/* Separadores */}
