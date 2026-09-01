@@ -51,6 +51,40 @@ export function blocksFor(code, name, chosen) {
       day_of_week: s.d,
       start_time: s.s,
       end_time: s.e,
+      location: s.r || null,
       kind: KIND_DB[s.k] || 'aula',
     }))
+}
+
+// Separador entre o nome da cadeira e o turno no titulo de um bloco.
+// O mesmo que o baseTitle() de pages/Exams.jsx usa para ler estes titulos.
+const SEP = /\s+[—–]\s+|\s+-\s+/
+
+/**
+ * A sala de um bloco de horario JA GRAVADO, a partir do titulo, dia e hora.
+ *
+ * Os horarios criados antes de a escola publicar as salas ficaram com o campo
+ * vazio; isto permite preenche-los sem o aluno ter de refazer nada.
+ * Devolve null se nao houver correspondencia certa — mais vale ficar vazio do
+ * que pôr a sala errada.
+ */
+export function roomFor(title, day, startTime) {
+  const partes = String(title || '').split(SEP)
+  const turno = (partes[1] || '').split('(')[0].trim()
+  if (!turno) return null
+  const hhmm = String(startTime || '').slice(0, 5)
+  const nome = (partes[0] || '').trim().toLowerCase()
+
+  const hits = []
+  for (const c of Object.values(SCHEDULES)) {
+    for (const s of c.sessions) {
+      if (s.r && s.g === turno && s.d === Number(day) && s.s === hhmm) {
+        hits.push({ nome: c.name.toLowerCase(), r: s.r })
+      }
+    }
+  }
+  if (hits.length === 1) return hits[0].r
+  // Duas cadeiras com o mesmo turno a mesma hora — so o nome desempata.
+  const exato = hits.filter((h) => h.nome === nome)
+  return exato.length === 1 ? exato[0].r : null
 }

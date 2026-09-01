@@ -4,8 +4,13 @@ import SideNav from './SideNav.jsx'
 import GoalPrompt from './GoalPrompt.jsx'
 import CoursesPrompt from './CoursesPrompt.jsx'
 import { CoursesProvider } from '../context/CoursesContext.jsx'
+import { useRoomBackfill } from '../lib/useRoomBackfill.js'
 
 export default function Layout() {
+  // As salas so foram publicadas a meio do semestre: preenche as que faltam
+  // nos horarios ja criados.
+  useRoomBackfill()
+
   return (
     <CoursesProvider>
       <div className="min-h-screen md:flex">
