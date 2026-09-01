@@ -4,6 +4,7 @@ import { useT, LANGS } from '../i18n/index.jsx'
 import { PageHeader, Icon } from '../components/ui.jsx'
 import { PROGRAMS } from '../data/curriculum.js'
 import { termKey } from '../lib/helpers.js'
+import { errorText } from '../lib/errors.js'
 
 /* ---------- Seccao com titulo e ajuda ---------- */
 function Section({ title, hint, children }) {
@@ -87,8 +88,8 @@ export default function Profile() {
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
-    } catch {
-      setErr(t('common.error'))
+    } catch (e) {
+      setErr(errorText(e, t))
     } finally {
       setSaving(false)
     }
@@ -98,7 +99,7 @@ export default function Profile() {
   // escolheu. Nao entra no botao Guardar.
   async function pickLang(v) {
     if (v === lang) return
-    try { await updateProfile({ lang: v }) } catch { setErr(t('common.error')) }
+    try { await updateProfile({ lang: v }) } catch (e) { setErr(errorText(e, t)) }
   }
 
   async function copyEmail() {

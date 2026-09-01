@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useCollection } from '../lib/useCollection.js'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components/ui.jsx'
+import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon, ErrorBox } from '../components/ui.jsx'
 import CoursePicker from '../components/CoursePicker.jsx'
 import GoalCard from '../components/GoalCard.jsx'
 import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg } from '../lib/helpers.js'
@@ -19,8 +19,14 @@ function gradeColor(avg) {
 }
 
 export default function Grades() {
-  const { rows: courses, add: addCourse, update: updateCourse, remove: removeCourse, loading: coursesLoading } = useCourses()
-  const { rows: grades, loading: gradesLoading, add: addGrade, update: updateGrade, remove: removeGrade } = useCollection('grades', { orderBy: 'created_at', ascending: true })
+  const { rows: courses, add: addCourse, update: updateCourse, remove: removeCourse, loading: coursesLoading,
+    error: coursesError, clearError: clearCoursesError } = useCourses()
+  const { rows: grades, loading: gradesLoading, add: addGrade, update: updateGrade, remove: removeGrade,
+    error: gradesError, clearError: clearGradesError } = useCollection('grades', { orderBy: 'created_at', ascending: true })
+  // Cadeiras e componentes falham pelos mesmos motivos (rede, RLS) — uma
+  // caixa chega para os dois.
+  const error = coursesError || gradesError
+  const clearError = () => { clearCoursesError(); clearGradesError() }
   const { academicYear, semester, goalAvg, currentTermKey, updateGoal } = useAuth()
   const { t } = useT()
   const defYear = Number(academicYear) || null
@@ -60,7 +66,7 @@ export default function Grades() {
     const v = finalDraft === '' ? null : Number(finalDraft)
     const cur = c.final_grade ?? null
     if (v === cur) return
-    await updateCourse(c.id, { final_grade: v })
+    try { await updateCourse(c.id, { final_grade: v }) } catch { /* mensagem ja em `error` */ }
   }
 
   // Equivalencias vao para um separador proprio, mas contam para a media/ECTS
@@ -101,7 +107,9 @@ export default function Grades() {
 
   async function pickFromCatalog(course) {
     const color = COURSE_COLORS[courses.length % COURSE_COLORS.length]
-    await addCourse({ name: course.name, code: course.code, ects: course.ects, color, year: defYear, term: defTerm })
+    try {
+      await addCourse({ name: course.name, code: course.code, ects: course.ects, color, year: defYear, term: defTerm })
+    } catch { /* mensagem ja em `error` */ }
   }
   function openManual() { setPickerOpen(false); openNewCourse(false) }
 
@@ -109,16 +117,18 @@ export default function Grades() {
     e.preventDefault()
     const payload = { ...courseForm, ects: Number(courseForm.ects) || 0 }
     if (payload.is_equivalence) { payload.year = null; payload.term = null }
-    if (courseEditId) await updateCourse(courseEditId, payload)
-    else {
-      payload.color = COURSE_COLORS[courses.length % COURSE_COLORS.length]
-      await addCourse(payload)
-    }
-    setCourseModal(false)
+    try {
+      if (courseEditId) await updateCourse(courseEditId, payload)
+      else {
+        payload.color = COURSE_COLORS[courses.length % COURSE_COLORS.length]
+        await addCourse(payload)
+      }
+      setCourseModal(false)
+    } catch { /* o modal fica aberto com a mensagem a vista */ }
   }
   async function deleteCourse(id) {
     if (!confirm(t('grades.confirmDeleteCourse'))) return
-    await removeCourse(id)
+    try { await removeCourse(id) } catch { /* mensagem ja em `error` */ }
   }
 
   // FAB: catalogo (semestres) ou formulario de equivalencia
@@ -138,9 +148,11 @@ export default function Grades() {
       weight: Number(gradeForm.weight) || 0,
       grade: gradeForm.grade === '' ? null : Number(gradeForm.grade),
     }
-    if (gradeEditId) await updateGrade(gradeEditId, payload)
-    else await addGrade(payload)
-    setGradeModal(false)
+    try {
+      if (gradeEditId) await updateGrade(gradeEditId, payload)
+      else await addGrade(payload)
+      setGradeModal(false)
+    } catch { /* o modal fica aberto com a mensagem a vista */ }
   }
 
   const loading = coursesLoading || gradesLoading
@@ -200,7 +212,7 @@ export default function Grades() {
                           <span className={`font-bold ${g.grade === null ? 'text-slate-500' : gradeColor(Number(g.grade))}`}>
                             {g.grade === null ? '—' : Number(g.grade).toFixed(1)}
                           </span>
-                          <button onClick={() => removeGrade(g.id)} className="p-1 text-slate-500 hover:text-rose-400">
+                          <button onClick={() => removeGrade(g.id).catch(() => {})} className="p-1 text-slate-500 hover:text-rose-400">
                             <Icon name="trash" className="w-4 h-4" />
                           </button>
                         </div>
@@ -259,6 +271,8 @@ export default function Grades() {
   return (
     <div>
       <PageHeader title={t('nav.grades')} subtitle={t('grades.subtitle')} />
+
+      <ErrorBox error={error} onClose={clearError} className="mb-4" />
 
       {/* Cartao media global */}
       <div className="relative overflow-hidden rounded-3xl p-5 mb-4 shadow-glow"
@@ -395,6 +409,7 @@ export default function Grades() {
                 onChange={(e) => setCourseForm({ ...courseForm, professor: e.target.value })} />
             </div>
           </div>
+          <ErrorBox error={error} onClose={clearError} />
           <button className="btn-primary w-full mt-2">{courseEditId ? t('common.save') : t('common.add')}</button>
         </form>
       </Modal>
@@ -424,6 +439,7 @@ export default function Grades() {
             </div>
           </div>
           <p className="text-xs text-slate-400">{t('grades.componentHint')}</p>
+          <ErrorBox error={error} onClose={clearError} />
           <button className="btn-primary w-full mt-2">{gradeEditId ? t('common.save') : t('common.add')}</button>
         </form>
       </Modal>

@@ -7,6 +7,7 @@ import { useCollection } from '../lib/useCollection.js'
 import { PageHeader, Fab, Modal, Icon, EmptyState, Spinner } from '../components/ui.jsx'
 import { PROGRAMS, flatCatalog } from '../data/curriculum.js'
 import { useT } from '../i18n/index.jsx'
+import { errorText, apiError } from '../lib/errors.js'
 
 const MAX_MB = 20
 
@@ -22,9 +23,8 @@ async function signUrl(body) {
     },
     body: JSON.stringify(body),
   })
-  const out = await res.json()
-  if (!res.ok) throw new Error(out.error || 'Erro no servidor.')
-  return out
+  if (!res.ok) throw await apiError(res)
+  return res.json()
 }
 
 // Os rotulos vem da traducao; so o tom de cor vive aqui.
@@ -115,12 +115,12 @@ export default function Exams() {
         .from('exam_files').select('*')
         .order('school_year', { ascending: false })
         .range(from, from + 999)
-      if (error) { setError(error.message); setLoading(false); return }
+      if (error) { setError(errorText(error, t)); setLoading(false); return }
       all.push(...data)
       if (data.length < 1000) break
     }
     setRows(all); setError(null); setLoading(false)
-  }, [])
+  }, [t])
 
   useEffect(() => { load() }, [load])
 
@@ -152,7 +152,7 @@ export default function Exams() {
       })
       window.open(url, '_blank', 'noopener')
     } catch (e) {
-      setError(e.message || t('exams.errOpen'))
+      setError(`${t('exams.errOpen')} ${errorText(e, t)}`)
     } finally {
       setBusy(null)
     }
@@ -165,7 +165,7 @@ export default function Exams() {
       await signUrl({ action: 'delete', path: row.storage_path })
       setRows((prev) => prev.filter((r) => r.id !== row.id))
     } catch (e) {
-      setError(e.message || t('exams.errDelete'))
+      setError(`${t('exams.errDelete')} ${errorText(e, t)}`)
     } finally {
       setBusy(null)
     }
@@ -457,7 +457,7 @@ function UploadModal({ open, onClose, user, displayName, currentCodes, lockedCod
       await onDone()
       reset(); onClose()
     } catch (e) {
-      setErr(e.message || t('exams.errSend'))
+      setErr(`${t('exams.errSend')} ${errorText(e, t)}`)
     } finally {
       setSaving(false); setProgress('')
     }

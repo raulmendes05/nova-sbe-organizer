@@ -18,7 +18,7 @@ export const en = {
   'common.cancel': 'Cancel',
   'common.copy': 'Copy',
   'common.copied': 'Copied',
-  'common.error': 'Something went wrong. Please try again.',
+  'common.dismiss': 'Dismiss',
 
   // ---- Profile ----
   'profile.title': 'Profile',
@@ -355,6 +355,14 @@ export const en = {
   'login.errWrong': 'Wrong email or password.',
   'login.errExists': 'This email already has an account.',
   'login.errRate': 'Too many attempts. Wait a moment.',
+  'login.errEmail': 'That email is not valid. Check the spelling.',
+  'login.errWeak': 'Password too weak. Use at least 6 characters.',
+  'login.errSignupsOff': 'Creating new accounts is disabled on this server.',
+  'login.errNotConfirmed': 'You haven\'t confirmed your email yet. Check your inbox.',
+  'login.errDomain': 'This app only accepts Nova SBE accounts ({domains}). Use your university email.',
+  'login.errRefused': 'The server refused to create the account — usually the email is not a Nova SBE one.',
+  'error.empty': 'The server rejected the request without saying why.',
+  'error.network': 'Could not reach the server. Check your internet connection.',
 
   // ---- First sign-in ----
   'onboarding.welcome': 'Welcome!',

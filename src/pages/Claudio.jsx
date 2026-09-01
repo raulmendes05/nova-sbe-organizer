@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useT } from '../i18n/index.jsx'
+import { errorText, apiError } from '../lib/errors.js'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon } from '../components/ui.jsx'
@@ -22,6 +23,51 @@ function renderText(text) {
   ))
 }
 
+/**
+ * Pede uma volta ao Cláudio e vai chamando onText(pedaço) à medida que o
+ * texto chega. Devolve o evento final { content, stop_reason }.
+ *
+ * O corpo vem em NDJSON — uma linha de JSON por evento. A última linha de
+ * cada leitura pode estar cortada a meio, por isso fica no `buffer` até
+ * chegar o \n que a fecha.
+ */
+async function askClaudio(body, onText) {
+  const res = await fetch('/api/claudio', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  // Um 500 com corpo vazio dava "Erro do servidor." e mais nada; o apiError
+  // guarda pelo menos o estado HTTP para aparecer no chat.
+  if (!res.ok) throw await apiError(res)
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let done = null
+
+  const handle = (line) => {
+    if (!line.trim()) return
+    const ev = JSON.parse(line)
+    if (ev.type === 'text') onText(ev.delta)
+    else if (ev.type === 'error') throw new Error(ev.error)
+    else if (ev.type === 'done') done = ev
+  }
+
+  for (;;) {
+    const { value, done: finished } = await reader.read()
+    if (finished) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop()            // guarda o resto incompleto
+    for (const line of lines) handle(line)
+  }
+  handle(buffer)                     // o que sobrou, se o corpo não acabou em \n
+
+  if (!done) throw new Error('A resposta do Cláudio ficou incompleta.')
+  return done
+}
+
 export default function Claudio() {
   const { displayName, program, academicYear, semester, lang } = useAuth()
   const { t } = useT()
@@ -35,12 +81,13 @@ export default function Claudio() {
   const [chat, setChat] = useState([])       // mensagens para mostrar
   const [apiMsgs, setApiMsgs] = useState([])  // mensagens em formato Anthropic
   const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
+    const [loading, setLoading] = useState(false)
+  const [streaming, setStreaming] = useState(false)   // já está a escrever?
   const scrollRef = useRef(null)
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
-  }, [chat, loading])
+    }, [chat, loading])
 
   function buildContext() {
     const compsOf = (id) => grades.rows.filter((g) => g.course_id === id)
@@ -164,24 +211,39 @@ export default function Claudio() {
     if (!content || loading) return
     let msgs = [...apiMsgs, { role: 'user', content }]
     setChat((c) => [...c, { role: 'user', text: content }])
-    setInput('')
+        setInput('')
     setLoading(true)
+    setStreaming(false)
     try {
-      let guard = 0
+            let guard = 0
       while (guard++ < 6) {
-        const res = await fetch('/api/claudio', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: msgs, context: buildContext(), lang }),
-        })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error || 'Erro do servidor.')
+        // Cada volta escreve numa bolha própria, que vai crescendo. `writing`
+        // guarda a posição dela para os pedaços seguintes irem ao sítio certo.
+        let writing = -1
+        const onText = (delta) => {
+          if (!delta) return
+          setStreaming(true)
+          setChat((c) => {
+            if (writing === -1) { writing = c.length; return [...c, { role: 'assistant', text: delta }] }
+            const next = [...c]
+            next[writing] = { ...next[writing], text: next[writing].text + delta }
+            return next
+          })
+        }
+
+        const data = await askClaudio({ messages: msgs, context: buildContext(), lang }, onText)
+        setStreaming(false)
 
         const assistantContent = data.content || []
         msgs = [...msgs, { role: 'assistant', content: assistantContent }]
 
-        const txt = assistantContent.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim()
-        if (txt) setChat((c) => [...c, { role: 'assistant', text: txt }])
+        // Se não veio nada em streaming (só chamadas de ferramenta, ou texto
+        // que só apareceu no evento final), mostra-o agora.
+        if (writing === -1) {
+          const txt = assistantContent.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim()
+          if (txt) setChat((c) => [...c, { role: 'assistant', text: txt }])
+        }
+
 
         // A resposta ficou sem espaço a meio — avisa em vez de a dar por completa.
         if (data.stop_reason === 'max_tokens') {
@@ -199,7 +261,7 @@ export default function Claudio() {
           for (const tu of toolUses) {
             let out, ok = true
             try { out = await execTool(tu.name, tu.input) }
-            catch (e) { out = `⚠️ Não consegui: ${e.message || e}`; ok = false }
+            catch (e) { out = `⚠️ Não consegui: ${errorText(e, t)}`; ok = false }
             // Só mostra etiqueta de "ação" para ferramentas que alteram dados
             if (!READONLY.has(tu.name)) setChat((c) => [...c, { role: 'action', text: out, ok }])
             results.push({ type: 'tool_result', tool_use_id: tu.id, content: out, is_error: !ok })
@@ -211,9 +273,10 @@ export default function Claudio() {
       }
       setApiMsgs(msgs)
     } catch (e) {
-      setChat((c) => [...c, { role: 'error', text: e.message }])
-    } finally {
+      setChat((c) => [...c, { role: 'error', text: errorText(e, t) }])
+        } finally {
       setLoading(false)
+      setStreaming(false)
     }
   }
 
@@ -272,7 +335,7 @@ export default function Claudio() {
             )
           })
         )}
-        {loading && (
+                {loading && !streaming && (
           <div className="flex justify-start">
             <div className="bg-white/[0.06] border border-white/10 rounded-2xl rounded-bl-md px-4 py-3">
               <div className="flex gap-1">

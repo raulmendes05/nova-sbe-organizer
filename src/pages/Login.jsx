@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase.js'
 import { useT } from '../i18n/index.jsx'
+import { errorText } from '../lib/errors.js'
+
+// Tem de acompanhar o trigger trg_enforce_nova_email em supabase/exams.sql.
+// O servidor continua a ser quem manda; isto so serve para o aluno perceber
+// porque foi recusado — o GoTrue mascara os erros de trigger com um
+// "Database error saving new user" que nao explica nada.
+const ALLOWED_DOMAINS = ['novasbe.pt', 'novasbe.unl.pt']
 
 export default function Login() {
   const { t } = useT()
@@ -16,6 +23,10 @@ export default function Login() {
     setLoading(true)
     try {
       if (mode === 'signup') {
+        const domain = email.split('@')[1]?.toLowerCase() || ''
+        if (!ALLOWED_DOMAINS.includes(domain)) {
+          throw new Error(t('login.errDomain', { domains: ALLOWED_DOMAINS.map((d) => `@${d}`).join(', ') }))
+        }
         const { error } = await supabase.auth.signUp({ email, password })
         if (error) throw error
         setMsg({ tone: 'ok', text: t('login.created') })
@@ -26,7 +37,7 @@ export default function Login() {
         // O AuthContext trata do resto (onAuthStateChange).
       }
     } catch (err) {
-      setMsg({ tone: 'err', text: authError(err.message, t) })
+      setMsg({ tone: 'err', text: errorText(err, t) })
     } finally {
       setLoading(false)
     }
@@ -76,13 +87,4 @@ export default function Login() {
       </div>
     </div>
   )
-}
-
-// As mensagens do Supabase vem sempre em ingles tecnico — traduzimos as que
-// o aluno pode mesmo encontrar e deixamos passar as restantes.
-function authError(m = '', t) {
-  if (/invalid login/i.test(m)) return t('login.errWrong')
-  if (/already registered/i.test(m)) return t('login.errExists')
-  if (/rate limit/i.test(m)) return t('login.errRate')
-  return m
 }

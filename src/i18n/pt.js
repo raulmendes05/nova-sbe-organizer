@@ -18,7 +18,7 @@ export const pt = {
   'common.cancel': 'Cancelar',
   'common.copy': 'Copiar',
   'common.copied': 'Copiado',
-  'common.error': 'Algo correu mal. Tenta outra vez.',
+  'common.dismiss': 'Dispensar',
 
   // ---- Perfil ----
   'profile.title': 'Perfil',
@@ -355,6 +355,14 @@ export const pt = {
   'login.errWrong': 'Email ou palavra-passe errados.',
   'login.errExists': 'Este email já tem conta.',
   'login.errRate': 'Demasiadas tentativas. Espera um pouco.',
+  'login.errEmail': 'Este email não é válido. Confirma que está bem escrito.',
+  'login.errWeak': 'Palavra-passe demasiado fraca. Usa pelo menos 6 caracteres.',
+  'login.errSignupsOff': 'A criação de contas novas está desativada neste servidor.',
+  'login.errNotConfirmed': 'Ainda não confirmaste o email. Vê a caixa de entrada.',
+  'login.errDomain': 'Esta app só aceita contas da Nova SBE ({domains}). Usa o email da faculdade.',
+  'login.errRefused': 'O servidor recusou criar a conta — normalmente é o email não ser da Nova SBE.',
+  'error.empty': 'O servidor recusou o pedido mas não explicou porquê.',
+  'error.network': 'Não foi possível contactar o servidor. Verifica a ligação à internet.',
 
   // ---- Primeiro login ----
   'onboarding.welcome': 'Bem-vindo(a)!',

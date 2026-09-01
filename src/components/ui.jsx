@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useT } from '../i18n/index.jsx'
 
 /* ---------- Icones (SVG inline, sem dependencias) ---------- */
 export function Icon({ name, className = 'w-6 h-6' }) {
@@ -65,6 +66,24 @@ export function EmptyState({ icon = 'note', title, hint }) {
       </div>
       <p className="font-semibold text-slate-200">{title}</p>
       {hint && <p className="text-sm text-slate-500 mt-1">{hint}</p>}
+    </div>
+  )
+}
+
+/* ---------- Caixa de erro ----------
+   Um unico sitio para mostrar erros, para que nenhuma pagina volte a
+   engolir a mensagem. O texto vem sempre do errorText() em lib/errors.js. */
+export function ErrorBox({ error, onClose, className = '' }) {
+  const { t } = useT()
+  if (!error) return null
+  return (
+    <div role="alert" className={`text-sm rounded-xl px-3.5 py-2.5 bg-rose-500/15 border border-rose-500/25 text-rose-100 flex items-start gap-2 ${className}`}>
+      <span className="flex-1 whitespace-pre-wrap break-words">{error}</span>
+      {onClose && (
+        <button onClick={onClose} aria-label={t('common.dismiss')} className="text-rose-300 flex-shrink-0 mt-0.5">
+          <Icon name="close" className="w-4 h-4" />
+        </button>
+      )}
     </div>
   )
 }

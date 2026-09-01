@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useCollection } from '../lib/useCollection.js'
 import { useCourses } from '../context/CoursesContext.jsx'
-import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components/ui.jsx'
+import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon, ErrorBox } from '../components/ui.jsx'
 import CourseSelect from '../components/CourseSelect.jsx'
 import { assignmentKinds, dueLabel, formatDateTime, lighten, isCourseDone, localeOf } from '../lib/helpers.js'
 import { useT } from '../i18n/index.jsx'
@@ -27,7 +27,7 @@ const toInput = (iso) => (iso ? new Date(iso).toISOString().slice(0, 16) : '')
 const toISO = (local) => (local ? new Date(local).toISOString() : null)
 
 export default function Assignments() {
-  const { rows, loading, add, update, remove } = useCollection('assignments', {
+  const { rows, loading, error, clearError, add, update, remove } = useCollection('assignments', {
     orderBy: 'due_date', ascending: true,
   })
   const { rows: courses } = useCourses()
@@ -73,13 +73,17 @@ export default function Assignments() {
   async function save(e) {
     e.preventDefault()
     const payload = { ...form, due_date: toISO(form.due_date) }
-    if (editId) await update(editId, payload)
-    else await add(payload)
-    setOpen(false)
+    try {
+      if (editId) await update(editId, payload)
+      else await add(payload)
+      setOpen(false)
+    } catch { /* o useCollection ja pos a mensagem em `error` — o modal fica aberto */ }
   }
 
+  // O .catch e so para nao ficar uma rejeicao por tratar: a mensagem ja foi
+  // parar ao `error` do useCollection e aparece na ErrorBox.
   const toggleDone = (a) =>
-    update(a.id, { status: a.status === 'done' ? 'todo' : 'done' })
+    update(a.id, { status: a.status === 'done' ? 'todo' : 'done' }).catch(() => {})
 
   const list = rows
     .filter((a) => (tab === 'done' ? a.status === 'done' : a.status !== 'done'))
@@ -93,6 +97,8 @@ export default function Assignments() {
   return (
     <div>
       <PageHeader title={t('nav.deadlines')} subtitle={t('deadlines.subtitle')} />
+
+      <ErrorBox error={error} onClose={clearError} className="mb-4" />
 
       {/* Seletor principal: Prazos / Exames (cápsula com ícones) */}
       <div className="flex gap-1 p-1 mb-4 rounded-2xl bg-white/[0.04] border border-white/10">
@@ -218,7 +224,7 @@ export default function Assignments() {
                   </p>
                 </div>
                 {!done && a.due_date && <span className={`chip ${toneClasses[dl.tone]}`}>{dl.text}</span>}
-                <button onClick={() => remove(a.id)} className="p-1.5 text-slate-500 hover:text-rose-400 flex-shrink-0">
+                <button onClick={() => remove(a.id).catch(() => {})} className="p-1.5 text-slate-500 hover:text-rose-400 flex-shrink-0">
                   <Icon name="trash" className="w-4 h-4" />
                 </button>
               </div>
@@ -260,6 +266,7 @@ export default function Assignments() {
             <textarea className="input min-h-[80px]" placeholder={t('deadlines.notesPlaceholder')}
               value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           </div>
+          <ErrorBox error={error} onClose={clearError} />
           <button className="btn-primary w-full mt-2">{editId ? t('common.save') : t('common.add')}</button>
         </form>
       </Modal>

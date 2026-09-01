@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { firstYearCourses } from '../data/curriculum.js'
 import { COURSE_COLORS, termKey } from '../lib/helpers.js'
 import { useT } from '../i18n/index.jsx'
+import { errorText } from '../lib/errors.js'
 
 const YEARS = ['1', '2', '3']
 const SEMESTERS = ['1', '2']
@@ -65,7 +66,7 @@ export default function Onboarding() {
       const { error } = await supabase.auth.updateUser({ data })
       if (error) throw error
     } catch (e2) {
-      setErr(t('common.error'))
+      setErr(errorText(e2, t))
       setLoading(false)
     }
   }

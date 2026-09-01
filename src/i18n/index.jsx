@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useMemo } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { pt } from './pt.js'
 import { en } from './en.js'
@@ -24,23 +24,31 @@ const I18nContext = createContext({ lang: DEFAULT_LANG, t: (k) => k })
  */
 export function I18nProvider({ children }) {
   const { lang } = useAuth()
-  const dict = DICTS[lang] || pt
+
+  // Memoizado por idioma de proposito: o `t` entra em listas de dependencias
+  // (useCollection, Exams), e se mudasse de identidade a cada render punha
+  // esses efeitos a recarregar em ciclo.
+  const value = useMemo(() => {
+    const dict = DICTS[lang] || pt
 
     function t(key, vars) {
-    // Singular: se o contador `n` for 1 e existir uma chave irma terminada em
-    // ".one", e essa que se usa. Evita "1 cadeiras" sem obrigar cada sitio a
-    // decidir o plural.
-    const one = `${key}.one`
-    const useOne = vars && Number(vars.n) === 1 && (dict[one] ?? pt[one]) != null
-    const k = useOne ? one : key
-    let s = dict[k] ?? pt[k] ?? key
-    if (vars) {
-      for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(v)
+      // Singular: se o contador `n` for 1 e existir uma chave irma terminada em
+      // ".one", e essa que se usa. Evita "1 cadeiras" sem obrigar cada sitio a
+      // decidir o plural.
+      const one = `${key}.one`
+      const useOne = vars && Number(vars.n) === 1 && (dict[one] ?? pt[one]) != null
+      const k = useOne ? one : key
+      let s = dict[k] ?? pt[k] ?? key
+      if (vars) {
+        for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(v)
+      }
+      return s
     }
-    return s
-  }
 
-  return <I18nContext.Provider value={{ lang, t }}>{children}</I18nContext.Provider>
+    return { lang, t }
+  }, [lang])
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
 }
 
 export const useT = () => useContext(I18nContext)

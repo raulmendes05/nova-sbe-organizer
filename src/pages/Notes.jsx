@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useCollection } from '../lib/useCollection.js'
 import { useCourses } from '../context/CoursesContext.jsx'
-import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components/ui.jsx'
+import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon, ErrorBox } from '../components/ui.jsx'
 import CourseSelect from '../components/CourseSelect.jsx'
 import { lighten } from '../lib/helpers.js'
 import { useT } from '../i18n/index.jsx'
@@ -9,7 +9,7 @@ import { useT } from '../i18n/index.jsx'
 const empty = { title: '', body: '', course_id: null, is_task: false, done: false }
 
 export default function Notes() {
-  const { rows, loading, add, update, remove } = useCollection('notes', {
+  const { rows, loading, error, clearError, add, update, remove } = useCollection('notes', {
     orderBy: 'created_at', ascending: false,
   })
   const { rows: courses } = useCourses()
@@ -28,11 +28,15 @@ export default function Notes() {
   }
   async function save(e) {
     e.preventDefault()
-    if (editId) await update(editId, form)
-    else await add(form)
-    setOpen(false)
+    try {
+      if (editId) await update(editId, form)
+      else await add(form)
+      setOpen(false)
+    } catch { /* o useCollection ja pos a mensagem em `error` — o modal fica aberto */ }
   }
-  const toggleDone = (n) => update(n.id, { done: !n.done })
+  // O .catch e so para nao ficar uma rejeicao por tratar: a mensagem ja foi
+  // parar ao `error` do useCollection e aparece na ErrorBox.
+  const toggleDone = (n) => update(n.id, { done: !n.done }).catch(() => {})
 
   const tasks = rows.filter((n) => n.is_task)
   const notes = rows.filter((n) => !n.is_task)
@@ -43,6 +47,8 @@ export default function Notes() {
   return (
     <div>
       <PageHeader title={t('notes.title')} subtitle={t('notes.subtitle', { n: openTasks })} />
+
+      <ErrorBox error={error} onClose={clearError} className="mb-4" />
 
       <div className="flex gap-2 mb-4">
         {[['all', t('notes.all')], ['tasks', t('nav.tasks')], ['notes', t('notes.notes')]].map(([v, label]) => (
@@ -79,7 +85,7 @@ export default function Notes() {
                     <span className="chip mt-1.5" style={{ background: (c.color || '#3d78bf') + '2e', color: lighten(c.color) }}>{c.name}</span>
                   )}
                 </div>
-                <button onClick={() => remove(n.id)} className="p-1.5 text-slate-500 hover:text-rose-400 flex-shrink-0">
+                <button onClick={() => remove(n.id).catch(() => {})} className="p-1.5 text-slate-500 hover:text-rose-400 flex-shrink-0">
                   <Icon name="trash" className="w-4 h-4" />
                 </button>
               </div>
@@ -117,6 +123,7 @@ export default function Notes() {
             <label className="label">{t('notes.courseOptional')}</label>
             <CourseSelect value={form.course_id} onChange={(v) => setForm({ ...form, course_id: v })} />
           </div>
+          <ErrorBox error={error} onClose={clearError} />
           <button className="btn-primary w-full mt-2">{editId ? t('common.save') : t('common.add')}</button>
         </form>
       </Modal>

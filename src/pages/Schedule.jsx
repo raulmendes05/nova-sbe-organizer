@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useCollection } from '../lib/useCollection.js'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon } from '../components/ui.jsx'
+import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon, ErrorBox } from '../components/ui.jsx'
 import CourseSelect from '../components/CourseSelect.jsx'
 import { days as weekDays, scheduleKinds, hhmm, todayDow } from '../lib/helpers.js'
 import { useT } from '../i18n/index.jsx'
@@ -16,7 +16,7 @@ const empty = {
 }
 
 export default function Schedule() {
-  const { rows, loading, add, update, remove } = useCollection('schedule_blocks', {
+  const { rows, loading, error, clearError, add, update, remove } = useCollection('schedule_blocks', {
     orderBy: 'start_time', ascending: true,
   })
   const { rows: courses } = useCourses()
@@ -60,9 +60,11 @@ export default function Schedule() {
 
   async function save(e) {
     e.preventDefault()
-    if (editId) await update(editId, form)
-    else await add(form)
-    setOpen(false)
+    try {
+      if (editId) await update(editId, form)
+      else await add(form)
+      setOpen(false)
+    } catch { /* o useCollection ja pos a mensagem em `error` — o modal fica aberto */ }
   }
 
   const hoursPerWeek = rows.reduce((a, b) => {
@@ -84,6 +86,8 @@ export default function Schedule() {
             <Icon name="calendar" className="w-4 h-4" /> {t('schedule.addToCalendar')}
           </button>
         )} />
+
+      <ErrorBox error={error} onClose={clearError} className="mb-4" />
 
       {exported && (
         <div className="card p-2.5 mb-3 text-sm text-emerald-200 bg-emerald-500/10 border-emerald-500/20 flex items-center gap-2">
@@ -149,13 +153,14 @@ export default function Schedule() {
               </select>
             </div>
           </div>
+          <ErrorBox error={error} onClose={clearError} />
           <button className="btn-primary w-full mt-2">{editId ? t('common.save') : t('common.add')}</button>
           {/* Na grelha não cabe um botão por bloco — apaga-se aqui. */}
           {editId && (
             <button type="button"
               onClick={async () => {
                 if (!window.confirm(t('schedule.confirmDelete'))) return
-                await remove(editId); setOpen(false)
+                try { await remove(editId); setOpen(false) } catch { /* mensagem ja visivel */ }
               }}
               className="w-full py-2.5 rounded-xl text-sm font-medium text-rose-300 hover:bg-rose-500/10 flex items-center justify-center gap-2">
               <Icon name="trash" className="w-4 h-4" /> {t('common.delete')}
