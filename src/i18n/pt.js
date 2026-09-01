@@ -419,4 +419,16 @@ export const pt = {
   'coursesPrompt.kindT': 'Teórica',
   'coursesPrompt.kindP': 'Prática',
   'coursesPrompt.kindTP': 'Teórico-prática',
+
+  // ---- GPA de Erasmus ----
+  'erasmus.title': 'GPA de Erasmus',
+  'erasmus.teaser': 'Para candidaturas a mobilidade — não é a tua média.',
+  'erasmus.body': 'A Nova usa outra conta nas candidaturas a mobilidade: 75% a nota e 25% o ritmo de créditos (30 ECTS por semestre é o percurso cheio).',
+  'erasmus.semesters': 'Semestres concluídos',
+  'erasmus.ects': 'ECTS feitos',
+  'erasmus.noGrades': 'Ainda não tens notas lançadas para isto dar um número.',
+  'erasmus.needSemesters': 'Diz quantos semestres já concluíste.',
+  'erasmus.breakdown': '{gpa} de média (vale 75%) e {ects} de {full} ECTS — {pace}% do percurso (vale 25%).',
+  'erasmus.overPace': 'Mais de 30 ECTS por semestre: a folha da escola não limita esta parcela, por isso o valor sobe acima do normal.',
+  'erasmus.source': 'Fórmula do «GPA Calculators Bachelors» da Nova SBE. Os ECTS vêm das tuas notas e dá para corrigir — a folha conta aí as cadeiras Pass/Fail, que a app ainda não distingue. Confirma sempre no NetPA.',
 }

@@ -419,4 +419,16 @@ export const en = {
   'coursesPrompt.kindT': 'Lecture',
   'coursesPrompt.kindP': 'Practical',
   'coursesPrompt.kindTP': 'Lecture + practical',
+
+  // ---- GPA de Erasmus ----
+  'erasmus.title': 'Erasmus GPA',
+  'erasmus.teaser': 'For mobility applications — not your average.',
+  'erasmus.body': 'Nova uses a different formula for mobility applications: 75% your grades and 25% your credit pace (30 ECTS per semester is a full load).',
+  'erasmus.semesters': 'Semesters completed',
+  'erasmus.ects': 'ECTS earned',
+  'erasmus.noGrades': 'You have no grades yet for this to give a number.',
+  'erasmus.needSemesters': 'Tell me how many semesters you have completed.',
+  'erasmus.breakdown': '{gpa} average (worth 75%) and {ects} of {full} ECTS — {pace}% of the way (worth 25%).',
+  'erasmus.overPace': 'More than 30 ECTS per semester: the school\'s sheet does not cap this part, so the value goes above the usual range.',
+  'erasmus.source': 'Formula from Nova SBE\'s GPA Calculators Bachelors sheet. The ECTS come from your grades and can be corrected — the sheet counts Pass/Fail courses there, which the app does not yet tell apart. Always confirm on NetPA.',
 }

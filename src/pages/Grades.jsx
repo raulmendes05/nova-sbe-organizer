@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon, ErrorBox } from '../components/ui.jsx'
 import CoursePicker from '../components/CoursePicker.jsx'
 import GoalCard from '../components/GoalCard.jsx'
+import ErasmusGpa from '../components/ErasmusGpa.jsx'
 import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg } from '../lib/helpers.js'
 import { useT } from '../i18n/index.jsx'
 
@@ -295,6 +296,11 @@ export default function Grades() {
       <div className="mb-4">
         <GoalCard current={currentAvg} goal={goalAvg} onSave={updateGoal}
           subtitle={termLabel(defYear, defTerm, t)} />
+      </div>
+
+      {/* Candidatura a mobilidade: outra metrica, a partir dos mesmos numeros */}
+      <div className="mb-4">
+        <ErasmusGpa gpa={globalAvg} ects={totalEcts} />
       </div>
 
       {/* Separadores */}

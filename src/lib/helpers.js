@@ -231,6 +231,32 @@ export function weightedAvg(items) {
   return withAvg.reduce((s, x) => s + x.avg * Number(x.ects || 0), 0) / ects
 }
 
+/**
+ * GPA de Erasmus — a metrica que a Nova usa nas candidaturas a mobilidade.
+ * Nao e a media: sao 75% de nota e 25% de ritmo de creditos.
+ *
+ *   ((0.75*5)*ROUND(gpa,2) + (0.25*100)*(ects/(30*semestres))) / 5
+ *
+ * Copiada tal e qual do "GPA Calculators Bachelors.xlsx" da escola, incluindo
+ * o arredondamento da GPA a 2 casas ANTES da conta e o do resultado no fim.
+ * 30 ECTS e o semestre cheio, por isso ects/(30*semestres) e a fracao do
+ * percurso ja concluida — e nao esta limitada a 1, tal como na folha.
+ */
+export function erasmusGpa(gpa, ects, semesters) {
+  // Number(null) e 0 e Number('') tambem — sem isto, uma media ainda por
+  // calcular passava por um zero legitimo.
+  const num = (v) => (v === null || v === undefined || v === '' ? NaN : Number(v))
+  const g = num(gpa)
+  const e = num(ects)
+  const s = num(semesters)
+  if (!isFinite(g) || !isFinite(e) || !isFinite(s) || s <= 0 || e <= 0 || g < 0) return null
+  const ritmo = e / (30 * s)
+  const valor = ((0.75 * 5) * round2(g) + (0.25 * 100) * ritmo) / 5
+  return { gpa: round2(g), ritmo, valor: Math.round(valor * 100) / 100 }
+}
+
+const round2 = (n) => Math.round(n * 100) / 100
+
 // Estado do objetivo de média: compara a média atual com a meta e devolve
 // como mostrar (cor, barra, texto). tone: emerald=atingido, amber=perto,
 // sky=ainda longe, slate=sem notas.
