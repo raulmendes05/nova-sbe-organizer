@@ -12,7 +12,19 @@ import { renderCalendar } from '../src/data/calendar.js'
 // foi apanhado a devolver 503 ("high demand") durante minutos seguidos.
 const MODEL = 'gemini-3.5-flash'
 // Se o principal estiver saturado, tenta estes pela ordem indicada.
-const FALLBACK_MODELS = ['gemini-3.6-flash', 'gemini-flash-latest']
+//
+// A quota do plano gratuito e POR MODELO (20 pedidos/dia em cada um), por isso
+// esta lista tambem serve de reserva de pedidos: com o principal esgotado, o
+// seguinte ainda responde. Os "lite" ficam no fim — sao mais fracos a montar
+// horarios, mas respondem em menos de um segundo e valem mais do que um erro.
+// Todos foram testados com streaming e com as ferramentas.
+const FALLBACK_MODELS = [
+  'gemini-3.6-flash',
+  'gemini-flash-latest',
+  'gemini-3.5-flash-lite',
+  'gemini-flash-lite-latest',
+  'gemini-3.1-flash-lite',
+]
 
 // Estes modelos "pensam" antes de responder e os tokens de raciocínio saem
 // deste mesmo orçamento. Com 4096 o raciocínio comia ~3900 e a resposta saía
