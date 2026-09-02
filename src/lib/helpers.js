@@ -1,4 +1,5 @@
 import { dayStatus } from '../data/calendar.js'
+import { runsOn, blockOn } from './week.js'
 import { CWI_CODE, CWI_MODULES, cwiDone } from '../data/cwi.js'
 
 // ---------------------------------------------------------------------------
@@ -229,19 +230,20 @@ const isoOf = (d) =>
 // início do semestre depois de uma pausa longa).
 export function upcomingClasses(blocks, now = new Date(), limit = 3, horizonDays = 160) {
   const nowMin = now.getHours() * 60 + now.getMinutes()
-  const norm = (blocks || []).map((b) => ({
-    block: b, day: b.day_of_week, sMin: toMinutes(b.start_time), eMin: toMinutes(b.end_time),
-  }))
   const out = []
   const base = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   for (let offset = 0; offset <= horizonDays && out.length < limit; offset++) {
     const d = new Date(base)
     d.setDate(base.getDate() + offset)
-    const st = dayStatus(isoOf(d))
-    if (st.type !== 'classes' && st.type !== 'makeup') continue // dia sem aulas
-    // Num dia de compensação corre o horário de OUTRO dia da semana.
-    const weekday = st.type === 'makeup' ? st.sourceWeekday : (d.getDay() === 0 ? 7 : d.getDay())
-    const today = norm.filter((x) => x.day === weekday).sort((a, b) => a.sMin - b.sMin)
+    const iso = isoOf(d)
+    // A mesma regra da grelha (lib/week.js): trimestre certo, feriados,
+    // dias de compensação e as cadeiras que só têm aula em datas certas.
+    const dia = { n: d.getDay() === 0 ? 7 : d.getDay(), iso, status: dayStatus(iso) }
+    const today = (blocks || [])
+      .filter((b) => runsOn(b, dia))
+      .map((b) => blockOn(b, iso))
+      .map((b) => ({ block: b, day: b.day_of_week, sMin: toMinutes(b.start_time), eMin: toMinutes(b.end_time) }))
+      .sort((a, b) => a.sMin - b.sMin)
     for (const x of today) {
       if (offset === 0 && x.eMin <= nowMin) continue // já terminou hoje
       out.push({

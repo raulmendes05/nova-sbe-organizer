@@ -7,6 +7,8 @@
 //  calendario para "que aulas ha, em que dia".
 // ============================================================
 import { PERIODS, dayStatus, hasClasses } from '../data/calendar.js'
+import { datesFor, sessionOnDate } from '../data/schedules.js'
+import { officialBlock } from './enroll.js'
 
 export const isoOf = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -33,17 +35,48 @@ export function termOfTitle(title) {
 }
 
 /**
+ * Cadeiras que nao correm todas as semanas (Communication: 7 sessoes de 3h em
+ * datas certas). Para essas, a lista de datas manda — inclusive sobre o dia da
+ * semana, porque as sessoes de compensacao mudam de dia e de hora.
+ */
+function turnoComDatas(block) {
+  const info = officialBlock(block.title)
+  if (!info || !datesFor(info.code, info.g)) return null
+  return info
+}
+
+/**
  * Este bloco tem aula neste dia?
  *
  * Um bloco de T2 nao aparece durante o T1 — a cadeira ainda nem comecou. Nos
  * dias de compensacao corre o horario do dia que se esta a compensar.
  */
 export function runsOn(block, dia) {
+  const datado = turnoComDatas(block)
+  if (datado) return Boolean(sessionOnDate(datado.code, datado.g, dia.iso))
   if (!hasClasses(dia.iso)) return false
   const dow = dia.status.type === 'makeup' ? dia.status.sourceWeekday : dia.n
   if (Number(block.day_of_week) !== dow) return false
   const termo = termOfTitle(block.title)
   return termo === 'S1' || periodOf(dia.iso) === termo
+}
+
+/**
+ * O bloco como ele e NESTE dia: numa sessao de compensacao a hora pode ser
+ * outra, por isso nao se pode mostrar sempre a do horario semanal.
+ */
+export function blockOn(block, iso) {
+  const datado = turnoComDatas(block)
+  if (!datado) return block
+  const sessao = sessionOnDate(datado.code, datado.g, iso)
+  if (!sessao || (!sessao.s && !sessao.mu)) return block
+  return {
+    ...block,
+    start_time: sessao.s || block.start_time,
+    end_time: sessao.e || block.end_time,
+    location: sessao.r || block.location,
+    __mu: Boolean(sessao.mu),
+  }
 }
 
 /**
@@ -56,7 +89,7 @@ export function weekOf(blocks, base, offset = 0, hojeIso = isoOf(new Date())) {
     const d = new Date(seg.getFullYear(), seg.getMonth(), seg.getDate() + i)
     const iso = isoOf(d)
     const dia = { n: i + 1, date: d, iso, status: dayStatus(iso), hoje: iso === hojeIso }
-    dia.blocks = (blocks || []).filter((b) => runsOn(b, dia))
+    dia.blocks = (blocks || []).filter((b) => runsOn(b, dia)).map((b) => blockOn(b, iso))
     return dia
   })
 }

@@ -6,6 +6,7 @@ import { Modal, Icon, Spinner, ErrorBox } from './ui.jsx'
 import { flatCatalog } from '../data/curriculum.js'
 import { COURSE_COLORS } from '../lib/helpers.js'
 import { hasSchedule, turnosFor, blocksFor, officialBlock } from '../lib/enroll.js'
+import { datesFor } from '../data/schedules.js'
 import { errorText } from '../lib/errors.js'
 import { useT } from '../i18n/index.jsx'
 
@@ -294,6 +295,11 @@ export default function EnrollFlow({ onClose, onSaved, onStart, preSelect = [], 
             {comGrelha.map((code) => (
               <div key={code}>
                 <p className="text-sm font-semibold text-slate-200 mb-1.5">{porCodigo[code]?.name}</p>
+                {/* Communication não é toda as semanas — quem escolhe o turno
+                    tem de saber que são 7 sessões em datas certas. */}
+                {datesFor(code, turnosFor(code)[0]?.turnos[0]?.g) && (
+                  <p className="text-xs text-amber-200/80 mb-1.5">{t('coursesPrompt.dated')}</p>
+                )}
                 {turnosFor(code).map((grupo) => (
                   <div key={grupo.kind} className="mb-2">
                     <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">
@@ -304,7 +310,12 @@ export default function EnrollFlow({ onClose, onSaved, onStart, preSelect = [], 
                         const on = (turnos[code] || []).includes(x.g)
                         return (
                           <button key={x.g} type="button" onClick={() => escolheTurno(code, grupo.kind, x.g)}
-                            title={x.when.map((w) => `${t(`day.${w.d}.short`)} ${w.s}-${w.e}`).join(' · ')}
+                            title={[
+                              x.when.map((w) => `${t(`day.${w.d}.short`)} ${w.s}-${w.e}`).join(' · '),
+                              (datesFor(code, x.g) || [])
+                                .map((d) => (typeof d === 'string' ? d : d.date))
+                                .map((iso) => `${iso.slice(8)}/${iso.slice(5, 7)}`).join(', '),
+                            ].filter(Boolean).join('\n')}
                             className={`chip border transition ${
                               on ? 'bg-accent-500/25 border-accent-400/50 text-white'
                                  : 'bg-white/[0.05] border-white/10 text-slate-300'

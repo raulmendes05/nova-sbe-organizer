@@ -149,6 +149,7 @@ export default function WeekGrid({ days: semana, courseById, onPick }) {
                     // que fica cortado numa coluna estreita, não ela.
                     const etiqueta = (p) => (p.dentro ? p.title : `${p.hora} · ${p.title}`)
                     const titulo = [`${b.title} · ${hhmm(b.start_time)}-${hhmm(b.end_time)}`,
+                      ...(b.__mu ? [t('schedule.makeupClass')] : []),
                       ...prazos.map((p) => `${t(p.dentro ? 'schedule.deadlineInClass' : 'schedule.deadlineSameDay')}: ${etiqueta(p)}`)].join('\n')
                     return (
                       <button key={b.id} onClick={() => onPick(b)}

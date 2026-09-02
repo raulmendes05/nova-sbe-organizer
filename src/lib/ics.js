@@ -7,6 +7,7 @@
 // Os blocos com marca de meio-semestre no título — "(T1)"/"(T2)" — só entram
 // na metade a que pertencem.
 import { PERIODS, dayStatus, dowOf } from '../data/calendar.js'
+import { runsOn, blockOn } from './week.js'
 
 // Europe/Lisbon com a regra de mudança de hora da UE — para as horas ficarem
 // certas quer em outubro (WEST, +1) quer depois da mudança (WET, +0).
@@ -58,8 +59,6 @@ function nextISO(iso) {
   return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`
 }
 
-const termOf = (title) => (String(title).match(/\((T[1-4])\)/i)?.[1] || '').toUpperCase()
-
 /**
  * @param blocks  linhas de schedule_blocks (day_of_week, start_time, end_time, title, location, id)
  * @param opts    { semester: 1|2, name, dtstamp, deadlines }
@@ -79,22 +78,17 @@ export function buildICS(blocks, { semester = 1, name = 'Horário Nova SBE', dts
 
   for (let iso = p1.start; iso <= p2.end; iso = nextISO(iso)) {
     const st = dayStatus(iso)
-    let periodKey = null
-    let weekday = null
-    if (st.type === 'classes') { periodKey = st.key; weekday = dowOf(iso) }
-    else if (st.type === 'makeup') {
-      weekday = st.sourceWeekday
-      periodKey = PERIODS.find((p) => p.kind === 'classes' && iso >= p.start && iso <= p.end)?.key
-    } else continue
-    if (!periodKey || !halves.includes(periodKey)) continue
+    if (st.type !== 'classes' && st.type !== 'makeup') continue
+    const dia = { n: dowOf(iso), iso, status: st }
 
-    for (const b of blocks) {
-      if (b.day_of_week !== weekday) continue
-      // marca de meio-semestre: só filtra se for uma das metades deste semestre
-      const term = termOf(b.title)
-      if (term && halves.includes(term) && term !== periodKey) continue
+    // A mesma regra da grelha (lib/week.js) — trimestre certo, dias de
+    // compensação e as cadeiras que só têm aula em datas certas —, para o
+    // ficheiro do calendário não dizer uma coisa e a app outra.
+    for (const original of blocks || []) {
+      if (!runsOn(original, dia)) continue
+      const b = blockOn(original, iso)
 
-      const uid = `${b.id}-${iso}@nova-sbe-organizer`
+      const uid = `${original.id}-${iso}@nova-sbe-organizer`
       const ev = [
         'BEGIN:VEVENT',
         `UID:${uid}`,

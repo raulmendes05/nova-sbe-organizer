@@ -449,7 +449,11 @@ export const SCHEDULES = {
     { g: 'TPH', k: 'TP', d: 2, s: '14:00', e: '17:00', t: 'T1', r: 'B.1.33' },
     { g: 'TPI', k: 'TP', d: 5, s: '14:00', e: '17:00', t: 'T2', r: 'B.1.33' },
   ] },
-  '1600': { name: 'Communication', flexible: true, note: '3 ECTS, uma sessão de 3h por semana', sessions: [
+  // Communication não é semanal: são 7 sessões de 3h em datas certas, de duas
+  // em duas semanas, com sessões de compensação no fim (ficheiro oficial
+  // "1600 Communication S1_2627 Class Calendar"). As datas mandam sobre o dia
+  // da semana — ver `dates` mais abaixo.
+  '1600': { name: 'Communication', flexible: true, note: '3 ECTS, 7 sessões de 3h em datas certas (quinzenal)', sessions: [
     { g: 'TPA', k: 'TP', d: 2, s: '09:30', e: '12:30', t: 'S1', r: 'B.1.34' },
     { g: 'TPB', k: 'TP', d: 2, s: '09:30', e: '12:30', t: 'S1', r: 'B.1.34' },
     { g: 'TPC', k: 'TP', d: 3, s: '09:30', e: '12:30', t: 'S1', r: 'B.1.33' },
@@ -460,7 +464,44 @@ export const SCHEDULES = {
     { g: 'TPH', k: 'TP', d: 3, s: '17:00', e: '20:00', t: 'S1', r: 'B.1.33' },
     { g: 'TPI', k: 'TP', d: 3, s: '17:00', e: '20:00', t: 'S1', r: 'B.1.33' },
     { g: 'TPJ', k: 'TP', d: 4, s: '17:00', e: '20:00', t: 'S1', r: 'B.1.33' },
-  ] },
+  ],
+  // Datas de cada turno. Uma entrada com objeto é uma sessão de compensação
+  // (mu), que pode cair noutro dia da semana e a outra hora.
+  //  TPA/TPB e TPE/TPF: compensam 1 de dezembro (Restauração), na sexta 4.
+  //  TPD/TPJ: compensam 29 de outubro (Conferências do Estoril), na quinta 3.
+  dates: {
+    TPA: ['2026-09-01', '2026-09-15', '2026-09-29', '2026-10-27', '2026-11-10', '2026-11-24',
+      { date: '2026-12-04', s: '14:00', e: '17:00', mu: true }],
+    TPB: ['2026-09-08', '2026-09-22', '2026-10-06', '2026-11-03', '2026-11-17', '2026-11-24',
+      { date: '2026-12-04', s: '14:00', e: '17:00', mu: true }],
+    TPC: ['2026-09-02', '2026-09-16', '2026-09-30', '2026-10-28', '2026-11-11', '2026-11-25', '2026-12-02'],
+    TPD: ['2026-09-03', '2026-09-17', '2026-10-01', '2026-10-22', '2026-11-12', '2026-11-26',
+      { date: '2026-12-03', s: '17:00', e: '20:00', mu: true }],
+    TPE: ['2026-09-01', '2026-09-15', '2026-09-29', '2026-10-27', '2026-11-10', '2026-11-24',
+      { date: '2026-12-04', s: '17:00', e: '20:00', mu: true }],
+    TPF: ['2026-09-08', '2026-09-22', '2026-10-06', '2026-11-03', '2026-11-17', '2026-11-24',
+      { date: '2026-12-04', s: '17:00', e: '20:00', mu: true }],
+    TPG: ['2026-09-09', '2026-09-23', '2026-10-07', '2026-11-04', '2026-11-18', '2026-11-25', '2026-12-02'],
+    TPH: ['2026-09-02', '2026-09-16', '2026-09-30', '2026-10-28', '2026-11-11', '2026-11-25', '2026-12-02'],
+    TPI: ['2026-09-09', '2026-09-23', '2026-10-07', '2026-11-04', '2026-11-18', '2026-11-25', '2026-12-02'],
+    TPJ: ['2026-09-10', '2026-09-24', '2026-10-08', '2026-11-05', '2026-11-19', '2026-11-26',
+      { date: '2026-12-03', s: '17:00', e: '20:00', mu: true }],
+  } },
+}
+
+/** Datas fixas de um turno (aulas quinzenais), ou null se corre todas as semanas. */
+export function datesFor(code, turno) {
+  const lista = SCHEDULES[String(code)]?.dates?.[turno]
+  return lista?.length ? lista : null
+}
+
+/** A sessão de um turno com datas fixas num dia concreto, ou null. */
+export function sessionOnDate(code, turno, iso) {
+  const lista = datesFor(code, turno)
+  if (!lista) return null
+  const hit = lista.find((d) => (typeof d === 'string' ? d : d.date) === iso)
+  if (!hit) return null
+  return typeof hit === 'string' ? { date: hit } : hit
 }
 
 const KIND_PT = { T: 'Teóricas', P: 'Práticas', TP: 'Teórico-práticas' }
@@ -480,6 +521,18 @@ export function renderSchedules() {
     })
     const flag = c.flexible ? ' [vários turnos]' : ''
     const note = c.note ? ` (${c.note})` : ''
+    // Cadeiras que só têm aula em datas certas: sem isto, quem lê este resumo
+    // (o Cláudio) diria que Communication é toda as semanas.
+    if (c.dates) {
+      const dm = (iso) => `${iso.slice(8)}/${iso.slice(5, 7)}`
+      const linhas = Object.entries(c.dates).map(([g, lista]) => {
+        const quando = lista.map((d) => (typeof d === 'string'
+          ? dm(d)
+          : `${dm(d.date)} ${DAY_PT[new Date(`${d.date}T12:00:00`).getDay()]} ${d.s}-${d.e}${d.mu ? ' compensação' : ''}`))
+        return `${g}: ${quando.join(', ')}`
+      })
+      parts.push(`Só nestas datas (quinzenal) — ${linhas.join(' | ')}`)
+    }
     return `${code} ${c.name}${flag}${note}\n   ${parts.join('\n   ')}`
   }).join('\n')
 }
