@@ -424,6 +424,25 @@ export const pt = {
   'coursesPrompt.kindP': 'Prática',
   'coursesPrompt.kindTP': 'Teórico-prática',
 
+  // ---- Procurar horarios de uma cadeira ----
+  'finder.open': 'Ver os horários de uma cadeira',
+  'finder.openHint': 'Todos os turnos e horas, antes de escolheres',
+  'finder.title': 'Horários por cadeira',
+  'finder.search': 'Escreve o nome da cadeira',
+  'finder.searchBtn': 'Pesquisar',
+  'finder.hint': 'Só aparecem as cadeiras com horário publicado para este semestre.',
+  'finder.none': 'Nenhuma cadeira com horário publicado dá com isso.',
+  'finder.back': 'Outra cadeira',
+  'finder.biweekly': 'aulas quinzenais',
+  'finder.allDays': 'Todos',
+  'finder.noneOnDay': 'Nenhum turno desta cadeira tem aula nesse dia.',
+  'finder.turnos': '{n} turnos',
+  'finder.turnos.one': '1 turno',
+  'finder.mine': 'O teu',
+  'finder.clash': 'Fica em cima de {nome}',
+  'finder.dates': 'Datas: {lista}',
+  'finder.goEnroll': 'Mudar as minhas turmas',
+
   // ---- GPA de Erasmus ----
   'erasmus.title': 'GPA de Erasmus',
   'erasmus.teaser': 'Para candidaturas a mobilidade — não é a tua média.',

@@ -17,7 +17,7 @@ export const hasSchedule = (code) => Boolean(SCHEDULES[String(code)]?.sessions?.
 
 /**
  * Turnos de uma cadeira agrupados por tipo de aula:
- *   [{ kind: 'T', turnos: [{ g: 'TXA', term: 'S1', when: [{ d, s, e }] }] }]
+ *   [{ kind: 'T', turnos: [{ g: 'TXA', term: 'S1', when: [{ d, s, e, r }] }] }]
  * O aluno frequenta UM turno de cada tipo.
  */
 export function turnosFor(code) {
@@ -28,7 +28,7 @@ export function turnosFor(code) {
     if (!byKind.has(s.k)) byKind.set(s.k, new Map())
     const turnos = byKind.get(s.k)
     if (!turnos.has(s.g)) turnos.set(s.g, { g: s.g, term: s.t, when: [] })
-    turnos.get(s.g).when.push({ d: s.d, s: s.s, e: s.e })
+    turnos.get(s.g).when.push({ d: s.d, s: s.s, e: s.e, r: s.r || null })
   }
   return KIND_ORDER
     .filter((k) => byKind.has(k))

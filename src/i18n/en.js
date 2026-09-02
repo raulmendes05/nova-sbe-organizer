@@ -424,6 +424,25 @@ export const en = {
   'coursesPrompt.kindP': 'Practical',
   'coursesPrompt.kindTP': 'Lecture + practical',
 
+  // ---- Course schedule search ----
+  'finder.open': 'See a course\u2019s schedule',
+  'finder.openHint': 'Every shift and time, before you choose',
+  'finder.title': 'Schedules by course',
+  'finder.search': 'Type the course name',
+  'finder.searchBtn': 'Search',
+  'finder.hint': 'Only courses with a published schedule for this semester show up.',
+  'finder.none': 'No course with a published schedule matches that.',
+  'finder.back': 'Another course',
+  'finder.biweekly': 'fortnightly classes',
+  'finder.allDays': 'All',
+  'finder.noneOnDay': 'No shift of this course has a class that day.',
+  'finder.turnos': '{n} shifts',
+  'finder.turnos.one': '1 shift',
+  'finder.mine': 'Yours',
+  'finder.clash': 'Overlaps {nome}',
+  'finder.dates': 'Dates: {lista}',
+  'finder.goEnroll': 'Change my classes',
+
   // ---- GPA de Erasmus ----
   'erasmus.title': 'Erasmus GPA',
   'erasmus.teaser': 'For mobility applications — not your average.',

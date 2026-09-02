@@ -10,6 +10,7 @@ import { officialBlock } from '../lib/enroll.js'
 import { weekOf, withDeadlines } from '../lib/week.js'
 import { localeOf } from '../lib/helpers.js'
 import EnrollFlow from '../components/EnrollFlow.jsx'
+import ShiftFinder from '../components/ShiftFinder.jsx'
 import { useT } from '../i18n/index.jsx'
 import CalendarBanner from '../components/CalendarBanner.jsx'
 import WeekGrid from '../components/WeekGrid.jsx'
@@ -35,6 +36,7 @@ export default function Schedule() {
   // inscrever-se — abrir o ecra evita mais um clique as cegas.
   const location = useLocation()
   const [turmasAberto, setTurmasAberto] = useState(Boolean(location.state?.enroll))
+  const [procuraAberta, setProcuraAberta] = useState(false)
   const [semana, setSemana] = useState(0)   // 0 = esta semana
   const [form, setForm] = useState(empty)
   const [editId, setEditId] = useState(null)
@@ -161,9 +163,29 @@ export default function Schedule() {
         <Icon name="chevron" className="w-4 h-4 text-slate-500 shrink-0" />
       </button>
 
+      {/* Antes de escolher turno convem ver as horas todas — sem isso a escolha
+          e as cegas e so na primeira semana de aulas e que se percebe. */}
+      <button onClick={() => setProcuraAberta(true)}
+        className="card w-full p-3.5 mb-4 flex items-center gap-3 text-left active:scale-[0.99] transition">
+        <span className="w-9 h-9 rounded-xl bg-white/[0.06] text-slate-300 flex items-center justify-center shrink-0">
+          <Icon name="search" className="w-5 h-5" />
+        </span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-semibold text-slate-200">{t('finder.open')}</span>
+          <span className="block text-xs text-slate-500">{t('finder.openHint')}</span>
+        </span>
+        <Icon name="chevron" className="w-4 h-4 text-slate-500 shrink-0" />
+      </button>
+
       {turmasAberto && (
         <EnrollFlow preSelect={preSelect} preTurnos={preTurnos}
           onSaved={reload} onClose={() => setTurmasAberto(false)} />
+      )}
+
+      {procuraAberta && (
+        <ShiftFinder atuais={preTurnos}
+          onEnroll={() => { setProcuraAberta(false); setTurmasAberto(true) }}
+          onClose={() => setProcuraAberta(false)} />
       )}
 
       {exported && (
