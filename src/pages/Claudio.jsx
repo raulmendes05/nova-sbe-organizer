@@ -32,15 +32,45 @@ function renderText(text) {
  * cada leitura pode estar cortada a meio, por isso fica no `buffer` até
  * chegar o \n que a fecha.
  */
-async function askClaudio(body, onText) {
-  const res = await fetch('/api/claudio', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+// Quanto se espera pela PRIMEIRA resposta do servidor. A partir daí o relógio
+// para: o que está a chegar aos poucos não se corta a meio.
+const ESPERA_MAX_MS = 70_000
+
+async function askClaudio(body, onText, textos = {}) {
+  const ac = new AbortController()
+  const relogio = setTimeout(() => ac.abort(), ESPERA_MAX_MS)
+  let res
+  try {
+    res = await fetch('/api/claudio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: ac.signal,
+    })
+  } catch (e) {
+    if (e?.name === 'AbortError') throw new Error(textos.timeout || 'timeout')
+    throw e
+  } finally {
+    clearTimeout(relogio)
+  }
   // Um 500 com corpo vazio dava "Erro do servidor." e mais nada; o apiError
   // guarda pelo menos o estado HTTP para aparecer no chat.
   if (!res.ok) throw await apiError(res)
+
+  // O servidor responde em NDJSON, mas houve uma versão que respondia com um
+  // único JSON de uma vez. Aceitar as duas: uma diferença entre o que está
+  // publicado e o que o cliente espera não pode deixar o aluno sem resposta
+  // nenhuma — foi exatamente o que aconteceu.
+  const tipo = res.headers.get('content-type') || ''
+  if (!res.body || !tipo.includes('ndjson')) {
+    const data = await res.json().catch(() => null)
+    if (!data) throw new Error(textos.incomplete || 'A resposta do Cláudio veio vazia.')
+    if (data.error) throw new Error(data.error)
+    // Sem onText de propósito: quem chama já escreve o texto do `done` quando
+    // não houve streaming. Chamá-lo aqui punha a resposta duas vezes no ecrã,
+    // porque o `writing` do chamador só é atualizado no render seguinte.
+    return data
+  }
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
@@ -65,7 +95,7 @@ async function askClaudio(body, onText) {
   }
   handle(buffer)                     // o que sobrou, se o corpo não acabou em \n
 
-  if (!done) throw new Error('A resposta do Cláudio ficou incompleta.')
+  if (!done) throw new Error(textos.incomplete || 'A resposta do Cláudio ficou incompleta.')
   return done
 }
 
@@ -258,8 +288,13 @@ export default function Claudio() {
         // Cada volta escreve numa bolha própria, que vai crescendo. `writing`
         // guarda a posição dela para os pedaços seguintes irem ao sítio certo.
         let writing = -1
+        // `writing` só fica com valor quando o React corre o updater, o que
+        // pode ser depois de a resposta acabar. Este sinalizador é imediato —
+        // sem ele, uma resposta curta aparecia duas vezes no ecrã.
+        let escreveu = false
         const onText = (delta) => {
           if (!delta) return
+          escreveu = true
           setStreaming(true)
           setChat((c) => {
             if (writing === -1) { writing = c.length; return [...c, { role: 'assistant', text: delta }] }
@@ -269,7 +304,8 @@ export default function Claudio() {
           })
         }
 
-        const data = await askClaudio({ messages: msgs, context: buildContext(), lang }, onText)
+        const data = await askClaudio({ messages: msgs, context: buildContext(), lang }, onText,
+          { timeout: t('claudio.timeout'), incomplete: t('claudio.incomplete') })
         setStreaming(false)
 
         const assistantContent = data.content || []
@@ -277,7 +313,7 @@ export default function Claudio() {
 
         // Se não veio nada em streaming (só chamadas de ferramenta, ou texto
         // que só apareceu no evento final), mostra-o agora.
-        if (writing === -1) {
+        if (!escreveu) {
           const txt = assistantContent.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim()
           if (txt) setChat((c) => [...c, { role: 'assistant', text: txt }])
         }

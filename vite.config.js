@@ -17,23 +17,40 @@ function claudioDevApi(env) {
         }
         let body = ''
         req.on('data', (c) => (body += c))
-        req.on('end', async () => {
-          res.setHeader('content-type', 'application/json')
-          try {
-            const key = env.GEMINI_API_KEY
-            if (!key) {
-              res.statusCode = 500
-              res.end(JSON.stringify({ error: 'Falta GEMINI_API_KEY no .env.local' }))
-              return
-            }
-            const { messages, context, lang } = JSON.parse(body || '{}')
-            const { runClaudio } = await import('./api/_core.js')
-            const result = await runClaudio({ messages, context, lang, apiKey: key })
-            res.statusCode = 200
-            res.end(JSON.stringify(result))
-          } catch (e) {
+                req.on('end', async () => {
+          const key = env.GEMINI_API_KEY
+          if (!key) {
             res.statusCode = 500
-            res.end(JSON.stringify({ error: e?.message || 'Erro inesperado.' }))
+            res.setHeader('content-type', 'application/json')
+            res.end(JSON.stringify({ error: 'Falta GEMINI_API_KEY no .env.local' }))
+            return
+          }
+          // Mesmo contrato NDJSON que a função da Vercel, para o que se testa
+          // aqui ser o que corre em produção.
+          let started = false
+          try {
+            const { messages, context, lang } = JSON.parse(body || '{}')
+            const { streamClaudio } = await import('./api/_core.js')
+            for await (const event of streamClaudio({ messages, context, lang, apiKey: key })) {
+              if (!started) {
+                started = true
+                res.statusCode = 200
+                res.setHeader('content-type', 'application/x-ndjson; charset=utf-8')
+                res.setHeader('cache-control', 'no-cache, no-store, no-transform')
+              }
+              res.write(JSON.stringify(event) + '\n')
+            }
+            res.end()
+          } catch (e) {
+            const message = e?.message || 'Erro inesperado.'
+            if (!started) {
+              res.statusCode = 500
+              res.setHeader('content-type', 'application/json')
+              res.end(JSON.stringify({ error: message }))
+            } else {
+              res.write(JSON.stringify({ type: 'error', error: message }) + '\n')
+              res.end()
+            }
           }
         })
       })

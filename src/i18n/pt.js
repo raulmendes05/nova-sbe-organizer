@@ -60,6 +60,8 @@ export const pt = {
   'claudio.intro': 'Olá{name}! 👋 Sou o Cláudio. Já tenho os horários e exames oficiais de todas as cadeiras. Posso montar o teu horário sem sobreposições, explicar as regras do curso e criar tarefas, prazos, notas e cadeiras por ti. Diz-me o que precisas.',
   'claudio.try': 'Experimenta:',
   'claudio.placeholder': 'Escreve a tua mensagem...',
+  'claudio.timeout': 'O Cláudio demorou mais de um minuto sem dizer nada e desisti da espera. Tenta outra vez — se voltar a acontecer, é sinal de que a API do Gemini está a rejeitar os pedidos.',
+  'claudio.incomplete': 'A resposta do Cláudio veio a meio e não dá para a mostrar. Tenta outra vez.',
   'claudio.truncated': 'A resposta ficou a meio (era demasiado longa). Pede-me para continuar, ou divide o pedido em partes.',
   'claudio.s1': 'Que cadeiras me recomendas para o próximo semestre?',
   'claudio.s2': 'Cria uma tarefa: rever apontamentos de Marketing.',

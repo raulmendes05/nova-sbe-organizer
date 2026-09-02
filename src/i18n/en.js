@@ -60,6 +60,8 @@ export const en = {
   'claudio.intro': 'Hi{name}! 👋 I am Cláudio. I already have the official schedules and exam dates for every course. I can build you a clash-free timetable, explain the programme rules, and create tasks, deadlines, notes and courses for you. Tell me what you need.',
   'claudio.try': 'Try:',
   'claudio.placeholder': 'Write your message...',
+  'claudio.timeout': 'Cláudio went over a minute without saying anything, so I stopped waiting. Try again — if it keeps happening, the Gemini API is refusing the requests.',
+  'claudio.incomplete': 'Cláudio\'s answer arrived half-finished and cannot be shown. Try again.',
   'claudio.truncated': 'The answer was cut short (it was too long). Ask me to continue, or split the request into parts.',
   'claudio.s1': 'Which courses do you recommend for next semester?',
   'claudio.s2': 'Create a task: review my Marketing notes.',

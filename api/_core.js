@@ -24,9 +24,13 @@ const MAX_OUTPUT_TOKENS = 16384
 const ATTEMPTS_PER_MODEL = 2
 const BACKOFF_MS = [600, 1500]
 // Corta uma tentativa pendurada em vez de deixar a função esgotar o tempo.
-const ATTEMPT_TIMEOUT_MS = 120_000
+// Antes eram 120s por tentativa e 260s no total: uma pergunta simples chegou a
+// esperar 245s por resposta, e a função da Vercel morre antes disso — o aluno
+// ficava com o ecrã parado e sem explicação nenhuma. Mais vale falhar depressa
+// e dizer porquê.
+const ATTEMPT_TIMEOUT_MS = 30_000
 // Tecto para o conjunto de tentativas (tem de caber no maxDuration da Vercel).
-const TOTAL_BUDGET_MS = 260_000
+const TOTAL_BUDGET_MS = 55_000
 
 // Interruptor do Cláudio. A false, não faz NENHUMA chamada à API (custo zero).
 const CLAUDIO_ENABLED = true
@@ -320,15 +324,47 @@ function geminiContents(messages) {
 // repetir — nesses casos rebenta já.
 function isTransient(e) {
   const status = e?.status ?? e?.code
-  if (status === 429 || status === 500 || status === 503 || status === 504) return true
+  // Um 429 pode ser duas coisas muito diferentes: pedidos a mais por minuto
+  // (passa) ou a quota da conta esgotada (não passa hoje). Repetir a segunda
+  // só faz o aluno esperar por um erro que já era certo.
+  if (status === 429) return !isQuota(e)
+  if (status === 500 || status === 503 || status === 504) return true
   if (e?.name === 'AbortError' || e?.name === 'TimeoutError') return true
   const msg = String(e?.message || '')
   return /UNAVAILABLE|high demand|overloaded|fetch failed|ECONNRESET|ETIMEDOUT/i.test(msg)
 }
 
+/** 429 por quota da conta (plano gratuito, limite diário), não por ritmo. */
+function isQuota(e) {
+  const status = e?.status ?? e?.code
+  if (status !== 429) return false
+  return /quota|free_tier|billing|per day|limit: \d+/i.test(String(e?.message || ''))
+}
+
+// Cada modelo tem a sua quota: com o principal esgotado, o seguinte pode ainda
+// responder. Só quando todos falharem por quota é que se diz isto ao aluno.
+const QUOTA_MESSAGE =
+  'O Cláudio esgotou o limite de pedidos à API do Gemini (plano gratuito). ' +
+  'Volta a tentar mais tarde — o limite renova-se — ou ativa a faturação da chave para o tirar.'
+
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
-async function generateWithRetry(ai, { contents, config }) {
+const OVERLOADED = (last) =>
+  new Error(
+    'Os servidores do Cláudio estão sobrecarregados neste momento. Tenta outra vez daqui a pouco. ' +
+    `(último erro: ${last?.status || last?.name || 'desconhecido'})`
+  )
+
+/**
+ * Percorre modelos e tentativas ate um deles COMECAR a responder, e a partir
+ * dai vai devolvendo os pedacos.
+ *
+ * A repeticao so e possivel enquanto nada saiu: depois de o primeiro pedaco
+ * chegar ao aluno, trocar de modelo daria uma resposta remendada de duas. Por
+ * isso a primeira leitura e feita aqui dentro, antes de qualquer entrega — e
+ * e ela que decide se vale a pena tentar outro modelo.
+ */
+async function* streamWithRetry(ai, { contents, config }) {
   const deadline = Date.now() + TOTAL_BUDGET_MS
   let last
   for (const model of [MODEL, ...FALLBACK_MODELS]) {
@@ -336,35 +372,83 @@ async function generateWithRetry(ai, { contents, config }) {
       if (Date.now() >= deadline) break
       const ac = new AbortController()
       const timer = setTimeout(() => ac.abort(), ATTEMPT_TIMEOUT_MS)
+      let iterator
       try {
-        return await ai.models.generateContent({
+        const stream = await ai.models.generateContentStream({
           model,
           contents,
           config: { ...config, abortSignal: ac.signal },
         })
+        iterator = stream[Symbol.asyncIterator]()
+        const first = await iterator.next()      // ainda da para repetir
+        if (!first.done) yield first.value       // a partir daqui, ja nao
       } catch (e) {
+        clearTimeout(timer)
         last = e
+        if (isQuota(e)) break            // este modelo já não responde hoje
         if (!isTransient(e)) throw e
         const wait = BACKOFF_MS[attempt] ?? BACKOFF_MS[BACKOFF_MS.length - 1]
         if (attempt < ATTEMPTS_PER_MODEL - 1 && Date.now() + wait < deadline) await sleep(wait)
+        continue
+      }
+      try {
+        for (let n = await iterator.next(); !n.done; n = await iterator.next()) yield n.value
+        return
       } finally {
         clearTimeout(timer)
       }
     }
   }
-  throw new Error(
-    'Os servidores do Cláudio estão sobrecarregados neste momento. Tenta outra vez daqui a pouco. ' +
-    `(último erro: ${last?.status || last?.name || 'desconhecido'})`
-  )
+  throw isQuota(last) ? new Error(QUOTA_MESSAGE) : OVERLOADED(last)
 }
 
-export async function runClaudio({ messages, context, apiKey, lang }) {
+/**
+ * Pedacos do Gemini -> blocos no estilo Anthropic, que o cliente ja sabe ler.
+ * Partilhado para o fim do stream dizer exatamente o mesmo que a versao
+ * anterior dizia de uma vez so.
+ */
+function replyBlocks({ text, fcParts, finishReason, turn }) {
+  const clean = text.trim()
+  if (fcParts.length) {
+    const content = []
+    if (clean) content.push({ type: 'text', text: clean })
+    fcParts.forEach((p, i) => {
+      content.push({
+        type: 'tool_use',
+        id: `call_${i}_${turn}`,
+        name: p.functionCall.name,
+        input: p.functionCall.args || {},
+        // O thoughtSignature tem de voltar na ronda seguinte, senao da 400.
+        thought_signature: p.thoughtSignature || null,
+      })
+    })
+    return { content, stop_reason: 'tool_use' }
+  }
+  // Ficou sem orcamento a meio? Dizer, em vez de entregar texto cortado como
+  // se estivesse completo.
+  const stop = finishReason === 'MAX_TOKENS' ? 'max_tokens' : 'end_turn'
+  return { content: [{ type: 'text', text: clean || '(sem resposta)' }], stop_reason: stop }
+}
+
+/**
+ * Corre o Cláudio e vai devolvendo eventos à medida que o modelo escreve:
+ *
+ *   { type: 'text',  delta: '...' }             pedaço de texto para mostrar já
+ *   { type: 'done',  content, stop_reason }     resposta completa (igual à de antes)
+ *
+ * O evento `done` fecha sempre a volta, mesmo quando não houve texto nenhum
+ * (por exemplo quando o modelo só chamou ferramentas): é dele que o cliente
+ * tira os blocos para continuar a conversa.
+ */
+export async function* streamClaudio({ messages, context, apiKey, lang }) {
   // Desativado: não chama a API (custo zero).
   if (!CLAUDIO_ENABLED) {
-    return {
+    yield {
+      type: 'done',
       content: [{ type: 'text', text: 'O Cláudio está desativado de momento. 🔒' }],
       stop_reason: 'end_turn',
     }
+    return
   }
   if (!apiKey) throw new Error('Falta a GEMINI_API_KEY.')
 
@@ -373,7 +457,7 @@ export async function runClaudio({ messages, context, apiKey, lang }) {
   if (!clean.length) throw new Error('Sem mensagens.')
 
   const ai = new GoogleGenAI({ apiKey })
-  const response = await generateWithRetry(ai, {
+  const stream = streamWithRetry(ai, {
     contents: geminiContents(clean),
     config: {
       systemInstruction: buildSystemPrompt(context, lang),
@@ -382,37 +466,24 @@ export async function runClaudio({ messages, context, apiKey, lang }) {
     },
   })
 
-  const candidate = response.candidates?.[0]
-  // Extrai texto sem usar o getter .text (evita aviso quando há functionCall)
-  const parts = candidate?.content?.parts || []
-  const text = parts.filter((p) => typeof p.text === 'string').map((p) => p.text).join('').trim()
+  let text = ''
+  const fcParts = []
+  let finishReason
 
-  // Resposta do Gemini -> blocos estilo Anthropic (o cliente já sabe lidar).
-  // Percorre as parts (em vez do getter .functionCalls) para conservar o
-  // thoughtSignature de cada function call — é preciso reenviá-lo na volta seguinte.
-  const fcParts = parts.filter((p) => p.functionCall)
-  if (fcParts.length) {
-    const content = []
-    if (text) content.push({ type: 'text', text })
-    fcParts.forEach((p, i) => {
-      content.push({
-        type: 'tool_use',
-        id: `call_${i}_${clean.length}`,
-        name: p.functionCall.name,
-        input: p.functionCall.args || {},
-        thought_signature: p.thoughtSignature || null,
-      })
-    })
-    return { content, stop_reason: 'tool_use' }
-  }
-
-  // O modelo pode ter ficado sem orçamento a meio da resposta. Diz-lo ao
-  // cliente em vez de entregar um texto cortado como se estivesse completo.
-  if (candidate?.finishReason === 'MAX_TOKENS') {
-    return {
-      content: [{ type: 'text', text: text || '(sem resposta)' }],
-      stop_reason: 'max_tokens',
+  for await (const chunk of stream) {
+    const candidate = chunk.candidates?.[0]
+    if (candidate?.finishReason) finishReason = candidate.finishReason
+    // Percorre as parts (em vez dos getters .text / .functionCalls) para não
+    // perder o thoughtSignature das chamadas de ferramenta.
+    for (const p of candidate?.content?.parts || []) {
+      if (typeof p.text === 'string' && p.text) {
+        text += p.text
+        yield { type: 'text', delta: p.text }
+      } else if (p.functionCall) {
+        fcParts.push(p)
+      }
     }
   }
-  return { content: [{ type: 'text', text: text || '(sem resposta)' }], stop_reason: 'end_turn' }
+
+  yield { type: 'done', ...replyBlocks({ text, fcParts, finishReason, turn: clean.length }) }
 }
