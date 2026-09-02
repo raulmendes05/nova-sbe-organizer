@@ -33,7 +33,7 @@ export default function SideNav() {
 
       <nav className="flex flex-col gap-1">
         {NAV_TABS.map((tab) => (
-          <NavLink key={tab.to} to={tab.to} end={tab.end} className={linkClass}>
+          <NavLink key={tab.to} to={tab.to} end={tab.end} data-tour={tab.to} className={linkClass}>
             <Icon name={tab.icon} className="w-5 h-5" />
             {t(tab.key)}
           </NavLink>

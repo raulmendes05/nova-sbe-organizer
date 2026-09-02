@@ -2,7 +2,7 @@ import { Outlet } from 'react-router-dom'
 import BottomNav from './BottomNav.jsx'
 import SideNav from './SideNav.jsx'
 import GoalPrompt from './GoalPrompt.jsx'
-import CoursesPrompt from './CoursesPrompt.jsx'
+import FirstSteps from './FirstSteps.jsx'
 import { CoursesProvider } from '../context/CoursesContext.jsx'
 import { useRoomBackfill } from '../lib/useRoomBackfill.js'
 import { useNotesMerge } from '../lib/useNotesMerge.js'
@@ -30,7 +30,7 @@ export default function Layout() {
         {/* Barra inferior (só telemóvel) */}
         <BottomNav />
       </div>
-      <CoursesPrompt />
+      <FirstSteps />
       <GoalPrompt />
     </CoursesProvider>
   )

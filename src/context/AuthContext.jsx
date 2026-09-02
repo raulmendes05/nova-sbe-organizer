@@ -37,6 +37,9 @@ export function AuthProvider({ children }) {
   // Antes do login nao ha metadados, por isso o ultimo idioma escolhido fica
   // tambem no localStorage — senao o ecra de entrada estaria sempre em pt.
   const lang = meta.lang || readStoredLang() || 'pt'   // 'pt' | 'en'
+  // Visita guiada dos primeiros passos: uma vez por conta (e nao por
+  // dispositivo, dai ficar nos metadados e nao no localStorage).
+  const tourDone = Boolean(meta.tour_done)
 
   // Objetivo de média — guardado POR semestre (chave ano+termo), para que ao
   // avançar de semestre o objetivo antigo não se aplique ao novo.
@@ -67,7 +70,7 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{
       user, loading, signOut, displayName, academicYear, semester, program, lang,
-      goalAvg, goals, currentTermKey, updateGoal, updateProfile,
+      goalAvg, goals, currentTermKey, updateGoal, updateProfile, tourDone,
     }}>
       {children}
     </AuthContext.Provider>

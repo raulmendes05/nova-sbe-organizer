@@ -33,7 +33,7 @@ async function encolher(file) {
  * devolve e sempre confirmado pelo aluno antes de ir para a base de dados.
  *
  * Usado em dois sitios: no pop-up que aparece a seguir ao onboarding
- * (CoursesPrompt) e no Horario, para quem lhe deu skip ou quer corrigir. Daí os
+ * (a visita dos primeiros passos) e no Horario, para quem quer corrigir. Daí os
  * `preSelect`/`preTurnos`: abrindo pelo Horario, ja vem com o que esta gravado.
  */
 export default function EnrollFlow({ onClose, onSaved, onStart, preSelect = [], preTurnos = {} }) {

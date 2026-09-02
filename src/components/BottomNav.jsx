@@ -15,6 +15,7 @@ export default function BottomNav() {
             key={tab.to}
             to={tab.to}
             end={tab.end}
+            data-tour={tab.to}
             className={({ isActive }) =>
               `relative flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition ${
                 isActive ? 'text-nova-300' : 'text-slate-500'

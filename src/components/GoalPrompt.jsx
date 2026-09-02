@@ -23,7 +23,7 @@ export default function GoalPrompt() {
   const [saving, setSaving] = useState(false)
   const [aviso, setAviso] = useState(null)
 
-  // Espera pelo CoursesPrompt: sem cadeiras nao ha media para ter meta, e os
+  // Espera pelas cadeiras: sem elas nao ha media para ter meta, e os
   // dois modais abertos ao mesmo tempo ficavam um por cima do outro.
   if (goalAvg != null || dismissed || coursesLoading || !courses.length) return null
 

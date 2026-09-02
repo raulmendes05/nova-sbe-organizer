@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useCollection } from '../lib/useCollection.js'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -30,7 +31,10 @@ export default function Schedule() {
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
   const [open, setOpen] = useState(false)
-  const [turmasAberto, setTurmasAberto] = useState(false)
+  // Quem chega aqui pelo botao dos primeiros passos ja disse que quer
+  // inscrever-se — abrir o ecra evita mais um clique as cegas.
+  const location = useLocation()
+  const [turmasAberto, setTurmasAberto] = useState(Boolean(location.state?.enroll))
   const [semana, setSemana] = useState(0)   // 0 = esta semana
   const [form, setForm] = useState(empty)
   const [editId, setEditId] = useState(null)

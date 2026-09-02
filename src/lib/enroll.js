@@ -3,7 +3,7 @@
 //
 //  O ficheiro data/schedules.js ja tem a grelha oficial (que turnos existem,
 //  em que dia e a que horas). Falta so saber QUAIS o aluno frequenta — e isso
-//  e o que o CoursesPrompt lhe pergunta.
+//  e o que o EnrollFlow lhe pergunta.
 // ============================================================
 import { SCHEDULES } from '../data/schedules.js'
 

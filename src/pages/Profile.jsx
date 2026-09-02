@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useT, LANGS } from '../i18n/index.jsx'
 import { PageHeader, Icon } from '../components/ui.jsx'
@@ -59,6 +60,7 @@ export default function Profile() {
     setGoal(savedGoal != null ? String(savedGoal) : '')
   }
 
+  const navigate = useNavigate()
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [err, setErr] = useState(null)
@@ -185,6 +187,13 @@ export default function Profile() {
               className="input w-28 text-lg font-semibold" placeholder={t('profile.goalPlaceholder')} />
             <span className="text-slate-500">/ 20</span>
           </div>
+        </Section>
+
+        {/* ---- Rever os primeiros passos ---- */}
+        <Section title={t('profile.tour')} hint={t('profile.tourHint')}>
+          <button onClick={() => navigate('/', { state: { tour: true } })} className="btn-ghost px-4 py-2.5 text-sm">
+            {t('profile.tourBtn')}
+          </button>
         </Section>
 
         {/* ---- Idioma (aplica-se logo) ---- */}

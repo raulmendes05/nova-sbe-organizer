@@ -468,4 +468,20 @@ export const en = {
   'cwi.qrNote': 'Attendance only counts with the QR code at the end of the session: arriving late, leaving early or leaving without confirming the submission loses the session, and it cannot be granted afterwards. For online sessions join from your own computer with your Nova email.',
   'cwi.pointsNote': 'The {points} Role to Play points come from volunteering, clubs and campus initiatives, and must be validated on the platform. Track everything on the Moodle Course Tracker (1471).',
 
+
+  // ---- First steps (guided tour) ----
+  'tour.step': 'Step {n} of {total}',
+  'tour.skip': 'Skip',
+  'tour.back': 'Back',
+  'tour.next': 'Next',
+  'tour.start': 'Add my courses',
+  'tour.later': "I'll do it later",
+  'tour.schedule.title': 'First: your schedule',
+  'tour.schedule.body': 'In Schedule → "My shifts" you pick this semester\'s courses and the shift for each one. The schedule builds itself, rooms included.',
+  'tour.grades.title': 'Then: your grades',
+  'tour.grades.body': 'In Grades you add the courses you have already taken and their grades. That is where your average, semester goal and Erasmus GPA come from.',
+  'profile.tour': 'First steps',
+  'profile.tourHint': 'See again where courses and grades are added',
+  'profile.tourBtn': 'Show me again',
+
 }

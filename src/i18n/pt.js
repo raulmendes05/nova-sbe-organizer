@@ -468,4 +468,20 @@ export const pt = {
   'cwi.qrNote': 'A presença só conta com o QR code no fim da sessão: chegar atrasado, sair antes do fim ou sair sem confirmar o registo faz perder a sessão, e não há forma de a marcar depois. Nas sessões online entra do teu computador e com o email da Nova.',
   'cwi.pointsNote': 'Os {points} pontos Role to Play ganham-se em voluntariado, clubes e iniciativas do campus, e têm de ser validados na plataforma. Acompanha tudo no Course Tracker do Moodle (1471).',
 
+
+  // ---- Primeiros passos (visita guiada) ----
+  'tour.step': 'Passo {n} de {total}',
+  'tour.skip': 'Saltar',
+  'tour.back': 'Anterior',
+  'tour.next': 'Seguinte',
+  'tour.start': 'Adicionar as minhas cadeiras',
+  'tour.later': 'Faço isso depois',
+  'tour.schedule.title': 'Primeiro: o horário',
+  'tour.schedule.body': 'Em Horário → «As minhas turmas» escolhes as cadeiras deste semestre e o turno de cada uma. O horário fica montado, com salas e tudo.',
+  'tour.grades.title': 'Depois: as notas',
+  'tour.grades.body': 'Nas Notas adicionas as cadeiras que já fizeste e as respetivas notas. É daí que saem a média, o objetivo do semestre e a GPA de Erasmus.',
+  'profile.tour': 'Primeiros passos',
+  'profile.tourHint': 'Rever onde se adicionam as cadeiras e as notas',
+  'profile.tourBtn': 'Ver outra vez',
+
 }
