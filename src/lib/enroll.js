@@ -106,3 +106,81 @@ export function officialBlock(title) {
   }
   return null
 }
+
+// ---------------------------------------------------------------------------
+//  Sobreposições entre turnos
+//
+//  O aluno escolhe um turno de cada tipo, e nada o impedia de ficar com duas
+//  aulas à mesma hora — só dava por isso na primeira semana de aulas.
+//  T1 e T2 nunca se cruzam (correm em metades diferentes do semestre); um
+//  turno de semestre inteiro (S1) cruza-se com tudo.
+// ---------------------------------------------------------------------------
+const emMinutos = (hhmm) => {
+  const [h, m] = String(hhmm || '').split(':').map(Number)
+  return (h || 0) * 60 + (m || 0)
+}
+const coexistem = (a, b) => a === 'S1' || b === 'S1' || a === b
+
+/** As sessões de um turno de uma cadeira. */
+export const sessionsOf = (code, g) =>
+  (SCHEDULES[String(code)]?.sessions || []).filter((s) => s.g === g)
+
+/**
+ * A primeira hora em que estes dois turnos se pisam, ou null.
+ * Devolve { d, s, e } — dia e o pedaço de tempo em comum.
+ */
+export function turnoClash(aCode, aG, bCode, bG) {
+  for (const x of sessionsOf(aCode, aG)) {
+    for (const y of sessionsOf(bCode, bG)) {
+      if (x.d !== y.d || !coexistem(x.t, y.t)) continue
+      const inicio = Math.max(emMinutos(x.s), emMinutos(y.s))
+      const fim = Math.min(emMinutos(x.e), emMinutos(y.e))
+      if (inicio < fim) {
+        const hhmm = (min) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`
+        return { d: x.d, s: hhmm(inicio), e: hhmm(fim) }
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Com que turnos já escolhidos é que este bate de frente.
+ * `escolhidos` é { codigo: [turno, ...] }. Turnos da MESMA cadeira e do mesmo
+ * tipo ficam de fora: escolher um substitui o outro, nunca coexistem.
+ */
+export function clashesFor(code, g, escolhidos, kind) {
+  const mesmoTipo = kind
+    ? new Set(turnosFor(code).find((x) => x.kind === kind)?.turnos.map((x) => x.g) || [])
+    : new Set()
+  const out = []
+  for (const [outroCode, lista] of Object.entries(escolhidos || {})) {
+    for (const outroG of lista || []) {
+      if (outroCode === String(code) && (outroG === g || mesmoTipo.has(outroG))) continue
+      const c = turnoClash(code, g, outroCode, outroG)
+      if (c) out.push({ code: outroCode, g: outroG, name: SCHEDULES[outroCode]?.name || outroCode, ...c })
+    }
+  }
+  return out
+}
+
+/** Todas as sobreposições de uma escolha completa, sem repetir pares. */
+export function allClashes(escolhidos) {
+  const pares = []
+  const entradas = Object.entries(escolhidos || {}).flatMap(([code, lista]) =>
+    (lista || []).map((g) => ({ code, g })))
+  for (let i = 0; i < entradas.length; i++) {
+    for (let j = i + 1; j < entradas.length; j++) {
+      const a = entradas[i]; const b = entradas[j]
+      const c = turnoClash(a.code, a.g, b.code, b.g)
+      if (c) {
+        pares.push({
+          a: { ...a, name: SCHEDULES[a.code]?.name || a.code },
+          b: { ...b, name: SCHEDULES[b.code]?.name || b.code },
+          ...c,
+        })
+      }
+    }
+  }
+  return pares
+}

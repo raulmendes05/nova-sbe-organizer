@@ -5,7 +5,7 @@ import { errorText, apiError } from '../lib/errors.js'
 import { useCourses } from '../context/CoursesContext.jsx'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon } from '../components/ui.jsx'
-import { hhmm, COURSE_COLORS, simulateGrade, isCwi, checkNumber, LIMITS } from '../lib/helpers.js'
+import { hhmm, COURSE_COLORS, simulateGrade, isCwi, isPassFail, passRow, checkNumber, LIMITS } from '../lib/helpers.js'
 import { CWI_MODULES, cwiDone } from '../data/cwi.js'
 import { pt } from '../i18n/pt.js'
 
@@ -108,6 +108,10 @@ export default function Claudio() {
           return { ...base, sem_nota: true, avaliacao: 'pass/fail por modulos (1 ECTS cada)',
             modulos_feitos: feitos,
             modulos_por_fazer: CWI_MODULES.map((m) => m.id).filter((id) => !feitos.includes(id)) }
+        }
+        if (isPassFail(c)) {
+          return { ...base, sem_nota: true, avaliacao: 'pass/fail',
+            feita: Boolean(passRow(linhasDe(c.id))) }
         }
         return { ...base, nota_final: c.final_grade, componentes: compsOf(c.id) }
       }),

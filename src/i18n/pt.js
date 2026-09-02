@@ -11,6 +11,7 @@ export const pt = {
   'nav.profile': 'Perfil',
 
   // ---- Comum ----
+  'common.and': ' e ',
   'common.save': 'Guardar',
   'common.saving': 'A guardar...',
   'common.saved': 'Guardado',
@@ -414,6 +415,9 @@ export const pt = {
   'coursesPrompt.turnosTitle': 'E em que turnos?',
   'coursesPrompt.turnosHint': 'Um turno de cada tipo. Salta os que não souberes — dá para acertar depois no Horário.',
   'coursesPrompt.dated': 'Aulas quinzenais, só em datas certas — o horário mostra-as no dia certo.',
+  'coursesPrompt.clashItem': '{a} e {b} — {dia} {inicio}–{fim}',
+  'coursesPrompt.clashChip': '⚠ Fica em cima de {nome} ({dia} {inicio}–{fim})',
+  'coursesPrompt.clashWarn': 'Ficas com aulas à mesma hora: {lista}. Se for mesmo assim, toca outra vez para guardar.',
   'coursesPrompt.kindT': 'Teórica',
   'coursesPrompt.kindP': 'Prática',
   'coursesPrompt.kindTP': 'Teórico-prática',
@@ -441,6 +445,10 @@ export const pt = {
 
   // ---- Careers with Impact (4 modulos, sem nota) ----
   'grades.passFail': 'Pass/Fail',
+  'passfail.hint': 'Esta cadeira não tem nota: ou está feita, ou não. Os ECTS contam assim que estiver feita.',
+  'passfail.done': 'Feita',
+  'passfail.todo': 'Por fazer',
+  'passfail.ects': '{feitos} de {n} ECTS',
   'cwi.progress': '{n} de {total} módulos · {ects} de {totalEcts} ECTS',
   'cwi.noGrade': 'Esta cadeira não tem nota: cada módulo é feito ou não feito, e vale 1 ECTS. Podes ter uns feitos e outros por fazer.',
   'cwi.module': 'Módulo {id}',
@@ -483,5 +491,18 @@ export const pt = {
   'profile.tour': 'Primeiros passos',
   'profile.tourHint': 'Rever onde se adicionam as cadeiras e as notas',
   'profile.tourBtn': 'Ver outra vez',
+
+
+  // ---- Cadeiras repetidas ----
+  'dup.title': '«{name}» está {n} vezes na lista',
+  'dup.body': 'A mesma cadeira repetida conta a dobrar nos ECTS e na média. Junta-as numa só — não se perde nada do que está em qualquer uma delas.',
+  'dup.moves': 'Passam {o} para a que fica.',
+  'dup.movesComp': '{n} componentes de avaliação',
+  'dup.movesComp.one': '1 componente de avaliação',
+  'dup.movesClasses': '{n} aulas',
+  'dup.movesClasses.one': '1 aula',
+  'dup.merge': 'Juntar numa só',
+  'dup.confirm': 'Juntar tudo em «{name}»?\n\n{detalhe}',
+  'dup.lostGrade': 'Atenção: a nota {n} da repetida perde-se.',
 
 }

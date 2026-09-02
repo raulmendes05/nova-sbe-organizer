@@ -137,19 +137,33 @@ export function termKey(year, term) {
 //  da nota), o que os deixa FORA da média mas com os ECTS a contar assim que
 //  estão concluídos — é exatamente o que estes helpers fazem.
 // ---------------------------------------------------------------------------
+// Careers with Impact e os dois Data Handling: a folha oficial da escola marca
+// as três com "(Done/Not Done)" em vez de nota.
+export const PASS_FAIL_CODES = new Set([CWI_CODE, '1321', '1322'])
 export const isCwi = (course) => String(course?.code || '') === CWI_CODE
-export const isPassFail = (course) => isCwi(course)
+export const isPassFail = (course) => PASS_FAIL_CODES.has(String(course?.code || ''))
 
-// ECTS já ganhos numa cadeira Pass/Fail (1 por módulo concluído).
+// Uma cadeira Pass/Fail simples fica marcada com uma linha em `grades` sem
+// nota nenhuma: existir = feita. O mesmo que os módulos do Careers with
+// Impact, sem inventar números na base de dados.
+export const PASS_MARK = 'Pass'
+export const passRow = (components) =>
+  (components || []).find((r) => String(r.title || '').trim() === PASS_MARK) || null
+export const isPassed = (course, components) =>
+  isPassFail(course) && !isCwi(course) && Boolean(passRow(components))
+
+// ECTS já ganhos numa cadeira Pass/Fail (no Careers with Impact, 1 por módulo).
 export function passFailEcts(course, components) {
-  if (!isCwi(course)) return 0
-  return cwiDone(components).reduce((s, m) => s + m.ects, 0)
+  if (isCwi(course)) return cwiDone(components).reduce((s, m) => s + m.ects, 0)
+  if (!isPassFail(course)) return 0
+  return passRow(components) ? Number(course.ects || 0) : 0
 }
 
 // Uma cadeira está "concluída" se já tem nota final OU todas as componentes com nota.
 // (usado para não mostrar exames de cadeiras que o aluno já fez)
 export function isCourseDone(course, components) {
   if (isCwi(course)) return cwiDone(components).length === CWI_MODULES.length
+  if (isPassFail(course)) return Boolean(passRow(components))
   const f = course?.final_grade
   if (f !== null && f !== undefined && f !== '') return true
   const comps = components || []

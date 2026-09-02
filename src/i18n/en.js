@@ -11,6 +11,7 @@ export const en = {
   'nav.profile': 'Profile',
 
   // ---- Common ----
+  'common.and': ' and ',
   'common.save': 'Save',
   'common.saving': 'Saving...',
   'common.saved': 'Saved',
@@ -414,6 +415,9 @@ export const en = {
   'coursesPrompt.turnosTitle': 'And which shifts?',
   'coursesPrompt.turnosHint': 'One shift of each type. Skip any you\'re unsure about — you can fix it later in Schedule.',
   'coursesPrompt.dated': 'Fortnightly classes, on set dates only — the schedule shows them on the right day.',
+  'coursesPrompt.clashItem': '{a} and {b} — {dia} {inicio}–{fim}',
+  'coursesPrompt.clashChip': '⚠ Overlaps {nome} ({dia} {inicio}–{fim})',
+  'coursesPrompt.clashWarn': 'You would have classes at the same time: {lista}. If that is really the case, tap again to save.',
   'coursesPrompt.kindT': 'Lecture',
   'coursesPrompt.kindP': 'Practical',
   'coursesPrompt.kindTP': 'Lecture + practical',
@@ -441,6 +445,10 @@ export const en = {
 
   // ---- Careers with Impact (4 modules, no grade) ----
   'grades.passFail': 'Pass/Fail',
+  'passfail.hint': 'This course has no grade: either it is done or it is not. The ECTS count as soon as it is done.',
+  'passfail.done': 'Done',
+  'passfail.todo': 'Not done',
+  'passfail.ects': '{feitos} of {n} ECTS',
   'cwi.progress': '{n} of {total} modules · {ects} of {totalEcts} ECTS',
   'cwi.noGrade': 'This course has no grade: each module is done or not done, and is worth 1 ECTS. You can have some done and others still to do.',
   'cwi.module': 'Module {id}',
@@ -483,5 +491,18 @@ export const en = {
   'profile.tour': 'First steps',
   'profile.tourHint': 'See again where courses and grades are added',
   'profile.tourBtn': 'Show me again',
+
+
+  // ---- Duplicate courses ----
+  'dup.title': '"{name}" is in the list {n} times',
+  'dup.body': 'A repeated course counts twice in your ECTS and average. Merge them into one — nothing in either of them is lost.',
+  'dup.moves': '{o} move to the one that stays.',
+  'dup.movesComp': '{n} assessment components',
+  'dup.movesComp.one': '1 assessment component',
+  'dup.movesClasses': '{n} classes',
+  'dup.movesClasses.one': '1 class',
+  'dup.merge': 'Merge into one',
+  'dup.confirm': 'Merge everything into "{name}"?\n\n{detalhe}',
+  'dup.lostGrade': 'Careful: grade {n} from the duplicate will be lost.',
 
 }

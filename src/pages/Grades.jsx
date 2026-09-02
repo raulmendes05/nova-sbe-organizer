@@ -7,7 +7,9 @@ import CoursePicker from '../components/CoursePicker.jsx'
 import GoalCard from '../components/GoalCard.jsx'
 import ErasmusGpa from '../components/ErasmusGpa.jsx'
 import CwiModules from '../components/CwiModules.jsx'
-import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, passFailEcts, checkNumber, LIMITS } from '../lib/helpers.js'
+import PassFailCourse from '../components/PassFailCourse.jsx'
+import DuplicateCourses from '../components/DuplicateCourses.jsx'
+import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, isPassFail, passFailEcts, passRow, PASS_MARK, checkNumber, LIMITS } from '../lib/helpers.js'
 import { cwiTitle, cwiRow, cwiDone, CWI_MODULES } from '../data/cwi.js'
 import { useT } from '../i18n/index.jsx'
 
@@ -197,12 +199,23 @@ export default function Grades() {
     } catch { /* mensagem ja em `error` */ }
   }
 
+  // Cadeira Pass/Fail simples (Data Handling): a linha existe = está feita.
+  async function togglePasse(course, feita) {
+    try {
+      if (feita) await addGrade({ course_id: course.id, title: PASS_MARK, weight: 0, grade: null })
+      else {
+        const row = passRow(compsOf(course.id))
+        if (row) await removeGrade(row.id)
+      }
+    } catch { /* mensagem ja em `error` */ }
+  }
+
   // Limpa o que sobrou de quando a app tratava esta cadeira como as outras:
   // a nota final e as componentes de avaliacao que nao sao modulos.
   async function limparCwi(course) {
-    const modulos = new Set(CWI_MODULES.map((m) => cwiTitle(m.id)))
+    const marcas = new Set([...CWI_MODULES.map((m) => cwiTitle(m.id)), PASS_MARK])
     try {
-      for (const g of compsOf(course.id)) if (!modulos.has(g.title)) await removeGrade(g.id)
+      for (const g of compsOf(course.id)) if (!marcas.has(String(g.title).trim())) await removeGrade(g.id)
       if ((course.final_grade ?? null) !== null) await updateCourse(course.id, { final_grade: null })
     } catch { /* mensagem ja em `error` */ }
   }
@@ -218,6 +231,10 @@ export default function Grades() {
     // Careers with Impact nao tem nota: no lugar dela vao os 4 modulos.
     const cwi = isCwi(c)
     const cwiFeitos = cwi ? cwiDone(comps).length : 0
+    // Data Handling: Pass/Fail sem módulos — feita ou por fazer.
+    const passe = isPassFail(c) && !cwi
+    const passeFeita = passe && Boolean(passRow(comps))
+    const restos = comps.filter((g) => String(g.title).trim() !== PASS_MARK).length
     return (
       <div key={c.id} className="rounded-xl bg-white/[0.04] border border-white/10 overflow-hidden">
         <button onClick={() => toggleExpand(c)} className="w-full p-3.5 flex items-center gap-3 text-left">
@@ -226,7 +243,7 @@ export default function Grades() {
             <p className="font-semibold text-slate-100 truncate">{c.name}</p>
             <p className="text-xs text-slate-400">
               {c.ects} ECTS
-              {cwi
+              {cwi || passe
                 ? <> · {t('grades.passFail')}</>
                 : usesComponents && <> · {t('grades.assessedPct', { n: gw })}</>}
             </p>
@@ -235,6 +252,10 @@ export default function Grades() {
             {cwi ? (
               <p className={`text-xl font-bold tabular-nums ${cwiFeitos === CWI_MODULES.length ? 'text-emerald-400' : 'text-slate-300'}`}>
                 {cwiFeitos}<span className="text-slate-500 text-sm">/{CWI_MODULES.length}</span>
+              </p>
+            ) : passe ? (
+              <p className={`text-sm font-bold ${passeFeita ? 'text-emerald-400' : 'text-slate-500'}`}>
+                {passeFeita ? t('passfail.done') : t('passfail.todo')}
               </p>
             ) : (
               <p className={`text-xl font-bold ${gradeColor(avg)}`}>{avg !== null ? avg.toFixed(1) : '—'}</p>
@@ -257,7 +278,22 @@ export default function Grades() {
           </div>
         )}
 
-        {isOpen && !cwi && (
+        {isOpen && passe && (
+          <div className="border-t border-white/10 p-3.5 bg-white/[0.02] space-y-3.5">
+            <PassFailCourse course={c} feita={passeFeita} onToggle={(v) => togglePasse(c, v)}
+              notaAntiga={c.final_grade ?? null} restos={restos} onLimpar={() => limparCwi(c)} />
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => openEditCourse(c)} className="btn-ghost flex-1 py-2 text-sm">
+                <Icon name="edit" className="w-4 h-4" /> {t('grades.editCourse')}
+              </button>
+              <button onClick={() => deleteCourse(c.id)} className="btn-ghost px-3 py-2 text-sm text-rose-400">
+                <Icon name="trash" className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {isOpen && !cwi && !passe && (
           <div className="border-t border-white/10 p-3.5 bg-white/[0.02] space-y-3.5">
             <div>
               <label className="label">{t('grades.finalGrade')}</label>
@@ -357,6 +393,9 @@ export default function Grades() {
       <PageHeader title={t('nav.grades')} subtitle={t('grades.subtitle')} />
 
       <ErrorBox error={error} onClose={clearError} className="mb-4" />
+
+      {/* A mesma cadeira duas vezes conta a dobrar na média — avisa e junta */}
+      <DuplicateCourses />
 
       {/* Cartao media global */}
       <div className="relative overflow-hidden rounded-3xl p-5 mb-4 shadow-glow"

@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase.js'
 import { Modal, Icon, Spinner, ErrorBox } from './ui.jsx'
 import { flatCatalog } from '../data/curriculum.js'
 import { COURSE_COLORS } from '../lib/helpers.js'
-import { hasSchedule, turnosFor, blocksFor, officialBlock } from '../lib/enroll.js'
+import { hasSchedule, turnosFor, blocksFor, officialBlock, clashesFor, allClashes } from '../lib/enroll.js'
 import { datesFor } from '../data/schedules.js'
 import { errorText } from '../lib/errors.js'
 import { useT } from '../i18n/index.jsx'
@@ -51,6 +51,7 @@ export default function EnrollFlow({ onClose, onSaved, onStart, preSelect = [], 
   const [q, setQ] = useState('')
   const [erro, setErro] = useState(null)
   const [guardando, setGuardando] = useState(false)
+  const [conflitoVisto, setConflitoVisto] = useState(false)   // já avisado das sobreposições
   const fileRef = useRef(null)
 
   const catalogo = useMemo(() => flatCatalog(program), [program])
@@ -101,13 +102,20 @@ export default function EnrollFlow({ onClose, onSaved, onStart, preSelect = [], 
     }
   }
 
-  const escolheTurno = (code, kind, g) => setTurnos((prev) => {
+  const escolheTurno = (code, kind, g) => (setConflitoVisto(false), setTurnos((prev) => {
     const daCadeira = prev[code] || []
     const doTipo = new Set(turnosFor(code).find((x) => x.kind === kind)?.turnos.map((x) => x.g))
     // Um turno de cada tipo: escolher outro substitui o anterior.
     const resto = daCadeira.filter((x) => !doTipo.has(x))
     return { ...prev, [code]: daCadeira.includes(g) ? resto : [...resto, g] }
-  })
+  }))
+
+  // Uma sobreposição em texto: "Ethics TPA e Marketing TXA — Ter 15:30–17:00"
+  const descreveConflito = (c) =>
+    t('coursesPrompt.clashItem', {
+      a: `${c.a.name} ${c.a.g}`, b: `${c.b.name} ${c.b.g}`,
+      dia: t(`day.${c.d}.short`), inicio: c.s, fim: c.e,
+    })
 
   /**
    * Cria as cadeiras que faltam e acerta os blocos do horario: junta os turnos
@@ -119,6 +127,14 @@ export default function EnrollFlow({ onClose, onSaved, onStart, preSelect = [], 
    * meio nao duplica nada.
    */
   async function guardar() {
+    // Duas aulas à mesma hora quase sempre é engano — mas é escolha dele:
+    // avisa-se com nomes e horas, e o segundo toque guarda na mesma.
+    const conflitos = allClashes(turnos)
+    if (conflitos.length && !conflitoVisto) {
+      setErro(t('coursesPrompt.clashWarn', { lista: conflitos.map(descreveConflito).join('; ') }))
+      setConflitoVisto(true)
+      return
+    }
     setGuardando(true); setErro(null)
     try {
       const idPorCodigo = {}
@@ -308,6 +324,8 @@ export default function EnrollFlow({ onClose, onSaved, onStart, preSelect = [], 
                     <div className="flex flex-wrap gap-1.5">
                       {grupo.turnos.map((x) => {
                         const on = (turnos[code] || []).includes(x.g)
+                        // Bate de frente com algum turno já escolhido?
+                        const choque = clashesFor(code, x.g, turnos, grupo.kind)
                         return (
                           <button key={x.g} type="button" onClick={() => escolheTurno(code, grupo.kind, x.g)}
                             title={[
@@ -315,12 +333,19 @@ export default function EnrollFlow({ onClose, onSaved, onStart, preSelect = [], 
                               (datesFor(code, x.g) || [])
                                 .map((d) => (typeof d === 'string' ? d : d.date))
                                 .map((iso) => `${iso.slice(8)}/${iso.slice(5, 7)}`).join(', '),
+                              ...choque.map((c) => t('coursesPrompt.clashChip', {
+                                nome: `${c.name} ${c.g}`, dia: t(`day.${c.d}.short`), inicio: c.s, fim: c.e,
+                              })),
                             ].filter(Boolean).join('\n')}
                             className={`chip border transition ${
-                              on ? 'bg-accent-500/25 border-accent-400/50 text-white'
-                                 : 'bg-white/[0.05] border-white/10 text-slate-300'
+                              choque.length
+                                ? (on ? 'bg-rose-500/25 border-rose-400/60 text-rose-100'
+                                      : 'bg-rose-500/10 border-rose-400/40 text-rose-200')
+                                : (on ? 'bg-accent-500/25 border-accent-400/50 text-white'
+                                      : 'bg-white/[0.05] border-white/10 text-slate-300')
                             }`}>
                             {x.g}{x.term !== 'S1' && <span className="opacity-60"> {x.term}</span>}
+                            {choque.length > 0 && <span className="ml-1" aria-hidden="true">⚠</span>}
                           </button>
                         )
                       })}
