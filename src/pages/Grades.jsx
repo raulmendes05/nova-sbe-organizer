@@ -9,8 +9,9 @@ import ErasmusGpa from '../components/ErasmusGpa.jsx'
 import CwiModules from '../components/CwiModules.jsx'
 import PassFailCourse from '../components/PassFailCourse.jsx'
 import DuplicateCourses from '../components/DuplicateCourses.jsx'
-import { COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, isPassFail, passFailEcts, passRow, PASS_MARK, checkNumber, LIMITS } from '../lib/helpers.js'
+import { localeOf, COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, isPassFail, passFailEcts, passRow, PASS_MARK, checkNumber, LIMITS } from '../lib/helpers.js'
 import { cwiTitle, cwiRow, cwiDone, CWI_MODULES } from '../data/cwi.js'
+import { assessmentFor, partsFor, partFor, passMarkFor, PASS_DEFAULT } from '../data/assessments.js'
 import { useT } from '../i18n/index.jsx'
 
 const YEAR_OPTS = [1, 2, 3]
@@ -32,7 +33,7 @@ export default function Grades() {
   // caixa chega para os dois.
   const error = coursesError || gradesError
   const clearError = () => { clearCoursesError(); clearGradesError() }
-  const { academicYear, semester, goalAvg, currentTermKey, updateGoal } = useAuth()
+  const { academicYear, semester, goalAvg, currentTermKey, updateGoal, lang } = useAuth()
   const { t } = useT()
   const defYear = Number(academicYear) || null
   const defTerm = Number(semester) || null
@@ -94,16 +95,23 @@ export default function Grades() {
     ? withAvg.reduce((s, x) => s + x.avg * Number(x.c.ects || 0), 0) / totalEcts
     : null
 
-  // Para a GPA de Erasmus, o ritmo de creditos conta so os ECTS feitos NA NOVA:
-  // creditos vindos de outra faculdade nao entram.
-  const feitasNaNova = withAvg.filter((x) => !x.c.is_equivalence)
-  // As cadeiras Pass/Fail nao tem nota, mas os ECTS ja feitos contam para o
-  // ritmo — e o que a folha da escola faz com os modulos de Careers with
-  // Impact ("Done" na celula da nota, ECTS a somar).
+  // Para a GPA de Erasmus, a folha da escola nao trata as equivalencias a
+  // parte: o que decide e a nota da linha. Com um numero, a cadeira entra na
+  // media (os 75%) E nos creditos; marcada Pass/Fail — que e como as cadeiras
+  // de Erasmus voltam — vale so os creditos (os 25%).
+  // Ver o "GPA Calculators Bachelors": Weight so conta linhas com ISNUMBER,
+  // mas Completed ECTs conta toda a linha com a celula da nota preenchida.
   const ectsPassFail = perCourse.reduce(
+    (s, x) => s + passFailEcts(x.c, compsOf(x.c.id)), 0)
+  const ectsFeitos = totalEcts + ectsPassFail
+  // So para explicar a soma a quem tem equivalencias.
+  const comEquivalencia = perCourse.filter((x) =>
+    x.c.is_equivalence && (x.avg !== null || passFailEcts(x.c, compsOf(x.c.id)) > 0))
+  const ectsEquivalencias = comEquivalencia.reduce((s, x) => s + Number(x.c.ects || 0), 0)
+  // Os modulos Pass/Fail da Nova (Careers with Impact, Data Handling) tem a sua
+  // propria linha; sem isto, uma equivalencia Pass aparecia contada nas duas.
+  const ectsPassFailNova = perCourse.reduce(
     (s, x) => s + (x.c.is_equivalence ? 0 : passFailEcts(x.c, compsOf(x.c.id))), 0)
-  const ectsNaNova = feitasNaNova.reduce((s, x) => s + Number(x.c.ects || 0), 0) + ectsPassFail
-  const ectsDeFora = totalEcts - feitasNaNova.reduce((s, x) => s + Number(x.c.ects || 0), 0)
 
   // Agrupar regulares por ano/semestre
   const groups = Object.values(
@@ -210,6 +218,15 @@ export default function Grades() {
     } catch { /* mensagem ja em `error` */ }
   }
 
+  // As componentes do syllabus de uma vez. Uma a uma e pela ordem do syllabus
+  // porque a lista vem ordenada por created_at — inserir tudo de enfiada
+  // deixava-as baralhadas no ecra.
+  async function preencherSyllabus(course) {
+    try {
+      for (const parte of partsFor(course, t)) await addGrade({ course_id: course.id, ...parte })
+    } catch { /* mensagem ja em `error` */ }
+  }
+
   // Limpa o que sobrou de quando a app tratava esta cadeira como as outras:
   // a nota final e as componentes de avaliacao que nao sao modulos.
   async function limparCwi(course) {
@@ -235,6 +252,14 @@ export default function Grades() {
     const passe = isPassFail(c) && !cwi
     const passeFeita = passe && Boolean(passRow(comps))
     const restos = comps.filter((g) => String(g.title).trim() !== PASS_MARK).length
+    // O syllabus oficial desta cadeira, se o conhecermos: pesos, minimos e a
+    // nota a que passa.
+    const syllabus = assessmentFor(c)
+    const notaPasse = passMarkFor(c)
+    // 9,45 em portugues, 9.45 em ingles — a nota aparece em texto corrido.
+    const passeEscrito = notaPasse.toLocaleString(localeOf(lang))
+    // Equivalencia que voltou sem nota (Erasmus): vale creditos, nao vale media.
+    const equivPasse = Boolean(c.is_equivalence) && Boolean(passRow(comps))
     return (
       <div key={c.id} className="rounded-xl bg-white/[0.04] border border-white/10 overflow-hidden">
         <button onClick={() => toggleExpand(c)} className="w-full p-3.5 flex items-center gap-3 text-left">
@@ -243,7 +268,7 @@ export default function Grades() {
             <p className="font-semibold text-slate-100 truncate">{c.name}</p>
             <p className="text-xs text-slate-400">
               {c.ects} ECTS
-              {cwi || passe
+              {cwi || passe || equivPasse
                 ? <> · {t('grades.passFail')}</>
                 : usesComponents && <> · {t('grades.assessedPct', { n: gw })}</>}
             </p>
@@ -253,9 +278,9 @@ export default function Grades() {
               <p className={`text-xl font-bold tabular-nums ${cwiFeitos === CWI_MODULES.length ? 'text-emerald-400' : 'text-slate-300'}`}>
                 {cwiFeitos}<span className="text-slate-500 text-sm">/{CWI_MODULES.length}</span>
               </p>
-            ) : passe ? (
-              <p className={`text-sm font-bold ${passeFeita ? 'text-emerald-400' : 'text-slate-500'}`}>
-                {passeFeita ? t('passfail.done') : t('passfail.todo')}
+            ) : passe || equivPasse ? (
+              <p className={`text-sm font-bold ${passeFeita || equivPasse ? 'text-emerald-400' : 'text-slate-500'}`}>
+                {passeFeita || equivPasse ? t('passfail.done') : t('passfail.todo')}
               </p>
             ) : (
               <p className={`text-xl font-bold ${gradeColor(avg)}`}>{avg !== null ? avg.toFixed(1) : '—'}</p>
@@ -295,6 +320,27 @@ export default function Grades() {
 
         {isOpen && !cwi && !passe && (
           <div className="border-t border-white/10 p-3.5 bg-white/[0.02] space-y-3.5">
+            {/* As cadeiras de Erasmus voltam convertidas em Pass/Fail: os
+                creditos contam, a nota nao. Sem isto, ou se inventava uma nota
+                ou se perdiam os ECTS. */}
+            {c.is_equivalence && (
+              <button type="button" onClick={() => togglePasse(c, !equivPasse)}
+                className={`w-full flex items-start gap-2.5 rounded-xl px-3 py-2.5 text-left border transition ${
+                  equivPasse ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-white/[0.04] border-white/10'
+                }`}>
+                <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 mt-0.5 ${
+                  equivPasse ? 'bg-emerald-500 border-emerald-500' : 'border-white/30'
+                }`}>
+                  {equivPasse && <Icon name="check" className="w-3.5 h-3.5 text-white" />}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-medium text-slate-100">{t('grades.equivPass')}</span>
+                  <span className="block text-xs text-slate-500 mt-0.5">{t('grades.equivPassHint')}</span>
+                </span>
+              </button>
+            )}
+
+            {!equivPasse && (<>
             <div>
               <label className="label">{t('grades.finalGrade')}</label>
               <input type="number" step="0.1" min="0" max="20" inputMode="decimal"
@@ -322,28 +368,74 @@ export default function Grades() {
                   {comps.length > 0 && (
                     <div className="space-y-1.5 mb-2.5">
                       {comps.map((g) => (
-                        <div key={g.id} className="flex items-center gap-2 bg-white/[0.05] border border-white/5 rounded-lg px-3 py-2">
-                          <div className="flex-1 min-w-0" onClick={() => openEditGrade(g)}>
-                            <p className="text-sm font-medium text-slate-200 truncate">{g.title}</p>
-                            <p className="text-xs text-slate-500">{t('grades.weight', { n: g.weight })}</p>
+                        <div key={g.id}>
+                          <div className="flex items-center gap-2 bg-white/[0.05] border border-white/5 rounded-lg px-3 py-2">
+                            <div className="flex-1 min-w-0" onClick={() => openEditGrade(g)}>
+                              <p className="text-sm font-medium text-slate-200 truncate">{g.title}</p>
+                              <p className="text-xs text-slate-500">{t('grades.weight', { n: g.weight })}</p>
+                            </div>
+                            <span className={`font-bold ${g.grade === null ? 'text-slate-500' : gradeColor(Number(g.grade))}`}>
+                              {g.grade === null ? '—' : Number(g.grade).toFixed(1)}
+                            </span>
+                            <button onClick={() => removeGrade(g.id).catch(() => {})} className="p-1 text-slate-500 hover:text-rose-400">
+                              <Icon name="trash" className="w-4 h-4" />
+                            </button>
                           </div>
-                          <span className={`font-bold ${g.grade === null ? 'text-slate-500' : gradeColor(Number(g.grade))}`}>
-                            {g.grade === null ? '—' : Number(g.grade).toFixed(1)}
-                          </span>
-                          <button onClick={() => removeGrade(g.id).catch(() => {})} className="p-1 text-slate-500 hover:text-rose-400">
-                            <Icon name="trash" className="w-4 h-4" />
-                          </button>
+                          {/* Nota minima da componente: e a regra que reprova
+                              gente com media positiva. */}
+                          {(() => {
+                            const parte = partFor(c, g, t)
+                            if (!parte?.min) return null
+                            const abaixo = g.grade !== null && Number(g.grade) < parte.min
+                            return (
+                              <p className={`text-[11px] mt-1 px-1 ${abaixo ? 'text-rose-300' : 'text-slate-500'}`}>
+                                {abaixo ? t('assess.below', { n: parte.min }) : t('assess.min', { n: parte.min })}
+                              </p>
+                            )
+                          })()}
                         </div>
                       ))}
                     </div>
                   )}
+                  {/* Copiar os pesos do syllabus a mao e onde se erra — e onde
+                      se desiste. Um toque quando ainda nao ha nada gravado. */}
+                  {syllabus && comps.length === 0 && (
+                    <button onClick={() => preencherSyllabus(c)}
+                      className="w-full rounded-xl bg-nova-500/15 border border-nova-500/30 px-3 py-2.5 mb-2 text-left active:scale-[0.99] transition">
+                      <span className="flex items-center gap-2 text-sm font-semibold text-nova-100">
+                        <Icon name="spark" className="w-4 h-4" /> {t('assess.fill')}
+                      </span>
+                      <span className="block text-xs text-slate-400 mt-0.5">
+                        {t('assess.fillHint', {
+                          lista: syllabus.parts.map((x) => `${t(x.key)} ${x.weight}%`).join(', '),
+                        })}
+                      </span>
+                    </button>
+                  )}
+
                   <button onClick={() => openNewGrade(c.id)} className="btn-ghost w-full py-2 text-sm">
                     <Icon name="plus" className="w-4 h-4" /> {t('grades.addComponent')}
                   </button>
 
+                  {/* Regras que nao cabem em pesos: quizzes que caem, recurso
+                      que vale tudo, cadeiras que nao passam a 9,5. */}
+                  {syllabus && (
+                    <div className="mt-2 space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                        {t('assess.title')}
+                      </p>
+                      {notaPasse !== PASS_DEFAULT && (
+                        <p className="text-[11px] text-amber-200/80">{t('assess.pass', { n: passeEscrito })}</p>
+                      )}
+                      {(syllabus.notes || []).map((k) => (
+                        <p key={k} className="text-[11px] text-slate-500">{t(k)}</p>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Simulador — que nota preciso? */}
                   {comps.length > 0 && (() => {
-                    const pass = simulateGrade(comps, 9.5)
+                    const pass = simulateGrade(comps, notaPasse)
                     const malAlvo = checkNumber(simTarget, LIMITS.grade, t)
                     const goal = !malAlvo && simTarget !== '' ? simulateGrade(comps, Number(simTarget)) : null
                     const line = (sim) => {
@@ -357,7 +449,7 @@ export default function Grades() {
                     return (
                       <div className="mt-3 rounded-xl bg-nova-500/10 border border-nova-500/25 p-3">
                         <p className="text-xs font-semibold text-nova-200 mb-2">🎯 {t('grades.simTitle')}</p>
-                        <p className={`text-sm ${p.cls}`}><span className="text-slate-400">{t('grades.simToPass')}</span> {p.txt}</p>
+                        <p className={`text-sm ${p.cls}`}><span className="text-slate-400">{t('grades.simToPass', { n: passeEscrito })}</span> {p.txt}</p>
                         <div className="flex items-center gap-2 mt-2.5">
                           <label className="text-sm text-slate-400">{t('grades.simTarget')}</label>
                           <input type="number" step="0.5" min="0" max="20" inputMode="decimal"
@@ -373,6 +465,8 @@ export default function Grades() {
                 </div>
               )}
             </div>
+
+            </>)}
 
             <div className="flex gap-2 pt-1">
               <button onClick={() => openEditCourse(c)} className="btn-ghost flex-1 py-2 text-sm">
@@ -422,8 +516,8 @@ export default function Grades() {
 
       {/* Candidatura a mobilidade: outra metrica, a partir dos mesmos numeros */}
       <div className="mb-4">
-        <ErasmusGpa gpa={globalAvg} ects={ectsNaNova} ectsPassFail={ectsPassFail}
-          ectsDeFora={ectsDeFora} equivalencias={equivalences.filter((x) => x.avg !== null).length} />
+        <ErasmusGpa gpa={globalAvg} ects={ectsFeitos} ectsPassFail={ectsPassFailNova}
+          ectsEquivalencias={ectsEquivalencias} equivalencias={comEquivalencia.length} />
       </div>
 
       {/* Separadores */}

@@ -8,12 +8,12 @@ import { useT } from '../i18n/index.jsx'
  * que nao e a media: 75% de nota e 25% de ritmo de creditos.
  *
  * A media e os ECTS ja feitos vêm das Notas; os semestres tem de ser o aluno a
- * dizer. Os ECTS sao SO os feitos na Nova — creditos vindos de outra faculdade
- * nao contam para o ritmo. Ja incluem os modulos Pass/Fail dados como feitos
- * (Careers with Impact), que valem ECTS sem valer nota; ficam editaveis para o
- * aluno poder acrescentar outros casos que a app nao conheca.
+ * dizer. Os ECTS incluem tudo o que ja esta creditado — as equivalencias e os
+ * modulos Pass/Fail (Careers with Impact, Data Handling), que valem creditos
+ * sem valer nota. Ficam editaveis para o aluno poder acrescentar outros casos
+ * que a app nao conheca.
  */
-export default function ErasmusGpa({ gpa, ects, ectsDeFora = 0, equivalencias = 0, ectsPassFail = 0 }) {
+export default function ErasmusGpa({ gpa, ects, ectsEquivalencias = 0, equivalencias = 0, ectsPassFail = 0 }) {
   const { t } = useT()
   const [aberto, setAberto] = useState(false)
   const [semestres, setSemestres] = useState('')
@@ -69,9 +69,9 @@ export default function ErasmusGpa({ gpa, ects, ectsDeFora = 0, equivalencias = 
         </label>
       </div>
 
-      {ectsDeFora > 0 && ectsDraft === null && (
+      {ectsEquivalencias > 0 && ectsDraft === null && (
         <p className="text-xs text-slate-500 mt-2">
-          {t('erasmus.excluded', { ects: ectsDeFora, n: equivalencias })}
+          {t('erasmus.equivalences', { ects: ectsEquivalencias, n: equivalencias })}
         </p>
       )}
 

@@ -153,9 +153,13 @@ export const isPassed = (course, components) =>
   isPassFail(course) && !isCwi(course) && Boolean(passRow(components))
 
 // ECTS já ganhos numa cadeira Pass/Fail (no Careers with Impact, 1 por módulo).
+//
+// Uma equivalência também pode ficar aqui: as cadeiras feitas em Erasmus vêm
+// convertidas em Pass/Fail, e a folha da escola conta-lhes os créditos ainda
+// que não lhes conte a nota.
 export function passFailEcts(course, components) {
   if (isCwi(course)) return cwiDone(components).reduce((s, m) => s + m.ects, 0)
-  if (!isPassFail(course)) return 0
+  if (!isPassFail(course) && !course?.is_equivalence) return 0
   return passRow(components) ? Number(course.ects || 0) : 0
 }
 
@@ -181,6 +185,9 @@ export function resolveGrade(course, components) {
   // Pass/Fail não tem nota — nem sequer uma escrita à mão por engano pode
   // entrar na média.
   if (isPassFail(course)) return null
+  // Uma equivalência marcada como Pass é o mesmo caso: vale créditos, não vale
+  // nota, mesmo que tenha sobrado um número de antes.
+  if (course?.is_equivalence && passRow(components)) return null
   const f = course?.final_grade
   if (f !== null && f !== undefined && f !== '') return Number(f)
   return courseAverage(components)
