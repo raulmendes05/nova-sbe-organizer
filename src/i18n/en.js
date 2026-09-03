@@ -347,6 +347,8 @@ export const en = {
   'login.tagline': 'Your academic life, organised.',
   'login.password': 'Password',
   'login.passwordHint': 'at least 6 characters',
+  'login.showPassword': 'Show password',
+  'login.hidePassword': 'Hide password',
   'login.wait': 'Please wait...',
   'login.signIn': 'Sign in',
   'login.signUp': 'Create account',

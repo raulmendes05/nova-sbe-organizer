@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase.js'
+import { Icon } from '../components/ui.jsx'
 import { useT } from '../i18n/index.jsx'
 import { errorText } from '../lib/errors.js'
 
@@ -14,6 +15,7 @@ export default function Login() {
   const [mode, setMode] = useState('signin') // signin | signup
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [verSenha, setVerSenha] = useState(false)
   const [msg, setMsg] = useState(null)
   const [loading, setLoading] = useState(false)
 
@@ -63,9 +65,23 @@ export default function Login() {
           </div>
           <div>
             <label className="text-sm text-nova-100">{t('login.password')}</label>
-            <input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)}
-              className="w-full mt-1 rounded-xl bg-white/10 border border-white/20 px-3.5 py-3 outline-none focus:border-white/60 placeholder-nova-200"
-              placeholder={t('login.passwordHint')} />
+            {/* Escrever uma password as cegas num teclado de telemovel e como
+                se erra — e aqui um erro custa uma tentativa de login inteira.
+                pr-12 deixa o texto passar por baixo do botao. */}
+            <div className="relative mt-1">
+              <input type={verSenha ? 'text' : 'password'} required minLength={6}
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                value={password} onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl bg-white/10 border border-white/20 pl-3.5 pr-12 py-3 outline-none focus:border-white/60 placeholder-nova-200"
+                placeholder={t('login.passwordHint')} />
+              <button type="button" onClick={() => setVerSenha(!verSenha)}
+                aria-pressed={verSenha}
+                aria-label={t(verSenha ? 'login.hidePassword' : 'login.showPassword')}
+                title={t(verSenha ? 'login.hidePassword' : 'login.showPassword')}
+                className="absolute right-1 top-1/2 -translate-y-1/2 p-2.5 rounded-lg text-nova-200 hover:text-white hover:bg-white/10 transition">
+                <Icon name={verSenha ? 'eyeOff' : 'eye'} className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {msg && (
@@ -80,7 +96,7 @@ export default function Login() {
           </button>
         </form>
 
-        <button onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setMsg(null) }}
+        <button onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setMsg(null); setVerSenha(false) }}
           className="w-full text-center text-sm text-nova-200 mt-5">
           {mode === 'signin' ? t('login.toSignUp') : t('login.toSignIn')}
         </button>

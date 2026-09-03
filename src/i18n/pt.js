@@ -347,6 +347,8 @@ export const pt = {
   'login.tagline': 'A tua vida académica, organizada.',
   'login.password': 'Palavra-passe',
   'login.passwordHint': 'mínimo 6 caracteres',
+  'login.showPassword': 'Mostrar a password',
+  'login.hidePassword': 'Esconder a password',
   'login.wait': 'Aguarda...',
   'login.signIn': 'Entrar',
   'login.signUp': 'Criar conta',
