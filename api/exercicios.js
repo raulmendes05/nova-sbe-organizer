@@ -63,10 +63,26 @@ const PROMPT_CAPITULO = `Recebes o caderno de exercícios de uma cadeira. Olha S
 
 {IDIOMA}
 
-- Cada exercício leva o "n" — o número tal como está impresso ("1.4", "3", "II.2") — e um "assunto": UMA linha curta (no máximo 100 caracteres) a dizer do que trata, para o aluno o reconhecer sem abrir o PDF. Ex.: "Derivada de um produto com regra da cadeia".
-- Não transcrevas o enunciado todo, não resolvas nada e não inventes exercícios que não existam.
-- Se um exercício tiver alíneas (a), b), c)), conta como UM exercício.
+- Cada exercício leva:
+  - "n": o número tal como está impresso ("1.4", "3", "II.2");
+  - "assunto": UMA linha curta (no máximo 100 caracteres) a dizer do que trata. Ex.: "Derivada de um produto com regra da cadeia";
+  - "enunciado": o enunciado TAL COMO ESTÁ no papel, com todas as alíneas (a), b), c)...) cada uma na sua linha, e com os dados, tabelas e fórmulas que sejam precisos para o resolver. Escreve as fórmulas em texto legível (ex.: "Q = K^0.5 L^0.5"). Não resolvas nada — só o enunciado.
+- Se um exercício tiver alíneas, conta como UM exercício, com as alíneas todas dentro do "enunciado".
 - Ignora exercícios resolvidos a título de exemplo: queres os que ficam para o aluno fazer.`
+
+const PROMPT_ENUNCIADO = `Recebes o caderno de exercícios de uma cadeira. Nas páginas {INICIO} a {FIM} — o capítulo "{TITULO}" — encontra o exercício {N} e transcreve o enunciado dele.
+
+{IDIOMA}
+
+- "enunciado": o enunciado TAL COMO ESTÁ no papel, com todas as alíneas (a), b), c)...) cada uma na sua linha, e com os dados, tabelas e fórmulas precisos para o resolver. Fórmulas em texto legível (ex.: "Q = K^0.5 L^0.5").
+- NÃO resolvas o exercício. Só o enunciado.
+- Se não encontrares esse número nessas páginas, devolve o enunciado vazio.`
+
+const SCHEMA_ENUNCIADO = {
+  type: 'object',
+  properties: { enunciado: { type: 'string' } },
+  required: ['enunciado'],
+}
 
 const SCHEMA_CAPITULO = {
   type: 'object',
@@ -97,13 +113,14 @@ export default async function handler(req, res) {
   const key = process.env.GEMINI_API_KEY
   if (!key) { res.status(500).json({ error: 'GEMINI_API_KEY não configurada no servidor.' }); return }
 
-  const { path, cadeira, lang, modo, capitulo } = req.body || {}
+  const { path, cadeira, lang, modo, capitulo, n } = req.body || {}
   if (!path) { res.status(400).json({ error: 'Falta o ficheiro.' }); return }
-  const soIndice = modo !== 'capitulo'
+  const soIndice = modo !== 'capitulo' && modo !== 'enunciado'
   if (!soIndice && (!capitulo?.titulo || !capitulo?.inicio)) {
     res.status(400).json({ error: 'Falta o capítulo a ler.' })
     return
   }
+  if (modo === 'enunciado' && !n) { res.status(400).json({ error: 'Falta o exercício.' }); return }
 
   let pdf
   try {
@@ -117,13 +134,15 @@ export default async function handler(req, res) {
     return
   }
 
+  const doCapitulo = (base) => base
+    .replace('{IDIOMA}', IDIOMA_LINHA(lang))
+    .replace('{INICIO}', String(capitulo?.inicio))
+    .replace('{FIM}', String(capitulo?.fim || capitulo?.inicio))
+    .replace('{TITULO}', String(capitulo?.titulo))
+    .replace('{N}', String(n))
   const prompt = soIndice
     ? PROMPT_INDICE.replace('{IDIOMA}', IDIOMA_LINHA(lang))
-    : PROMPT_CAPITULO
-      .replace('{IDIOMA}', IDIOMA_LINHA(lang))
-      .replace('{INICIO}', String(capitulo.inicio))
-      .replace('{FIM}', String(capitulo.fim || capitulo.inicio))
-      .replace('{TITULO}', String(capitulo.titulo))
+    : doCapitulo(modo === 'enunciado' ? PROMPT_ENUNCIADO : PROMPT_CAPITULO)
 
   const partes = [{ text: prompt }]
   if (cadeira) partes.push({ text: `Cadeira: ${cadeira}` })
@@ -156,7 +175,9 @@ export default async function handler(req, res) {
         out = await ai.models.generateContent({ ...pedido, config: base })
       }
       const lido = JSON.parse(out.text)
-      if (soIndice) {
+      if (modo === 'enunciado') {
+        res.status(200).json({ enunciado: String(lido.enunciado || '').trim().slice(0, 2000), modelo: model })
+      } else if (soIndice) {
         res.status(200).json({
           capitulos: (lido.capitulos || []).map((c) => ({
             titulo: String(c.titulo || '').trim() || 'Exercícios',
@@ -170,6 +191,7 @@ export default async function handler(req, res) {
           exercicios: (lido.exercicios || []).map((e) => ({
             n: String(e.n || '').trim(),
             assunto: String(e.assunto || '').trim().slice(0, 140),
+            enunciado: String(e.enunciado || '').trim().slice(0, 2000) || null,
           })).filter((e) => e.n).slice(0, 200),
           modelo: model,
         })

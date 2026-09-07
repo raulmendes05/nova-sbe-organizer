@@ -29,10 +29,11 @@ const PROMPT = `Um aluno da Nova SBE resolveu um exercício à mão e fotografou
 
 {IDIOMA}
 
-Exercício: {EXERCICIO}
+{QUAL}
 {FONTE}
 
 O que tens de devolver:
+- "n": SÓ o número do exercício, nada mais — "4", "1.2", "II.3". Sem o assunto e sem o enunciado. {COMO_N}
 - "nota": de 0 a 20, do trabalho que está na fotografia.
 - "veredicto": "certo" se está tudo bem, "quase" se o método está certo mas há erros de contas ou passos em falta, "errado" se o caminho está mal.
 - "feedback": 2 a 5 frases dirigidas ao aluno ("fizeste", "faltou-te"), a dizer o que correu bem e o que não.
@@ -48,6 +49,7 @@ Como corrigir:
 const SCHEMA = {
   type: 'object',
   properties: {
+    n: { type: 'string' },
     nota: { type: 'number' },
     veredicto: { type: 'string', enum: ['certo', 'quase', 'errado'] },
     feedback: { type: 'string' },
@@ -61,7 +63,7 @@ const SCHEMA = {
     },
     solucao: { type: 'string' },
   },
-  required: ['nota', 'veredicto', 'feedback', 'erros', 'solucao'],
+  required: ['n', 'nota', 'veredicto', 'feedback', 'erros', 'solucao'],
 }
 
 const isTransient = (e) => {
@@ -78,9 +80,13 @@ export default async function handler(req, res) {
   const key = process.env.GEMINI_API_KEY
   if (!key) { res.status(500).json({ error: 'GEMINI_API_KEY não configurada no servidor.' }); return }
 
-  const { imagens, mime, exercicio, capitulo, solucoesPath, paginas, cadeira, lang } = req.body || {}
+  const { imagens, mime, exercicio, indice, texto, capitulo, solucoesPath, paginas, cadeira, lang } = req.body || {}
   const fotos = (Array.isArray(imagens) ? imagens : []).filter((x) => typeof x === 'string' && x)
-  if (!fotos.length) { res.status(400).json({ error: 'Não veio nenhuma fotografia.' }); return }
+  const escrito = typeof texto === 'string' && texto.trim().length > 20
+  if (!fotos.length && !escrito) {
+    res.status(400).json({ error: 'Não veio nenhuma fotografia.' })
+    return
+  }
   if (fotos.length > MAX_IMAGENS) { res.status(400).json({ error: `Máximo de ${MAX_IMAGENS} fotografias.` }); return }
   if (fotos.reduce((s, x) => s + x.length, 0) > MAX_BYTES) {
     res.status(413).json({ error: 'As fotografias são demasiado grandes.' })
@@ -105,16 +111,33 @@ export default async function handler(req, res) {
     ? `Vai buscar a solução oficial ao PDF em anexo e corrige por ela. ${onde}`.trim()
     : 'Não tens as soluções oficiais: resolve tu o exercício e corrige por aí. Diz no feedback que a correção é tua e não da folha de soluções do professor.'
 
+  // Ou o aluno diz que exercício é, ou damos-lhe a lista do capítulo e é ele a
+  // descobrir pelo enunciado — que é o que permite mandar fotos à solta.
+  const lista = (Array.isArray(indice) ? indice : []).slice(0, 60)
+  const qual = exercicio
+    ? `Exercício: ${exercicio}`
+    : lista.length
+      ? ['O aluno não disse qual é o exercício. Descobre-o: a resolução tem de ser de UM destes, do capítulo em causa —',
+        ...lista.map((e) => `  ${e.n} — ${e.assunto || ''}${e.enunciado ? `: ${String(e.enunciado).slice(0, 300)}` : ''}`),
+        'Se não bater com nenhum, diz no feedback que não reconheceste o exercício e põe "n" a vazio.'].join('\n')
+      : 'O aluno não disse qual é o exercício. Percebe pelo que está escrito.'
+  const comoN = exercicio
+    ? 'É o exercício indicado acima — repete o número.'
+    : 'O número do exercício que reconheceste na lista, escrito exatamente como lá está. Vazio se não reconheceste nenhum.'
+
   const partes = [{
     text: PROMPT
       .replace('{IDIOMA}', IDIOMA[lang === 'en' ? 'en' : 'pt'])
-      .replace('{EXERCICIO}', String(exercicio || 'o que estiver na fotografia'))
+      .replace('{QUAL}', qual)
+      .replace('{COMO_N}', comoN)
       .replace('{FONTE}', fonte),
   }]
   if (cadeira) partes.push({ text: `Cadeira: ${cadeira}` })
   if (solucoes) partes.push({ inlineData: { mimeType: 'application/pdf', data: solucoes.toString('base64') } })
   partes.push({ text: 'A resolução do aluno:' })
   for (const data of fotos) partes.push({ inlineData: { mimeType: mime || 'image/jpeg', data } })
+  // Também se pode corrigir o que já foi passado a texto (apontamentos antigos).
+  if (escrito) partes.push({ text: texto.slice(0, 20000) })
 
   const ai = new GoogleGenAI({ apiKey: key })
   let last
@@ -134,6 +157,9 @@ export default async function handler(req, res) {
       const lido = JSON.parse(out.text)
       const nota = Math.max(0, Math.min(20, Number(lido.nota) || 0))
       res.status(200).json({
+        // O modelo às vezes devolve o número com o assunto colado; aqui só
+        // interessa o número, que é a chave por onde o exercício é guardado.
+        n: (String(lido.n || exercicio || '').trim().split(/[\s—–:]/)[0] || '').trim() || null,
         nota,
         veredicto: ['certo', 'quase', 'errado'].includes(lido.veredicto) ? lido.veredicto : 'quase',
         feedback: String(lido.feedback || '').trim(),

@@ -3,13 +3,13 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { Icon, Spinner, ErrorBox } from './ui.jsx'
 import SlideSummary from './SlideSummary.jsx'
 import Quiz, { QuizFim } from './Quiz.jsx'
-import Handbook from './Handbook.jsx'
+import Handbook, { carregarCaderno } from './Handbook.jsx'
 import { encolher } from '../lib/imagem.js'
 import { errorText } from '../lib/errors.js'
 import { localeOf } from '../lib/helpers.js'
-import { noteOf, isNoteRow, summaryOf, notebookOf } from '../lib/plan.js'
+import { noteOf, isNoteRow, isSummaryRow, summaryOf, notebookOf } from '../lib/plan.js'
 import { cartasDe, estadoDe, paraHoje, responder, resumoDaRevisao, perguntaDe } from '../lib/revisao.js'
-import { isHandbookRow } from '../lib/exercicios.js'
+import { isHandbookRow, handbookOf, contas } from '../lib/exercicios.js'
 import { useT } from '../i18n/index.jsx'
 
 const MAX_FOTOS = 6
@@ -68,21 +68,51 @@ export default function Notebook({
   const [aberto, setAberto] = useState(null)
   const [fim, setFim] = useState(null)          // resultado da ultima sessao
   const [aFazerCartas, setAFazerCartas] = useState(null)  // id da nota a gerar perguntas
+  const [passo, setPasso] = useState('')          // o que esta a acontecer, em texto
+  // Que cadeira esta ABERTA em baixo — coisa diferente da que recebe o que se
+  // acrescenta em cima. undefined = a lista das cadeiras.
+  const [aberta, setAberta] = useState(undefined)
   const fotosRef = useRef(null)
+  const pdfRef = useRef(null)
 
-  const nomeCadeira = courses.find((c) => c.id === cadeira)?.name || null
-  // O que há para rever nesta cadeira, e o que dele é para hoje.
-  const cartas = cartasDe(rows, cadeira)
-  const estado = estadoDe(rows, cadeira)
+  const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
+  const nomeDe = (id) => (id ? courseById[id]?.name || null : null)
+  const nomeCadeira = nomeDe(cadeira)
+  const cadernoDe = (id) => rows.find((n) => isHandbookRow(n) && (id ? n.course_id === id : !n.course_id)) || null
+
+  // ---- o índice: que cadeiras têm mesmo alguma coisa lá dentro ----
+  const comMaterial = (() => {
+    const ids = new Set()
+    for (const n of rows) {
+      if (isNoteRow(n) || isSummaryRow(n) || isHandbookRow(n)) ids.add(n.course_id || null)
+    }
+    return [...ids].map((id) => {
+      const doCurso = notebookOf(rows, id)
+      const hb = cadernoDe(id)
+      return {
+        id,
+        nome: id ? nomeDe(id) : t('plan.noCourse'),
+        cor: id ? courseById[id]?.color : null,
+        apontamentos: doCurso.filter(isNoteRow).length,
+        resumos: doCurso.filter(isSummaryRow).length,
+        exercicios: hb ? contas(handbookOf(hb)) : null,
+      }
+    }).sort((a, b) => String(a.nome).localeCompare(String(b.nome)))
+  })()
+
+  // ---- o que se mostra da cadeira aberta ----
+  const emCima = aberta === undefined
+  const nomeAberta = aberta ? nomeDe(aberta) : t('plan.noCourse')
+  const cartas = cartasDe(rows, aberta)
+  const estado = estadoDe(rows, aberta)
   const daRevisao = resumoDaRevisao(cartas, estado)
   const doDia = paraHoje(cartas, estado)
-  const oCaderno = rows.find((n) => isHandbookRow(n) && (cadeira ? n.course_id === cadeira : !n.course_id)) || null
-  const itens = notebookOf(rows, cadeira)
+  const oCaderno = cadernoDe(aberta)
+  const itens = notebookOf(rows, aberta)
   // O que ele escreveu, e o que a app gerou: coisas diferentes, sítios
   // diferentes. Os apontamentos por ordem de escrita, como num caderno.
   const apontamentos = itens.filter(isNoteRow).slice().reverse()
-  const resumos = itens.filter((n) => !isNoteRow(n))
-  const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
+  const resumos = itens.filter(isSummaryRow)
 
   function limpar() {
     setModo(null); setTitulo(''); setTexto(''); setPaginas(0); setEditando(null); setErro(null)
@@ -131,7 +161,7 @@ export default function Notebook({
   async function fecharSessao(respostas) {
     let novo = estado
     for (const r of respostas) novo = responder(novo, r.carta, r.acertou)
-    await onGuardarRevisao(cadeira, novo)
+    await onGuardarRevisao(aberta, novo)
     setModo(null)
     if (respostas.length) {
       setFim({
@@ -164,6 +194,20 @@ export default function Notebook({
     }
   }
 
+  // O PDF do caderno de exercícios entra pela zona de acrescentar, para a
+  // cadeira escolhida em cima — como tudo o resto.
+  async function novoCadernoDeExercicios(file) {
+    if (!file) return
+    setErro(null); setALer(true); setModo('exercicios')
+    try {
+      const dados = await carregarCaderno(file, { nomeCadeira, lang, t, aoAndar: setPasso })
+      await onGuardarHandbook(cadernoDe(cadeira), dados, cadeira)
+      setAberta(cadeira)
+    } catch (e) {
+      setErro(errorText(e, t))
+    } finally { setALer(false); setModo(null); setPasso('') }
+  }
+
   function editar(n) {
     const { titulo: tt, texto: tx } = noteOf(n)
     setEditando(n.id); setTitulo(n.title || tt); setTexto(tx); setPaginas(0); setModo('escrever')
@@ -171,83 +215,62 @@ export default function Notebook({
 
   return (
     <div className="space-y-4">
-      {/* ---------- De que cadeira ---------- */}
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{t('note.whichCourse')}</p>
-        <div className="flex flex-wrap gap-1.5">
-          {courses.map((c) => (
-            <button key={c.id} type="button" onClick={() => { onEscolherCadeira(c.id); limpar() }}
-              className={`chip border flex items-center gap-1.5 ${
-                cadeira === c.id ? 'bg-nova-500/25 border-nova-400/40 text-white' : 'bg-white/[0.05] border-white/10 text-slate-300'
+      {/* ================= Acrescentar =================
+          As cadeiras aqui em cima servem só para dizer A QUE cadeira vai o que
+          se acrescenta a seguir. O que já lá está vê-se mais abaixo, cadeira a
+          cadeira. */}
+      <div className="card p-4 space-y-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{t('note.addTo')}</p>
+          <div className="flex flex-wrap gap-1.5">
+            {courses.map((c) => (
+              <button key={c.id} type="button" onClick={() => { onEscolherCadeira(c.id); limpar() }}
+                className={`chip border flex items-center gap-1.5 ${
+                  cadeira === c.id ? 'bg-nova-500/25 border-nova-400/40 text-white' : 'bg-white/[0.05] border-white/10 text-slate-300'
+                }`}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.color || '#3d78bf' }} />
+                {c.name}
+              </button>
+            ))}
+            <button type="button" onClick={() => { onEscolherCadeira(null); limpar() }}
+              className={`chip border ${
+                cadeira === null ? 'bg-nova-500/25 border-nova-400/40 text-white' : 'bg-white/[0.05] border-white/10 text-slate-300'
               }`}>
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.color || '#3d78bf' }} />
-              {c.name}
+              {t('plan.noCourse')}
             </button>
-          ))}
-          <button type="button" onClick={() => { onEscolherCadeira(null); limpar() }}
-            className={`chip border ${
-              cadeira === null ? 'bg-nova-500/25 border-nova-400/40 text-white' : 'bg-white/[0.05] border-white/10 text-slate-300'
-            }`}>
-            {t('plan.noCourse')}
-          </button>
+          </div>
         </div>
+
+        {!modo && (
+          <div className="grid grid-cols-4 gap-2">
+            <input ref={fotosRef} type="file" accept="image/*" multiple className="hidden"
+              onChange={(e) => { lerFotos(e.target.files); e.target.value = '' }} />
+            <input ref={pdfRef} type="file" accept="application/pdf,.pdf" className="hidden"
+              onChange={(e) => { novoCadernoDeExercicios(e.target.files?.[0]); e.target.value = '' }} />
+            {[
+              { k: 'note.photo', icon: 'camera', tom: 'bg-nova-500/15 text-nova-200', vai: () => fotosRef.current?.click() },
+              { k: 'note.write', icon: 'edit', tom: 'bg-white/[0.06] text-slate-300', vai: () => { limpar(); setModo('escrever') } },
+              { k: 'note.slides', icon: 'upload', tom: 'bg-white/[0.06] text-slate-300', vai: () => setModo('slides') },
+              { k: 'note.exercises', icon: 'clipboard', tom: 'bg-white/[0.06] text-slate-300', vai: () => pdfRef.current?.click() },
+            ].map((b) => (
+              <button key={b.k} onClick={b.vai}
+                className="rounded-xl bg-white/[0.04] border border-white/10 p-2.5 flex flex-col items-center gap-1.5 text-center active:scale-[0.98] transition">
+                <span className={`w-8 h-8 rounded-lg flex items-center justify-center ${b.tom}`}>
+                  <Icon name={b.icon} className="w-4 h-4" />
+                </span>
+                <span className="text-[11px] font-semibold text-slate-200 leading-tight">{t(b.k)}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <ErrorBox error={erro} onClose={() => setErro(null)} />
 
-      {/* ---------- Testar-me ---------- */}
-      {modo === 'quiz' ? (
-        <Quiz cartas={doDia} onTerminar={fecharSessao} onSair={fecharSessao} />
-      ) : fim ? (
-        <QuizFim {...fim} lang={lang} onFechar={() => setFim(null)} />
-      ) : !cartas.length && !modo && itens.length > 0 ? (
-        <p className="text-xs text-slate-500">{t('quiz.noCards')}</p>
-      ) : cartas.length > 0 && !modo ? (
-        <button onClick={() => { setFim(null); setModo('quiz') }} disabled={!doDia.length}
-          className="card w-full p-3.5 flex items-center gap-3 text-left active:scale-[0.99] transition disabled:active:scale-100">
-          <span className="w-9 h-9 rounded-xl bg-accent-500/15 text-accent-300 flex items-center justify-center shrink-0">
-            <Icon name="spark" className="w-5 h-5" />
-          </span>
-          <span className="flex-1 min-w-0">
-            <span className="block text-sm font-semibold text-slate-200">{t('quiz.open')}</span>
-            <span className="block text-xs text-slate-500">
-              {doDia.length
-                ? t('quiz.todayCount', { n: doDia.length })
-                : t('quiz.allCaught', { data: daRevisao.proxima
-                  ? new Date(`${daRevisao.proxima}T12:00:00`).toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'short' })
-                  : '' })}
-            </span>
-          </span>
-          {doDia.length > 0 && <Icon name="chevron" className="w-4 h-4 text-slate-500 shrink-0" />}
-        </button>
-      ) : null}
-
-      {/* ---------- Como acrescentar ---------- */}
-      {!modo && (
-        <div className="grid grid-cols-3 gap-2">
-          <input ref={fotosRef} type="file" accept="image/*" multiple className="hidden"
-            onChange={(e) => { lerFotos(e.target.files); e.target.value = '' }} />
-          <button onClick={() => fotosRef.current?.click()}
-            className="card p-3 flex flex-col items-center gap-1.5 text-center active:scale-[0.98] transition">
-            <span className="w-9 h-9 rounded-xl bg-nova-500/15 text-nova-200 flex items-center justify-center">
-              <Icon name="camera" className="w-5 h-5" />
-            </span>
-            <span className="text-xs font-semibold text-slate-200 leading-tight">{t('note.photo')}</span>
-          </button>
-          <button onClick={() => { limpar(); setModo('escrever') }}
-            className="card p-3 flex flex-col items-center gap-1.5 text-center active:scale-[0.98] transition">
-            <span className="w-9 h-9 rounded-xl bg-white/[0.06] text-slate-300 flex items-center justify-center">
-              <Icon name="edit" className="w-5 h-5" />
-            </span>
-            <span className="text-xs font-semibold text-slate-200 leading-tight">{t('note.write')}</span>
-          </button>
-          <button onClick={() => setModo('slides')}
-            className="card p-3 flex flex-col items-center gap-1.5 text-center active:scale-[0.98] transition">
-            <span className="w-9 h-9 rounded-xl bg-white/[0.06] text-slate-300 flex items-center justify-center">
-              <Icon name="upload" className="w-5 h-5" />
-            </span>
-            <span className="text-xs font-semibold text-slate-200 leading-tight">{t('note.slides')}</span>
-          </button>
+      {modo === 'exercicios' && aLer && (
+        <div className="card p-4">
+          <Spinner />
+          <p className="text-sm text-slate-400 text-center">{passo || t('hb.uploading')}</p>
         </div>
       )}
 
@@ -297,17 +320,80 @@ export default function Notebook({
         </div>
       )}
 
-      {/* ---------- Caderno de exercícios ---------- */}
-      {!modo && (
-        <Handbook linha={oCaderno} cadeira={cadeira} nomeCadeira={nomeCadeira}
-          onGuardar={(body, nome) => onGuardarHandbook(oCaderno, body, nome, cadeira)}
-          onApagar={() => oCaderno && onApagar(oCaderno.id)} />
+      {/* ================= As cadeiras que têm material ================= */}
+      {emCima && !modo && (
+        comMaterial.length === 0 ? (
+          <p className="text-sm text-slate-500 py-2">{t('note.emptyAll')}</p>
+        ) : (
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('note.yourCourses')}</p>
+            {comMaterial.map((c) => (
+              <button key={String(c.id)} onClick={() => setAberta(c.id)}
+                className="card w-full p-3.5 flex items-center gap-3 text-left active:scale-[0.99] transition">
+                <span className="w-1.5 h-9 rounded-full shrink-0" style={{ background: c.cor || '#3d78bf' }} />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-semibold text-slate-100 truncate">{c.nome}</span>
+                  <span className="block text-xs text-slate-500">
+                    {[
+                      c.apontamentos ? t('note.nNotes', { n: c.apontamentos }) : '',
+                      c.resumos ? t('note.nSummaries', { n: c.resumos }) : '',
+                      c.exercicios ? t('note.nExercises', { n: c.exercicios.feitos, total: c.exercicios.total }) : '',
+                    ].filter(Boolean).join(' · ')}
+                  </span>
+                </span>
+                <Icon name="chevron" className="w-4 h-4 text-slate-500 shrink-0" />
+              </button>
+            ))}
+          </div>
+        )
       )}
 
-      {/* ---------- O caderno da cadeira ---------- */}
-      {!apontamentos.length && !resumos.length && !modo && (
-        <p className="text-sm text-slate-500 py-2">{t('note.empty')}</p>
-      )}
+      {/* ================= A cadeira aberta ================= */}
+      {!emCima && (<>
+        {!modo && (
+          <div className="flex items-center gap-2">
+            <button onClick={() => { setAberta(undefined); setFim(null) }}
+              className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 text-slate-300 flex items-center justify-center shrink-0 active:scale-95 transition"
+              aria-label={t('note.backToCourses')}>
+              <Icon name="chevron" className="w-4 h-4 rotate-180" />
+            </button>
+            <p className="text-base font-bold text-white truncate">{nomeAberta}</p>
+          </div>
+        )}
+
+        {/* ---------- Testar-me ---------- */}
+        {modo === 'quiz' ? (
+          <Quiz cartas={doDia} onTerminar={fecharSessao} onSair={fecharSessao} />
+        ) : fim ? (
+          <QuizFim {...fim} lang={lang} onFechar={() => setFim(null)} />
+        ) : !cartas.length && !modo && itens.length > 0 ? (
+          <p className="text-xs text-slate-500">{t('quiz.noCards')}</p>
+        ) : cartas.length > 0 && !modo ? (
+          <button onClick={() => { setFim(null); setModo('quiz') }} disabled={!doDia.length}
+            className="card w-full p-3.5 flex items-center gap-3 text-left active:scale-[0.99] transition disabled:active:scale-100">
+            <span className="w-9 h-9 rounded-xl bg-accent-500/15 text-accent-300 flex items-center justify-center shrink-0">
+              <Icon name="spark" className="w-5 h-5" />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm font-semibold text-slate-200">{t('quiz.open')}</span>
+              <span className="block text-xs text-slate-500">
+                {doDia.length
+                  ? t('quiz.todayCount', { n: doDia.length })
+                  : t('quiz.allCaught', { data: daRevisao.proxima
+                    ? new Date(`${daRevisao.proxima}T12:00:00`).toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'short' })
+                    : '' })}
+              </span>
+            </span>
+            {doDia.length > 0 && <Icon name="chevron" className="w-4 h-4 text-slate-500 shrink-0" />}
+          </button>
+        ) : null}
+
+        {/* ---------- Resoluções de exercícios ---------- */}
+        {oCaderno && !modo && (
+          <Handbook linha={oCaderno} cadeira={aberta} nomeCadeira={nomeAberta}
+            onGuardar={(body, nome) => onGuardarHandbook(oCaderno, body, nome, aberta)}
+            onApagar={() => onApagar(oCaderno.id)} />
+        )}
 
       {/* Os apontamentos são UM caderno, e não uma gaveta de entradas soltas:
           um documento a correr, com cada entrada como secção. */}
@@ -444,6 +530,7 @@ export default function Notebook({
           })}
         </div>
       )}
+      </>)}
     </div>
   )
 }

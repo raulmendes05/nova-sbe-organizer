@@ -80,6 +80,23 @@ async function pedir(url, corpo) {
 }
 
 /**
+ * Enviar um caderno novo e ler-lhe o índice. Vive aqui fora para o botão de
+ * "Exercícios" da zona de adicionar poder usar o mesmo caminho.
+ */
+export async function carregarCaderno(file, { nomeCadeira, lang, t, aoAndar }) {
+  aoAndar?.(t('hb.uploading'))
+  const path = await paraOR2(file, t)
+  aoAndar?.(t('hb.readingIndex'))
+  const out = await pedir('/api/exercicios', { path, cadeira: nomeCadeira || undefined, lang })
+  if (!out.capitulos?.length) throw new Error(t('hb.noChapters'))
+  return {
+    nome: file.name, pdf: path, solucoes: null,
+    capitulos: out.capitulos.map((c) => ({ ...c, exercicios: null })),
+    estado: {},
+  }
+}
+
+/**
  * O caderno de exercícios de uma cadeira: que exercícios existem, quais estão
  * feitos, e a correção de cada um.
  *
@@ -96,6 +113,8 @@ export default function Handbook({ linha, cadeira, nomeCadeira, onGuardar, onApa
   const [capAberto, setCapAberto] = useState(null)
   const [exAberto, setExAberto] = useState(null) // "iCap:n"
   const [correcao, setCorrecao] = useState(null) // { chave, ...resposta }
+  const [lote, setLote] = useState(null)         // correções de fotos à solta
+  const soltasRef = useRef(null)
   const pdfRef = useRef(null)
   const solRef = useRef(null)
   const fotoRef = useRef(null)
@@ -150,6 +169,68 @@ export default function Handbook({ linha, cadeira, nomeCadeira, onGuardar, onApa
       })
       const capitulos = dados.capitulos.map((c, j) => (j === i ? { ...c, exercicios: out.exercicios || [] } : c))
       await guardar({ ...dados, capitulos })
+    } catch (e) {
+      setErro(errorText(e, t))
+    } finally { setOcupado(null) }
+  }
+
+  // ---- o enunciado, quando o capítulo foi lido antes de os guardarmos ----
+  async function irBuscarEnunciado(iCap, ex) {
+    const cap = dados.capitulos[iCap]
+    setErro(null); setOcupado(t('hb.readingStatement', { n: ex.n }))
+    try {
+      const out = await pedir('/api/exercicios', {
+        path: dados.pdf, cadeira: nomeCadeira || undefined, lang,
+        modo: 'enunciado', n: ex.n,
+        capitulo: { titulo: cap.titulo, inicio: cap.inicio, fim: cap.fim },
+      })
+      if (!out.enunciado) throw new Error(t('hb.noStatement'))
+      const capitulos = dados.capitulos.map((c, j) => (j !== iCap ? c : {
+        ...c, exercicios: c.exercicios.map((e) => (e.n === ex.n ? { ...e, enunciado: out.enunciado } : e)),
+      }))
+      await guardar({ ...dados, capitulos })
+    } catch (e) {
+      setErro(errorText(e, t))
+    } finally { setOcupado(null) }
+  }
+
+  // ---- fotos à solta: é a app que descobre de que exercício são ----
+  const indiceTodo = () => dados.capitulos.flatMap((c, i) =>
+    (c.exercicios || []).map((e) => ({ ...e, iCap: i })))
+
+  async function corrigirSoltas(lista) {
+    const fotos = [...(lista || [])].slice(0, 6)
+    if (!fotos.length) return
+    const indice = indiceTodo()
+    if (!indice.length) { setErro(t('hb.readChapterFirst')); return }
+    setErro(null); setLote([]); setCorrecao(null)
+    const resultados = []
+    let estadoNovo = { ...dados.estado }
+    try {
+      for (const [i, f] of fotos.entries()) {
+        setOcupado(t('hb.gradingN', { n: i + 1, total: fotos.length }))
+        const { image } = await encolher(f)
+        const out = await pedir('/api/corrigir', {
+          imagens: [image], mime: 'image/jpeg',
+          indice: indice.map(({ n, assunto, enunciado }) => ({ n, assunto, enunciado })),
+          capitulo: dados.capitulos.map((c) => c.titulo).join(' · '),
+          solucoesPath: dados.solucoes || undefined,
+          cadeira: nomeCadeira || undefined, lang,
+        })
+        const achado = out.n ? indice.find((e) => String(e.n) === String(out.n)) : null
+        resultados.push({ ...out, ex: achado || null })
+        setLote([...resultados])
+        if (achado) {
+          estadoNovo = {
+            ...estadoNovo,
+            [chaveDoExercicio(achado.iCap, achado.n)]: {
+              estado: estadoDoVeredicto(out.veredicto), nota: out.nota, veredicto: out.veredicto,
+              feedback: out.feedback, quando: new Date().toISOString().slice(0, 10),
+            },
+          }
+        }
+      }
+      await guardar({ ...dados, estado: estadoNovo })
     } catch (e) {
       setErro(errorText(e, t))
     } finally { setOcupado(null) }
@@ -253,8 +334,39 @@ export default function Handbook({ linha, cadeira, nomeCadeira, onGuardar, onApa
           className="text-xs text-nova-300 mt-2">{t('hb.addSolutions')}</button>
       )}
 
+      {/* Fotos à solta: várias resoluções de uma vez, sem dizer de que
+          exercício são — a app descobre pelo enunciado. */}
+      <input ref={soltasRef} type="file" accept="image/*" multiple className="hidden"
+        onChange={(e) => { corrigirSoltas(e.target.files); e.target.value = '' }} />
+      <button onClick={() => soltasRef.current?.click()} disabled={Boolean(ocupado)}
+        className="w-full mt-3 py-2.5 rounded-xl text-sm font-semibold text-nova-100 bg-nova-500/15 border border-nova-500/30 flex items-center justify-center gap-2 disabled:opacity-60">
+        <Icon name="camera" className="w-4 h-4" /> {t('hb.loose')}
+      </button>
+      <p className="text-[11px] text-slate-500 mt-1">{t('hb.looseHint')}</p>
+
       {ocupado && <div className="mt-3"><Spinner /><p className="text-sm text-slate-400 text-center">{ocupado}</p></div>}
       <ErrorBox error={erro} onClose={() => setErro(null)} className="mt-3" />
+
+      {/* O que saiu das fotos à solta */}
+      {lote?.length > 0 && !ocupado && (
+        <div className="mt-3 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('hb.looseDone')}</p>
+            <button onClick={() => setLote(null)} className="text-xs text-slate-400">{t('common.close')}</button>
+          </div>
+          {lote.map((r, i) => (
+            <div key={i} className={`rounded-xl p-3 border ${r.ex ? CORES[estadoDoVeredicto(r.veredicto)] : 'bg-white/[0.04] border-white/10 text-slate-300'}`}>
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-sm font-semibold">
+                  {r.ex ? t('hb.exercise', { n: r.ex.n }) : t('hb.notRecognised')}
+                </p>
+                {r.ex && <p className="text-base font-bold tabular-nums">{r.nota}<span className="text-xs opacity-60">/20</span></p>}
+              </div>
+              <p className="text-sm mt-1 leading-relaxed opacity-90">{r.feedback}</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="space-y-1.5 mt-3">
         {dados.capitulos.map((cap, i) => (
@@ -294,7 +406,21 @@ export default function Handbook({ linha, cadeira, nomeCadeira, onGuardar, onApa
                   return (
                     <div key={ex.n} className="mt-3 rounded-xl bg-white/[0.04] border border-white/10 p-3">
                       <p className="text-sm font-semibold text-slate-100">{t('hb.exercise', { n: ex.n })}</p>
-                      <p className="text-sm text-slate-300 leading-relaxed mt-0.5">{ex.assunto}</p>
+                      {ex.enunciado ? (
+                        <div className="mt-1.5 space-y-1">
+                          {ex.enunciado.split('\n').filter((l) => l.trim()).map((l, k) => (
+                            <p key={k} className={`text-sm leading-relaxed ${
+                              /^\s*[a-z][)\.]/i.test(l) ? 'text-slate-300 pl-3' : 'text-slate-200'
+                            }`}>{l.trim()}</p>
+                          ))}
+                        </div>
+                      ) : (<>
+                        <p className="text-sm text-slate-300 leading-relaxed mt-0.5">{ex.assunto}</p>
+                        <button onClick={() => irBuscarEnunciado(i, ex)} disabled={Boolean(ocupado)}
+                          className="mt-1.5 text-xs text-nova-300 flex items-center gap-1.5 disabled:opacity-60">
+                          <Icon name="search" className="w-3.5 h-3.5" /> {t('hb.showStatement')}
+                        </button>
+                      </>)}
 
                       <div className="flex flex-wrap gap-1.5 mt-2.5">
                         {['porfazer', 'feito', 'duvida', 'errado'].map((s) => (
