@@ -78,6 +78,10 @@ export default function Notebook({
   const doDia = paraHoje(cartas, estado)
   const oCaderno = rows.find((n) => isHandbookRow(n) && (cadeira ? n.course_id === cadeira : !n.course_id)) || null
   const itens = notebookOf(rows, cadeira)
+  // O que ele escreveu, e o que a app gerou: coisas diferentes, sítios
+  // diferentes. Os apontamentos por ordem de escrita, como num caderno.
+  const apontamentos = itens.filter(isNoteRow).slice().reverse()
+  const resumos = itens.filter((n) => !isNoteRow(n))
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
   function limpar() {
@@ -300,45 +304,78 @@ export default function Notebook({
           onApagar={() => oCaderno && onApagar(oCaderno.id)} />
       )}
 
-      {/* ---------- O caderno ---------- */}
-      {itens.length === 0 ? (
-        !modo && <p className="text-sm text-slate-500 py-2">{t('note.empty')}</p>
-      ) : (
-        <div className="space-y-1.5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            {t('note.count', { n: itens.length })}
-          </p>
-          {itens.map((n) => {
-            const nota = isNoteRow(n)
-            const { texto: corpo } = nota ? noteOf(n) : { texto: '' }
-            const dados = nota ? null : (() => {
-              try { return JSON.parse(summaryOf(n).texto) } catch { return null }
-            })()
-            const estaAberto = aberto === n.id
-            const c = n.course_id ? courseById[n.course_id] : null
-            return (
-              <div key={n.id} className="rounded-xl bg-white/[0.04] border border-white/10 overflow-hidden">
-                <div className="flex items-center gap-2 px-3 py-2.5">
-                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
-                    nota ? 'bg-white/[0.06] text-slate-300' : 'bg-nova-500/15 text-nova-200'
-                  }`}>
-                    <Icon name={nota ? 'note' : 'chart'} className="w-4 h-4" />
-                  </span>
-                  <button onClick={() => setAberto(estaAberto ? null : n.id)} className="flex-1 min-w-0 text-left">
-                    <span className="block text-sm font-medium text-slate-100 truncate">{n.title}</span>
-                    <span className="block text-[11px] text-slate-500">
-                      {t(nota ? 'note.kindNote' : 'note.kindSummary')}
-                      {c ? ` · ${c.name}` : ''}
-                      {' · '}
-                      {new Date(n.created_at).toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'short' })}
-                    </span>
-                  </button>
-                  {nota && (
+      {/* ---------- O caderno da cadeira ---------- */}
+      {!apontamentos.length && !resumos.length && !modo && (
+        <p className="text-sm text-slate-500 py-2">{t('note.empty')}</p>
+      )}
+
+      {/* Os apontamentos são UM caderno, e não uma gaveta de entradas soltas:
+          um documento a correr, com cada entrada como secção. */}
+      {apontamentos.length > 0 && (
+        <div className="card p-4">
+          <div className="flex items-baseline justify-between gap-2 mb-3">
+            <p className="text-sm font-semibold text-slate-200">{t('note.myNotebook')}</p>
+            <p className="text-[11px] text-slate-500">{t('note.entries', { n: apontamentos.length })}</p>
+          </div>
+
+          <div className="divide-y divide-white/10">
+            {apontamentos.map((n) => {
+              const { texto: corpo } = noteOf(n)
+              return (
+                <section key={n.id} className="py-3.5 first:pt-0 last:pb-0">
+                  <div className="flex items-start gap-2 mb-1.5">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-semibold text-white leading-snug">{n.title}</h3>
+                      <p className="text-[11px] text-slate-500">
+                        {new Date(n.created_at).toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'long' })}
+                      </p>
+                    </div>
                     <button onClick={() => editar(n)} aria-label={t('common.edit')}
                       className="p-1 text-slate-500 hover:text-white shrink-0">
                       <Icon name="edit" className="w-4 h-4" />
                     </button>
-                  )}
+                    <button onClick={() => onApagar(n.id)} aria-label={t('common.delete')}
+                      className="p-1 text-slate-500 hover:text-rose-400 shrink-0">
+                      <Icon name="trash" className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <Texto>{corpo}</Texto>
+
+                  <button onClick={() => fazerCartas(n)} disabled={Boolean(aFazerCartas) || guardando}
+                    className="mt-2.5 text-xs text-nova-300 flex items-center gap-1.5 disabled:opacity-60">
+                    <Icon name="spark" className="w-3.5 h-3.5" />
+                    {aFazerCartas === n.id ? t('note.making') : t('note.makeCards')}
+                  </button>
+                </section>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Os resumos de slides ficam à parte: não são o que ele escreveu, e
+          cada um traz as suas secções. */}
+      {resumos.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t('note.summaries')}</p>
+          {resumos.map((n) => {
+            const dados = (() => {
+              try { return JSON.parse(summaryOf(n).texto) } catch { return null }
+            })()
+            const estaAberto = aberto === n.id
+            return (
+              <div key={n.id} className="rounded-xl bg-white/[0.04] border border-white/10 overflow-hidden">
+                <div className="flex items-center gap-2 px-3 py-2.5">
+                  <span className="w-8 h-8 rounded-lg bg-nova-500/15 text-nova-200 flex items-center justify-center shrink-0">
+                    <Icon name="chart" className="w-4 h-4" />
+                  </span>
+                  <button onClick={() => setAberto(estaAberto ? null : n.id)} className="flex-1 min-w-0 text-left">
+                    <span className="block text-sm font-medium text-slate-100 truncate">{n.title}</span>
+                    <span className="block text-[11px] text-slate-500">
+                      {new Date(n.created_at).toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'short' })}
+                    </span>
+                  </button>
                   <button onClick={() => onApagar(n.id)} aria-label={t('common.delete')}
                     className="p-1 text-slate-500 hover:text-rose-400 shrink-0">
                     <Icon name="trash" className="w-4 h-4" />
@@ -347,14 +384,7 @@ export default function Notebook({
 
                 {estaAberto && (
                   <div className="px-3 pb-3 pt-2.5 border-t border-white/10">
-                    {nota ? (<>
-                      <Texto>{corpo}</Texto>
-                      <button onClick={() => fazerCartas(n)} disabled={Boolean(aFazerCartas) || guardando}
-                        className="w-full mt-3 py-2 rounded-xl text-sm font-medium text-nova-200 bg-nova-500/10 border border-nova-500/25 flex items-center justify-center gap-2 disabled:opacity-60">
-                        <Icon name="spark" className="w-4 h-4" />
-                        {aFazerCartas === n.id ? t('note.making') : t('note.makeCards')}
-                      </button>
-                    </>) : dados ? (
+                    {dados ? (
                       <div className="space-y-2.5">
                         <p className="text-sm text-slate-300 leading-relaxed">{dados.resumo}</p>
                         {(dados.topicos || []).map((topico, i) => (

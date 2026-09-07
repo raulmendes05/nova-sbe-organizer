@@ -87,10 +87,10 @@ export const en = {
   'note.formatHint': 'A line starting with ## is a heading; starting with - is a bullet.',
   'note.untitled': 'Untitled',
   'note.empty': 'Nothing in this course\u2019s notebook yet.',
-  'note.count': '{n} in the notebook',
-  'note.count.one': '1 in the notebook',
-  'note.kindNote': 'Notes',
-  'note.kindSummary': 'Slide summary',
+  'note.myNotebook': 'My notebook',
+  'note.entries': '{n} entries',
+  'note.entries.one': '1 entry',
+  'note.summaries': 'Slide summaries',
   'note.broken': 'I could not open this summary.',
 
   // ---- Test yourself ----

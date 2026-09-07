@@ -87,10 +87,10 @@ export const pt = {
   'note.formatHint': 'Uma linha começada por ## é um título; começada por - é um ponto de lista.',
   'note.untitled': 'Sem título',
   'note.empty': 'Ainda não tens nada no caderno desta cadeira.',
-  'note.count': '{n} no caderno',
-  'note.count.one': '1 no caderno',
-  'note.kindNote': 'Apontamentos',
-  'note.kindSummary': 'Resumo de slides',
+  'note.myNotebook': 'O meu caderno',
+  'note.entries': '{n} entradas',
+  'note.entries.one': '1 entrada',
+  'note.summaries': 'Resumos de slides',
   'note.broken': 'Não consegui abrir este resumo.',
 
   // ---- Testar-me ----
