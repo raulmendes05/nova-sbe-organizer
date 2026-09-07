@@ -115,7 +115,9 @@ export default function GradeChart({ courses, gradesOf, goal, lang }) {
           <>
             <line x1={L} y1={escalaY(alvo)} x2={W - R} y2={escalaY(alvo)}
               stroke="#f0a500" strokeOpacity="0.6" strokeDasharray="3 3" />
-            <text x={W - R} y={escalaY(alvo) - 3} textAnchor="end" fontSize="8" fill="#f0a500">
+            {/* À esquerda: à direita ficava por cima do último ponto, que é
+                justamente o que se quer ver. */}
+            <text x={L + 4} y={escalaY(alvo) - 3} fontSize="8" fill="#f0a500">
               {t('chart.goal', { n: alvo })}
             </text>
           </>
@@ -125,8 +127,12 @@ export default function GradeChart({ courses, gradesOf, goal, lang }) {
         <polyline points={linha} fill="none" stroke="#5b9bd5" strokeWidth="2"
           strokeLinejoin="round" strokeLinecap="round" />
 
+        {/* A chave é a posição, e não o p.x: quem lança as notas todas no mesmo
+            dia fica com pontos de x igual, e duas chaves iguais deixam o React
+            sem saber o que remover — ao trocar de modo sobravam os pontos do
+            modo anterior por cima dos novos. */}
         {usar.map((p, i) => (
-          <g key={p.x} onClick={() => setEscolhido(escolhido === i ? null : i)} style={{ cursor: 'pointer' }}>
+          <g key={i} onClick={() => setEscolhido(escolhido === i ? null : i)} style={{ cursor: 'pointer' }}>
             <circle cx={escalaX(i)} cy={escalaY(p.valor)} r="9" fill="transparent" />
             <circle cx={escalaX(i)} cy={escalaY(p.valor)} r={escolhido === i ? 4 : 2.6}
               fill={escolhido === i ? '#ffffff' : '#5b9bd5'} />
