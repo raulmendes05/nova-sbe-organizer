@@ -54,6 +54,25 @@ const slug = (s, max) => String(s || '')
   .normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, max) || 'x'
 
+/**
+ * Guardar um ficheiro no R2 a partir do servidor.
+ *
+ * O caminho normal é o browser fazer PUT direto para o R2 com um URL assinado,
+ * que não tem limite de tamanho. Isso exige que o bucket tenha uma política de
+ * CORS a autorizar o domínio da app; enquanto não tiver, os ficheiros pequenos
+ * passam por aqui — a Vercel corta o corpo aos ~4,5 MB, e é esse o limite.
+ */
+export async function guardarNoR2({ token, fileName, contentType, bytes, env = process.env }) {
+  const sb = userClient(token, env)
+  await requireUser(sb)
+  const ext = slug((fileName || '').split('.').pop(), 8).toLowerCase() || 'pdf'
+  const Key = `${slug('handbook', 32)}/${crypto.randomUUID()}.${ext}`
+  await r2Client(env).send(new PutObjectCommand({
+    Bucket: r2Bucket(env), Key, Body: bytes, ContentType: contentType || 'application/pdf',
+  }))
+  return { path: Key }
+}
+
 /** Os bytes de um ficheiro do R2, do lado do servidor (para os mandar ao modelo). */
 export async function lerDoR2(path, env = process.env) {
   if (!SAFE_PATH.test(String(path || ''))) throw new Error('Caminho inválido.')

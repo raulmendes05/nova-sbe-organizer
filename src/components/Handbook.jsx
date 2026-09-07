@@ -10,6 +10,7 @@ import {
 import { useT } from '../i18n/index.jsx'
 
 const MAX_MB = 20
+const MAX_PELA_API = 3 * 1024 * 1024
 const CORES = {
   porfazer: 'bg-white/[0.05] border-white/10 text-slate-300',
   feito: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-200',
@@ -30,15 +31,43 @@ async function assinar(body) {
   return res.json()
 }
 
+// Pelo servidor, quando o envio direto não passa. Limitado pelo corpo que a
+// Vercel aceita, por isso é o plano B e não o plano A.
+async function pelaApi(file, t) {
+  if (file.size > MAX_PELA_API) throw new Error(t('hb.corsBlocked', { n: Math.round(MAX_PELA_API / 1048576) }))
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  let bin = ''
+  for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192))
+  const { data: { session } } = await supabase.auth.getSession()
+  const res = await fetch('/api/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+    body: JSON.stringify({ file: btoa(bin), mime: file.type || 'application/pdf', nome: file.name }),
+  })
+  if (!res.ok) throw await apiError(res)
+  return (await res.json()).path
+}
+
 async function paraOR2(file, t) {
   if (file.size > MAX_MB * 1024 * 1024) throw new Error(t('hb.tooBig', { n: MAX_MB }))
   const { url, path } = await assinar({
     action: 'upload', courseCode: 'handbook', fileName: file.name,
     contentType: file.type || 'application/pdf',
   })
-  const put = await fetch(url, { method: 'PUT', headers: { 'Content-Type': file.type || 'application/pdf' }, body: file })
-  if (!put.ok) throw new Error(t('hb.errUpload', { status: put.status }))
-  return path
+  try {
+    const put = await fetch(url, {
+      method: 'PUT', headers: { 'Content-Type': file.type || 'application/pdf' }, body: file,
+    })
+    if (!put.ok) throw new Error(t('hb.errUpload', { status: put.status }))
+    return path
+  } catch (e) {
+    // Um PUT para outro domínio que rebenta sem resposta é o browser a bloquear
+    // por CORS. O ficheiro pequeno ainda vai pelo servidor; o grande não tem
+    // volta a dar sem se autorizar o domínio no bucket.
+    const rede = /failed to fetch|networkerror|load failed/i.test(String(e?.message || ''))
+    if (!rede) throw e
+    return pelaApi(file, t)
+  }
 }
 
 async function pedir(url, corpo) {

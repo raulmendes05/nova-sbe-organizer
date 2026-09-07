@@ -138,6 +138,7 @@ export const en = {
   'hb.noChapters': 'I found no exercises in this PDF. Check that it is the workbook.',
   'hb.tooBig': 'The PDF cannot be over {n} MB.',
   'hb.errUpload': 'I could not upload the file (error {status}).',
+  'hb.corsBlocked': 'This file has to go straight to storage and the browser is being blocked. For now only files up to {n} MB get through \u2014 the app\u2019s domain still has to be allowed on the bucket.',
   'hb.progress': '{n} of {total} done',
   'hb.unread': '{n} chapters not opened',
   'hb.unread.one': '1 chapter not opened',

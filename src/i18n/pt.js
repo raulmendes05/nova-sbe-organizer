@@ -138,6 +138,7 @@ export const pt = {
   'hb.noChapters': 'Não encontrei exercícios neste PDF. Confirma que é o caderno de exercícios.',
   'hb.tooBig': 'O PDF não pode passar dos {n} MB.',
   'hb.errUpload': 'Não consegui enviar o ficheiro (erro {status}).',
+  'hb.corsBlocked': 'Este ficheiro tem de ir direto para o armazenamento, e o browser está a ser bloqueado. Por agora só passam ficheiros até {n} MB — falta autorizar o domínio da app no bucket.',
   'hb.progress': '{n} de {total} feitos',
   'hb.unread': '{n} capítulos por abrir',
   'hb.unread.one': '1 capítulo por abrir',
