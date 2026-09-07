@@ -278,27 +278,9 @@ export default function Handbook({ linha, cadeira, nomeCadeira, onGuardar, onApa
     } finally { setOcupado(null) }
   }
 
-  // ---------- sem caderno ainda ----------
-  if (!dados) {
-    return (
-      <div className="card p-4">
-        <p className="text-sm font-semibold text-slate-200">{t('hb.title')}</p>
-        <p className="text-xs text-slate-500 mt-0.5 mb-3">{t('hb.hint')}</p>
-        <input ref={pdfRef} type="file" accept="application/pdf,.pdf" className="hidden"
-          onChange={(e) => { novoCaderno(e.target.files?.[0]); e.target.value = '' }} />
-        <button onClick={() => pdfRef.current?.click()} disabled={Boolean(ocupado)}
-          className="w-full rounded-2xl bg-nova-500/15 border border-nova-500/30 p-4 text-left flex items-start gap-3 active:scale-[0.99] transition disabled:opacity-60">
-          <Icon name="upload" className="w-5 h-5 text-nova-200 shrink-0 mt-0.5" />
-          <span>
-            <span className="block text-sm font-semibold text-white">{t('hb.add')}</span>
-            <span className="block text-xs text-slate-400 mt-0.5">{t('hb.addHint')}</span>
-          </span>
-        </button>
-        {ocupado && <div className="mt-3"><Spinner /><p className="text-sm text-slate-400 text-center">{ocupado}</p></div>}
-        <ErrorBox error={erro} onClose={() => setErro(null)} className="mt-3" />
-      </div>
-    )
-  }
+  // O envio de um caderno novo vive na zona de acrescentar do Caderno; aqui
+  // chega sempre uma linha já criada.
+  if (!dados) return null
 
   // ---------- com caderno ----------
   return (

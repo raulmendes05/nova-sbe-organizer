@@ -82,6 +82,7 @@ export const pt = {
   'note.nSummaries': '{n} resumos',
   'note.nSummaries.one': '1 resumo',
   'note.nExercises': 'exercícios {n}/{total}',
+  'note.nExercisesBooks': 'exercícios {n}/{total} em {livros} cadernos',
   'note.photo': 'Fotografar',
   'note.write': 'Escrever',
   'note.slides': 'Slides',
@@ -134,9 +135,6 @@ export const pt = {
 
   // ---- Caderno de exercícios ----
   'hb.title': 'Caderno de exercícios',
-  'hb.hint': 'Manda o PDF do caderno da cadeira e passas a ter aqui a lista dos exercícios, com o que já fizeste.',
-  'hb.add': 'Adicionar o PDF do caderno',
-  'hb.addHint': 'Fica guardado; leio só o índice, capítulo a capítulo.',
   'hb.addSolutions': '+ juntar o PDF das soluções',
   'hb.hasSolutions': 'Com as soluções do professor — é por elas que corrijo.',
   'hb.uploading': 'A enviar o PDF...',

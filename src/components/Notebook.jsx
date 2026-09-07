@@ -78,7 +78,9 @@ export default function Notebook({
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
   const nomeDe = (id) => (id ? courseById[id]?.name || null : null)
   const nomeCadeira = nomeDe(cadeira)
-  const cadernoDe = (id) => rows.find((n) => isHandbookRow(n) && (id ? n.course_id === id : !n.course_id)) || null
+  // Uma cadeira pode ter mais do que um caderno de exercícios (um por
+  // capítulo, ou o do professor e o das aulas práticas).
+  const cadernosDe = (id) => rows.filter((n) => isHandbookRow(n) && (id ? n.course_id === id : !n.course_id))
 
   // ---- o índice: que cadeiras têm mesmo alguma coisa lá dentro ----
   const comMaterial = (() => {
@@ -88,14 +90,20 @@ export default function Notebook({
     }
     return [...ids].map((id) => {
       const doCurso = notebookOf(rows, id)
-      const hb = cadernoDe(id)
+      const hbs = cadernosDe(id)
+      // Os exercícios contam-se somando os cadernos todos da cadeira.
+      const exercicios = hbs.length
+        ? hbs.map((h) => contas(handbookOf(h))).reduce(
+          (a, b) => ({ total: a.total + b.total, feitos: a.feitos + b.feitos }), { total: 0, feitos: 0 })
+        : null
       return {
         id,
         nome: id ? nomeDe(id) : t('plan.noCourse'),
         cor: id ? courseById[id]?.color : null,
         apontamentos: doCurso.filter(isNoteRow).length,
         resumos: doCurso.filter(isSummaryRow).length,
-        exercicios: hb ? contas(handbookOf(hb)) : null,
+        cadernos: hbs.length,
+        exercicios,
       }
     }).sort((a, b) => String(a.nome).localeCompare(String(b.nome)))
   })()
@@ -107,7 +115,7 @@ export default function Notebook({
   const estado = estadoDe(rows, aberta)
   const daRevisao = resumoDaRevisao(cartas, estado)
   const doDia = paraHoje(cartas, estado)
-  const oCaderno = cadernoDe(aberta)
+  const cadernos = cadernosDe(aberta)
   const itens = notebookOf(rows, aberta)
   // O que ele escreveu, e o que a app gerou: coisas diferentes, sítios
   // diferentes. Os apontamentos por ordem de escrita, como num caderno.
@@ -201,7 +209,8 @@ export default function Notebook({
     setErro(null); setALer(true); setModo('exercicios')
     try {
       const dados = await carregarCaderno(file, { nomeCadeira, lang, t, aoAndar: setPasso })
-      await onGuardarHandbook(cadernoDe(cadeira), dados, cadeira)
+      // Sempre uma linha nova: acrescentar um caderno não substitui o anterior.
+      await onGuardarHandbook(null, dados, cadeira)
       setAberta(cadeira)
     } catch (e) {
       setErro(errorText(e, t))
@@ -337,7 +346,8 @@ export default function Notebook({
                     {[
                       c.apontamentos ? t('note.nNotes', { n: c.apontamentos }) : '',
                       c.resumos ? t('note.nSummaries', { n: c.resumos }) : '',
-                      c.exercicios ? t('note.nExercises', { n: c.exercicios.feitos, total: c.exercicios.total }) : '',
+                      c.exercicios ? t(c.cadernos > 1 ? 'note.nExercisesBooks' : 'note.nExercises', {
+                        n: c.exercicios.feitos, total: c.exercicios.total, livros: c.cadernos }) : '',
                     ].filter(Boolean).join(' · ')}
                   </span>
                 </span>
@@ -389,11 +399,11 @@ export default function Notebook({
         ) : null}
 
         {/* ---------- Resoluções de exercícios ---------- */}
-        {oCaderno && !modo && (
-          <Handbook linha={oCaderno} cadeira={aberta} nomeCadeira={nomeAberta}
-            onGuardar={(body, nome) => onGuardarHandbook(oCaderno, body, nome, aberta)}
-            onApagar={() => onApagar(oCaderno.id)} />
-        )}
+        {!modo && cadernos.map((linha) => (
+          <Handbook key={linha.id} linha={linha} cadeira={aberta} nomeCadeira={nomeAberta}
+            onGuardar={(body, nome) => onGuardarHandbook(linha, body, nome, aberta)}
+            onApagar={() => onApagar(linha.id)} />
+        ))}
 
       {/* Os apontamentos são UM caderno, e não uma gaveta de entradas soltas:
           um documento a correr, com cada entrada como secção. */}

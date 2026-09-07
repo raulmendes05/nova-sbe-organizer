@@ -82,6 +82,7 @@ export const en = {
   'note.nSummaries': '{n} summaries',
   'note.nSummaries.one': '1 summary',
   'note.nExercises': 'exercises {n}/{total}',
+  'note.nExercisesBooks': 'exercises {n}/{total} across {livros} workbooks',
   'note.photo': 'Photo',
   'note.write': 'Write',
   'note.slides': 'Slides',
@@ -134,9 +135,6 @@ export const en = {
 
   // ---- Exercise workbook ----
   'hb.title': 'Exercise workbook',
-  'hb.hint': 'Send the course workbook PDF and you get the list of exercises here, with what you have already done.',
-  'hb.add': 'Add the workbook PDF',
-  'hb.addHint': 'It is kept; I only read the index, chapter by chapter.',
   'hb.addSolutions': '+ add the solutions PDF',
   'hb.hasSolutions': 'With the lecturer\u2019s solutions \u2014 I mark against those.',
   'hb.uploading': 'Uploading the PDF...',
