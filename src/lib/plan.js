@@ -69,6 +69,9 @@ export const NOTE_TAG = '#apontamento:'
 // O estado das revisões também mora aqui, mas não é conteúdo: ver lib/revisao.js.
 export const REVIEW_TAG = '#revisao:'
 export const isReviewRow = (n) => String(n?.body || '').startsWith(REVIEW_TAG)
+// O caderno de exercícios também: ver lib/exercicios.js.
+export const HANDBOOK_TAG = '#handbook:'
+export const isHandbookRow = (n) => String(n?.body || '').startsWith(HANDBOOK_TAG)
 
 export const noteBody = (titulo, texto) => `${NOTE_TAG}${titulo}\n${texto}`
 export const isNoteRow = (n) => String(n?.body || '').startsWith(NOTE_TAG)

@@ -54,6 +54,13 @@ const slug = (s, max) => String(s || '')
   .normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, max) || 'x'
 
+/** Os bytes de um ficheiro do R2, do lado do servidor (para os mandar ao modelo). */
+export async function lerDoR2(path, env = process.env) {
+  if (!SAFE_PATH.test(String(path || ''))) throw new Error('Caminho inválido.')
+  const out = await r2Client(env).send(new GetObjectCommand({ Bucket: r2Bucket(env), Key: path }))
+  return Buffer.from(await out.Body.transformToByteArray())
+}
+
 /**
  * action 'download' -> { url } para GET (o browser descarrega com o nome dado)
  * action 'upload'   -> { url, path } para PUT (o caminho e gerado pelo servidor)

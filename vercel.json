@@ -17,6 +17,12 @@
     },
     "api/apontamentos.js": {
       "maxDuration": 60
+    },
+    "api/exercicios.js": {
+      "maxDuration": 60
+    },
+    "api/corrigir.js": {
+      "maxDuration": 60
     }
   }
 }

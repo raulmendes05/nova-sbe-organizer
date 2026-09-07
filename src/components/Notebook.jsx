@@ -3,11 +3,13 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { Icon, Spinner, ErrorBox } from './ui.jsx'
 import SlideSummary from './SlideSummary.jsx'
 import Quiz, { QuizFim } from './Quiz.jsx'
+import Handbook from './Handbook.jsx'
 import { encolher } from '../lib/imagem.js'
 import { errorText } from '../lib/errors.js'
 import { localeOf } from '../lib/helpers.js'
 import { noteOf, isNoteRow, summaryOf, notebookOf } from '../lib/plan.js'
 import { cartasDe, estadoDe, paraHoje, responder, resumoDaRevisao, perguntaDe } from '../lib/revisao.js'
+import { isHandbookRow } from '../lib/exercicios.js'
 import { useT } from '../i18n/index.jsx'
 
 const MAX_FOTOS = 6
@@ -51,7 +53,8 @@ function Texto({ children }) {
  */
 export default function Notebook({
   rows, courses, cadeira, onEscolherCadeira,
-  onGuardarNota, onEditarNota, onApagar, onGuardarResumo, onAddTask, onGuardarRevisao, guardando,
+  onGuardarNota, onEditarNota, onApagar, onGuardarResumo, onAddTask, onGuardarRevisao,
+  onGuardarHandbook, guardando,
 }) {
   const { t } = useT()
   const { lang } = useAuth()
@@ -73,6 +76,7 @@ export default function Notebook({
   const estado = estadoDe(rows, cadeira)
   const daRevisao = resumoDaRevisao(cartas, estado)
   const doDia = paraHoje(cartas, estado)
+  const oCaderno = rows.find((n) => isHandbookRow(n) && (cadeira ? n.course_id === cadeira : !n.course_id)) || null
   const itens = notebookOf(rows, cadeira)
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
@@ -287,6 +291,13 @@ export default function Notebook({
             onAddTask={onAddTask} />
           <button onClick={limpar} className="btn-ghost w-full py-2.5 text-sm">{t('common.cancel')}</button>
         </div>
+      )}
+
+      {/* ---------- Caderno de exercícios ---------- */}
+      {!modo && (
+        <Handbook linha={oCaderno} cadeira={cadeira} nomeCadeira={nomeCadeira}
+          onGuardar={(body, nome) => onGuardarHandbook(oCaderno, body, nome, cadeira)}
+          onApagar={() => oCaderno && onApagar(oCaderno.id)} />
       )}
 
       {/* ---------- O caderno ---------- */}

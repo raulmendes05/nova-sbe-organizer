@@ -153,6 +153,21 @@ export default function StudyPlan() {
     } catch { /* mensagem ja em `error` */ } finally { setGuardando(false) }
   }
 
+  // O caderno de exercícios de uma cadeira: uma linha só, reescrita a cada
+  // mudança (marcar um exercício, ler um capítulo, juntar as soluções).
+  async function guardarHandbook(linha, body, nome, courseId) {
+    setGuardando(true)
+    try {
+      if (linha) await update(linha.id, { title: nome || linha.title, body })
+      else {
+        await add({
+          title: nome || t('hb.title'), body,
+          course_id: courseId || null, is_task: false, done: false,
+        })
+      }
+    } catch { /* mensagem ja em `error` */ } finally { setGuardando(false) }
+  }
+
   async function editarNota(id, titulo, corpo) {
     setGuardando(true)
     try {
@@ -380,7 +395,8 @@ export default function StudyPlan() {
             onGuardarNota={guardarNota} onEditarNota={editarNota}
             onApagar={(id) => remove(id).catch(() => {})}
             onGuardarResumo={guardarResumo} onAddTask={juntar}
-            onGuardarRevisao={guardarRevisao} guardando={guardando} />
+            onGuardarRevisao={guardarRevisao} onGuardarHandbook={guardarHandbook}
+            guardando={guardando} />
         )
       )}
     </div>

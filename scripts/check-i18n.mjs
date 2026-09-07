@@ -50,6 +50,8 @@ const DYNAMIC = [
   ...['mid', 't1', 't2', 'apr', 'exame', 'recurso'].map((v) => `examType.${v}`),
   ...['T', 'P', 'TP'].map((k) => `coursesPrompt.kind${k}`),
   ...['I', 'II', 'III', 'IV'].map((m) => `cwi.${m}.name`),
+  ...['porfazer', 'feito', 'duvida', 'errado'].map((v) => `hb.state.${v}`),
+  ...['certo', 'quase', 'errado'].map((v) => `hb.verdict.${v}`),
 ]
 for (const k of DYNAMIC) if (!used.has(k)) used.set(k, ['(construida dinamicamente)'])
 
