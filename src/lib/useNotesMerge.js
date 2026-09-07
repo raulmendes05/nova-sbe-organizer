@@ -3,6 +3,7 @@ import { supabase } from './supabase.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useT } from '../i18n/index.jsx'
 import { errorText } from './errors.js'
+import { isPlanRow, isSummaryRow } from './plan.js'
 
 const FEITO = 'notesMerge.v1'
 const aDecorrer = new Set()
@@ -14,6 +15,10 @@ const aDecorrer = new Set()
  *
  * Uma linha de cada vez: so apaga a nota DEPOIS de o prazo entrar. Se falhar a
  * meio, o que sobrar fica na tabela antiga e a proxima sessao continua.
+ *
+ * O Plano de estudo passou a viver nesta mesma tabela (ver lib/plan.js): as
+ * linhas dele ficam de fora, senao esta arrumacao levava-as para os Prazos e
+ * apagava-as a seguir.
  */
 export function useNotesMerge() {
   const { user } = useAuth()
@@ -36,6 +41,7 @@ export function useNotesMerge() {
         if (error) throw error
 
         for (const n of data || []) {
+          if (isPlanRow(n) || isSummaryRow(n)) continue
           const primeiraLinha = String(n.body || '').split('\n')[0].trim().slice(0, 80)
           const { error: e1 } = await supabase.from('assignments').insert({
             user_id: uid,

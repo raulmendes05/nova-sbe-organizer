@@ -10,6 +10,7 @@ import Home from './pages/Home.jsx'
 import Schedule from './pages/Schedule.jsx'
 import Assignments from './pages/Assignments.jsx'
 import Grades from './pages/Grades.jsx'
+import StudyPlan from './pages/StudyPlan.jsx'
 import Exams from './pages/Exams.jsx'
 import ProximaAula from './pages/ProximaAula.jsx'
 import Claudio from './pages/Claudio.jsx'
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="/horario" element={<Schedule />} />
         <Route path="/proxima" element={<ProximaAula />} />
         <Route path="/prazos" element={<Assignments />} />
+        <Route path="/plano" element={<StudyPlan />} />
         <Route path="/notas" element={<Grades />} />
         {/* As tarefas passaram a ser prazos sem data; o link antigo continua a valer. */}
         <Route path="/tarefas" element={<Navigate to="/prazos" replace />} />

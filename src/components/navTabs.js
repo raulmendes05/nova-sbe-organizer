@@ -4,6 +4,7 @@ export const NAV_TABS = [
   { to: '/', icon: 'home', key: 'nav.home', end: true },
   { to: '/horario', icon: 'calendar', key: 'nav.schedule' },
   { to: '/prazos', icon: 'clipboard', key: 'nav.deadlines' },
+  { to: '/plano', icon: 'book', key: 'nav.plan' },
   { to: '/notas', icon: 'chart', key: 'nav.grades' },
   { to: '/provas', icon: 'archive', key: 'nav.exams' },
   { to: '/claudio', icon: 'spark', key: 'nav.claudio' },

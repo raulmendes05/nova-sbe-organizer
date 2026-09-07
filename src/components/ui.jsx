@@ -26,6 +26,8 @@ export function Icon({ name, className = 'w-6 h-6' }) {
     user: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a7 7 0 0 1 7-7h2a7 7 0 0 1 7 7v1" /></>,
     search: <><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></>,
     eye: <><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>,
+    book: <><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v15H6.5A2.5 2.5 0 0 0 4 19.5z" /><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20v5H6.5A2.5 2.5 0 0 1 4 19.5z" /></>,
+    upload: <><path d="M12 19V7" /><path d="M7 11l5-5 5 5" /><path d="M4 20h16" /></>,
     eyeOff: <><path d="M10.6 6.1A9.9 9.9 0 0 1 12 6c6.4 0 10 6 10 6a18 18 0 0 1-2.5 3.2M6.6 6.7A18 18 0 0 0 2 12s3.6 6 10 6a9.6 9.6 0 0 0 3.9-.8" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /><path d="M3 3l18 18" /></>,
   }
   return (
