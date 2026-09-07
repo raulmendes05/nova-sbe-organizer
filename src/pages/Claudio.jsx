@@ -3,6 +3,13 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useT } from '../i18n/index.jsx'
 import { errorText, apiError } from '../lib/errors.js'
 import { useCourses } from '../context/CoursesContext.jsx'
+import { weekOf } from '../lib/week.js'
+import { gerarPlano, duracao } from '../lib/planner.js'
+import {
+  weekKeyOf, planBody, planMeta, planOfWeek, noteBody, noteOf,
+  isNoteRow, isSummaryRow, summaryOf, notebookOf,
+} from '../lib/plan.js'
+import { upcomingExams } from '../data/exams.js'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon } from '../components/ui.jsx'
 import { hhmm, COURSE_COLORS, simulateGrade, isCwi, isPassFail, passRow, checkNumber, LIMITS } from '../lib/helpers.js'
@@ -107,6 +114,7 @@ export default function Claudio() {
   const schedule = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
   const assignments = useCollection('assignments', { orderBy: 'due_date', ascending: true })
   const grades = useCollection('grades', { orderBy: 'created_at', ascending: true })
+  const caderno = useCollection('notes', { orderBy: 'created_at', ascending: true })
 
   const [chat, setChat] = useState([])       // mensagens para mostrar
   const [apiMsgs, setApiMsgs] = useState([])  // mensagens em formato Anthropic
@@ -151,6 +159,17 @@ export default function Claudio() {
       })),
       prazos: assignments.rows.filter((a) => a.status !== 'done').map((a) => ({
         titulo: a.title, tipo: a.kind, data: a.due_date,
+      })),
+      // O plano da semana e o indice do caderno. So os titulos: o texto todo
+      // dos apontamentos nao cabe no contexto — para isso ha o
+      // procurar_no_caderno, que devolve so o pedaco que interessa.
+      plano_desta_semana: planOfWeek(caderno.rows, weekKeyOf()).map((x) => ({
+        titulo: x.title, dia: planMeta(x).dia, minutos: planMeta(x).minutos, feito: !!x.done,
+      })),
+      caderno: caderno.rows.filter((n) => isNoteRow(n) || isSummaryRow(n)).map((n) => ({
+        titulo: n.title,
+        tipo: isNoteRow(n) ? 'apontamentos' : 'resumo de slides',
+        cadeira: courses.find((c) => c.id === n.course_id)?.name || null,
       })),
     }
   }
@@ -199,10 +218,81 @@ export default function Claudio() {
       await assignments.add({ title: inp.titulo, description: inp.detalhes || null, kind: 'outro', due_date: null, status: 'todo', course_id: findCourseId(inp.cadeira) })
       return `✓ Tarefa criada nos Prazos: "${inp.titulo}"`
     }
-    if (name === 'criar_nota') {
+    if (name === 'guardar_apontamento') {
       const titulo = (inp.titulo || '').trim() || String(inp.texto || '').split('\n')[0].trim().slice(0, 80)
-      await assignments.add({ title: titulo, description: inp.texto || null, kind: 'outro', due_date: null, status: 'todo', course_id: findCourseId(inp.cadeira) })
-      return `✓ Nota guardada nos Prazos${titulo ? `: "${titulo}"` : ''}`
+      const cid = findCourseId(inp.cadeira)
+      await caderno.add({
+        title: titulo, body: noteBody(titulo, String(inp.texto || '').trim()),
+        course_id: cid, is_task: false, done: false,
+      })
+      const onde = cid ? ` (${courses.find((c) => c.id === cid)?.name})` : ''
+      return `✓ Apontamentos guardados no Caderno${onde}: "${titulo}"`
+    }
+    if (name === 'procurar_no_caderno') {
+      const q = norm(inp.termo)
+      if (!q) return 'Diz-me o que queres procurar.'
+      const cid = inp.cadeira ? findCourseId(inp.cadeira) : null
+      const dentro = caderno.rows.filter((n) =>
+        (isNoteRow(n) || isSummaryRow(n)) && (!cid || n.course_id === cid))
+      // Um resumo esta em JSON; os apontamentos em texto. Para procurar, o que
+      // interessa e o texto de um e de outro.
+      const legivel = (n) => {
+        if (isNoteRow(n)) return noteOf(n).texto
+        try {
+          const d = JSON.parse(summaryOf(n).texto)
+          return [d.resumo,
+            ...(d.topicos || []).map((x) => `${x.titulo}: ${(x.pontos || []).join(' ')}`),
+            ...(d.termos || []).map((x) => `${x.termo}: ${x.definicao}`)].join('\n')
+        } catch { return summaryOf(n).texto }
+      }
+      const achados = []
+      for (const n of dentro) {
+        const texto = legivel(n)
+        const i = norm(texto).indexOf(q)
+        if (i === -1 && !norm(n.title).includes(q)) continue
+        const inicio = Math.max(0, i - 200)
+        achados.push({
+          titulo: n.title,
+          cadeira: courses.find((c) => c.id === n.course_id)?.name || null,
+          excerto: i === -1 ? texto.slice(0, 900) : texto.slice(inicio, inicio + 900),
+        })
+        if (achados.length >= 4) break
+      }
+      if (!achados.length) return `Não encontrei nada sobre "${inp.termo}" no caderno dele.`
+      return achados.map((a) =>
+        `— ${a.titulo}${a.cadeira ? ` (${a.cadeira})` : ''}:\n${a.excerto}`).join('\n\n')
+    }
+    if (name === 'sugerir_plano') {
+      const offset = Number(inp.semanas_a_frente) || 0
+      const semana = weekKeyOf(new Date(), offset)
+      const doSemestre = courses.filter((c) =>
+        !c.is_equivalence && (!c.year || c.year === Number(academicYear)) && (!c.term || c.term === Number(semester)))
+      const usadas = doSemestre.length ? doSemestre : courses
+      const plano = gerarPlano({
+        semana,
+        dias: weekOf(schedule.rows, new Date(), offset),
+        courses: usadas,
+        assignments: assignments.rows,
+        exames: upcomingExams(usadas, new Date(`${semana}T12:00:00`)),
+        grades: grades.rows,
+        jaNoPlano: planOfWeek(caderno.rows, semana).map((x) => x.title),
+        t,
+      })
+      if (!plano.length) return 'Não há nada a apontar para essa semana: sem prazos por entregar nem provas à vista.'
+      return [`Plano sugerido para a semana de ${semana} (ainda NÃO está guardado):`,
+        ...plano.map((x) => `- ${x.dia} · ${duracao(x.minutos, t)} · ${x.titulo} (${x.porque})`),
+        'Se ele aceitar, junta cada linha com adicionar_ao_plano.'].join('\n')
+    }
+    if (name === 'adicionar_ao_plano') {
+      const dia = inp.dia && /^\d{4}-\d{2}-\d{2}$/.test(String(inp.dia)) ? String(inp.dia) : null
+      // A semana e a do dia indicado; sem dia, a de hoje.
+      const semana = dia ? weekKeyOf(new Date(`${dia}T12:00:00`)) : weekKeyOf()
+      const minutos = Number(inp.minutos) > 0 ? Math.min(Number(inp.minutos), 480) : null
+      await caderno.add({
+        title: inp.titulo, body: planBody(semana, dia, minutos),
+        course_id: findCourseId(inp.cadeira), is_task: true, done: false,
+      })
+      return `✓ No plano${dia ? ` de ${dia}` : ''}: "${inp.titulo}"`
     }
     if (name === 'criar_prazo') {
       const d = inp.data ? new Date(inp.data) : null

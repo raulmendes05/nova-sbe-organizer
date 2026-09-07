@@ -22,7 +22,7 @@ const MAX_TEXTO = 180_000            // ~45 mil palavras: dá para um semestre d
 const MAX_FICHEIRO = 4 * 1024 * 1024 // a Vercel corta o corpo aos ~4,5 MB
 
 const IDIOMA = {
-  pt: 'Escreve tudo em português de Portugal.',
+  pt: 'Escreve tudo em português de Portugal. Com a acentuação toda no sítio — nunca escrevas "nao", "sao" ou "materia" sem acento.',
   en: 'Write everything in English.',
 }
 
@@ -34,7 +34,7 @@ Faz um resumo de ESTUDO, não um índice:
 - "resumo": 2 a 4 frases que digam do que trata a aula e o que é preciso perceber dela.
 - "topicos": as ideias principais pela ordem em que aparecem. Cada uma com um título curto e 2 a 5 pontos que EXPLIQUEM a ideia — não repitas o título por outras palavras, nem escrevas "o slide fala de X". Junta slides seguidos que sejam a mesma ideia. No máximo 8 tópicos.
 - "termos": conceitos, fórmulas ou siglas que o aluno tem mesmo de saber, com uma definição de uma linha. No máximo 10, e só os que aparecem no material.
-- "perguntas": 3 a 6 perguntas de exame sobre isto, do género que obriga a explicar e não a decorar.
+- "perguntas": 3 a 6 perguntas de exame sobre isto, do género que obriga a explicar e não a decorar. Cada uma leva a "resposta" — 2 a 4 frases, a resposta que davas tu, com o essencial para a pergunta valer nota. A resposta sai SÓ do material recebido.
 - "tarefas": 2 a 5 coisas concretas para pôr no plano de estudo desta semana (ex: "Refazer os exercícios de elasticidade dos slides 12-18"). Frases curtas, começadas por um verbo.
 
 Regras:
@@ -67,7 +67,14 @@ const SCHEMA = {
         required: ['termo', 'definicao'],
       },
     },
-    perguntas: { type: 'array', items: { type: 'string' } },
+    perguntas: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { pergunta: { type: 'string' }, resposta: { type: 'string' } },
+        required: ['pergunta', 'resposta'],
+      },
+    },
     tarefas: { type: 'array', items: { type: 'string' } },
   },
   required: ['titulo', 'resumo', 'topicos', 'termos', 'perguntas', 'tarefas'],

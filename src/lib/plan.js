@@ -66,6 +66,9 @@ export const normTitulo = (s) =>
 //  simples, ao contrario dos resumos, que sao JSON.
 // ---------------------------------------------------------------------------
 export const NOTE_TAG = '#apontamento:'
+// O estado das revisões também mora aqui, mas não é conteúdo: ver lib/revisao.js.
+export const REVIEW_TAG = '#revisao:'
+export const isReviewRow = (n) => String(n?.body || '').startsWith(REVIEW_TAG)
 
 export const noteBody = (titulo, texto) => `${NOTE_TAG}${titulo}\n${texto}`
 export const isNoteRow = (n) => String(n?.body || '').startsWith(NOTE_TAG)

@@ -63,16 +63,52 @@ const TOOLS = [
     },
   },
   {
-    name: 'criar_nota',
-    description: 'Guarda uma nota/apontamento nos Prazos, sem data marcada (NÃO é tarefa com prazo).',
+    name: 'guardar_apontamento',
+    description: 'Guarda apontamentos no Caderno de uma cadeira (separador "Estudo" → "Caderno"). Usa quando o utilizador pede para guardar matéria, um resumo teu, uma explicação ou apontamentos de uma aula. NÃO é uma tarefa nem um prazo.',
     input_schema: {
       type: 'object',
       properties: {
-        titulo: { type: 'string' },
-        texto: { type: 'string', description: 'Conteúdo da nota' },
-        cadeira: { type: 'string' },
+        titulo: { type: 'string', description: 'Assunto dos apontamentos, curto' },
+        texto: { type: 'string', description: 'O conteúdo. Linhas começadas por "## " são títulos de secção e por "- " são pontos de lista.' },
+        cadeira: { type: 'string', description: 'Nome ou código da cadeira' },
       },
       required: ['texto'],
+    },
+  },
+  {
+    name: 'procurar_no_caderno',
+    description: 'Procura nos apontamentos e resumos que o utilizador tem guardados no Caderno. Usa SEMPRE isto antes de responder a perguntas sobre a matéria dele ("o que é que eu tinha sobre X?", "explica-me o que dei na aula de Y"), em vez de responderes de cabeça.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        termo: { type: 'string', description: 'Palavra ou expressão a procurar' },
+        cadeira: { type: 'string', description: 'Limitar a uma cadeira (opcional)' },
+      },
+      required: ['termo'],
+    },
+  },
+  {
+    name: 'sugerir_plano',
+    description: 'Calcula o plano de estudo sugerido para uma semana, a partir dos prazos, das provas que aí vêm (e do peso de cada uma) e das horas livres do horário. É determinístico — usa SEMPRE isto para "o que devia fazer esta semana?" em vez de inventares uma lista.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        semanas_a_frente: { type: 'integer', description: '0 = esta semana (por omissão), 1 = a próxima, e assim por diante' },
+      },
+    },
+  },
+  {
+    name: 'adicionar_ao_plano',
+    description: 'Junta uma tarefa ao plano de estudo de uma semana (separador "Estudo"). Usa depois de sugerir_plano, se o utilizador aceitar, ou quando ele pedir para pôr algo no plano.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        titulo: { type: 'string', description: 'O que fazer, começado por um verbo' },
+        cadeira: { type: 'string' },
+        dia: { type: 'string', description: 'Dia em ISO (YYYY-MM-DD). Se não der, a tarefa fica sem dia marcado.' },
+        minutos: { type: 'integer', description: 'Quanto tempo se propõe (ex.: 45, 90)' },
+      },
+      required: ['titulo'],
     },
   },
   {
@@ -193,15 +229,19 @@ function buildSystemPrompt(context = {}, lang = 'pt') {
 1. **Escolha de cadeiras sem sobreposição de horário.** O maior objetivo: ajudar o estudante a decidir que cadeiras fazer no próximo semestre de forma a que as aulas **não se sobreponham**. O estudante vai colar/enviar os horários das cadeiras (dias e horas) e, mais tarde, as datas dos exames. Quando tiveres esses horários, analisa-os cuidadosamente, deteta conflitos (mesma faixa horária no mesmo dia) e recomenda combinações viáveis. Considera também o equilíbrio de ECTS e as regras do curso. Se ainda não tiveres os horários, pede-os.
 2. **Explicar a app e ajudar a usá-la** (ver secção "A app" abaixo).
 3. **Aconselhar sobre o plano de estudos e a transição 26/27** (ver secção abaixo).
-4. **Agir na app**: podes criar, alterar e eliminar coisas na conta do utilizador usando as ferramentas — criar_tarefa, criar_nota, criar_prazo, adicionar_aula, editar_aula, remover_aula, criar_cadeira. Usa-as sempre que o utilizador pedir (ex.: "cria uma tarefa", "mete Marketing à terça às 14h", "muda a aula de Finance para as 15h", "apaga a aula de Marketing de terça"). Para **alterar/eliminar aulas** do horário, identifica a aula pelo contexto (usa o id do horário quando possível, ou o título/dia); se houver mais do que uma aula parecida, pergunta qual antes de agir. Depois de executar, confirma em 1 frase curta. Não inventes que fizeste algo sem chamar a ferramenta.
-5. **Simular notas**: para perguntas do tipo "que nota preciso no exame?", "quanto preciso para passar?", "o que me falta para ter 16 em X?", usa a ferramenta **simular_nota** (é determinística e não erra a conta). Depois explica o resultado em linguagem natural. Se a cadeira não tiver componentes com pesos, diz ao aluno que precisa de os adicionar primeiro (nas Notas → Detalhar por componentes).
+4. **Agir na app**: podes criar, alterar e eliminar coisas na conta do utilizador usando as ferramentas — criar_tarefa, criar_prazo, adicionar_aula, editar_aula, remover_aula, criar_cadeira, guardar_apontamento, adicionar_ao_plano. Usa-as sempre que o utilizador pedir (ex.: "cria uma tarefa", "mete Marketing à terça às 14h", "muda a aula de Finance para as 15h", "apaga a aula de Marketing de terça"). Para **alterar/eliminar aulas** do horário, identifica a aula pelo contexto (usa o id do horário quando possível, ou o título/dia); se houver mais do que uma aula parecida, pergunta qual antes de agir. Depois de executar, confirma em 1 frase curta. Não inventes que fizeste algo sem chamar a ferramenta.
+5. **Falar da matéria dele**: quando a pergunta for sobre o que ele deu ou estudou ("o que é que eu tinha sobre elasticidade?", "explica-me isto da aula de ontem"), chama primeiro **procurar_no_caderno**. Se não houver nada guardado, diz que não encontraste nos apontamentos dele e responde pelo teu conhecimento, deixando claro que é teu e não do caderno dele.
+6. **Simular notas**: para perguntas do tipo "que nota preciso no exame?", "quanto preciso para passar?", "o que me falta para ter 16 em X?", usa a ferramenta **simular_nota** (é determinística e não erra a conta). Depois explica o resultado em linguagem natural. Se a cadeira não tiver componentes com pesos, diz ao aluno que precisa de os adicionar primeiro (nas Notas → Detalhar por componentes).
 
 # A app (o que existe e como se usa)
 - **Início**: dashboard com média global (0–20, ponderada por ECTS), nº de cadeiras, prazos abertos, aulas de hoje e próximos prazos.
 - **Horário**: blocos de aulas por dia da semana (nome, horas, sala, tipo).
 - **Prazos**: trabalhos/testes/exames com contagem decrescente e separadores "Por fazer"/"Concluídos".
 - **Notas**: escala **0–20**. Cada cadeira tem uma **nota final** (principal) e, opcionalmente, **componentes** de avaliação com pesos (média ponderada). As cadeiras estão agrupadas por **ano e semestre** (dropdowns), e há um separador **Equivalências** para cadeiras creditadas de outra universidade (contam para a média e ECTS). Adicionam-se cadeiras pelo **Catálogo Nova SBE** (pesquisa por nome/código, preenche ECTS automaticamente).
-- As tarefas e os apontamentos vivem nos **Prazos**, como entradas sem data — não há separador separado.
+- **Estudo**: tem duas partes.
+  - **Semana**: o plano de estudo. A app *propõe* o plano — sai de uma conta com os prazos por entregar, as provas até 21 dias (e o peso de cada uma na nota), as horas de aulas de cada dia e as cadeiras com nota fraca — e reparte as sessões pelos dias mais livres. O aluno aceita o plano todo ou item a item, e vai marcando o que fez. Para responderes a "o que devia fazer esta semana?", chama **sugerir_plano**; para lá pôr alguma coisa, **adicionar_ao_plano**.
+  - **Caderno**: por cadeira, junta os resumos de PowerPoints (o aluno envia o ficheiro e recebe resumo, termos e perguntas) e os apontamentos dele — escritos, ou fotografados e passados a texto. Guardas lá matéria com **guardar_apontamento** e procuras com **procurar_no_caderno**.
+- As tarefas sem data continuam a viver nos **Prazos**.
 - No **primeiro login** a app pergunta nome, ano e semestre; quem já fez o 1º ano pode pré-carregar as 9 cadeiras nucleares do 1º ano.
 
 # Plano de estudos e Transição 26/27 (factos-chave)

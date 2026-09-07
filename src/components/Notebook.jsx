@@ -2,10 +2,12 @@ import { useRef, useState } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { Icon, Spinner, ErrorBox } from './ui.jsx'
 import SlideSummary from './SlideSummary.jsx'
+import Quiz, { QuizFim } from './Quiz.jsx'
 import { encolher } from '../lib/imagem.js'
 import { errorText } from '../lib/errors.js'
 import { localeOf } from '../lib/helpers.js'
 import { noteOf, isNoteRow, summaryOf, notebookOf } from '../lib/plan.js'
+import { cartasDe, estadoDe, paraHoje, responder, resumoDaRevisao, perguntaDe } from '../lib/revisao.js'
 import { useT } from '../i18n/index.jsx'
 
 const MAX_FOTOS = 6
@@ -49,7 +51,7 @@ function Texto({ children }) {
  */
 export default function Notebook({
   rows, courses, cadeira, onEscolherCadeira,
-  onGuardarNota, onEditarNota, onApagar, onGuardarResumo, onAddTask, guardando,
+  onGuardarNota, onEditarNota, onApagar, onGuardarResumo, onAddTask, onGuardarRevisao, guardando,
 }) {
   const { t } = useT()
   const { lang } = useAuth()
@@ -61,9 +63,16 @@ export default function Notebook({
   const [paginas, setPaginas] = useState(0)
   const [editando, setEditando] = useState(null)  // id da nota em edicao
   const [aberto, setAberto] = useState(null)
+  const [fim, setFim] = useState(null)          // resultado da ultima sessao
+  const [aFazerCartas, setAFazerCartas] = useState(null)  // id da nota a gerar perguntas
   const fotosRef = useRef(null)
 
   const nomeCadeira = courses.find((c) => c.id === cadeira)?.name || null
+  // O que há para rever nesta cadeira, e o que dele é para hoje.
+  const cartas = cartasDe(rows, cadeira)
+  const estado = estadoDe(rows, cadeira)
+  const daRevisao = resumoDaRevisao(cartas, estado)
+  const doDia = paraHoje(cartas, estado)
   const itens = notebookOf(rows, cadeira)
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
@@ -110,6 +119,43 @@ export default function Notebook({
     limpar()
   }
 
+  // As respostas todas de uma vez: uma escrita por sessão, não uma por carta.
+  async function fecharSessao(respostas) {
+    let novo = estado
+    for (const r of respostas) novo = responder(novo, r.carta, r.acertou)
+    await onGuardarRevisao(cadeira, novo)
+    setModo(null)
+    if (respostas.length) {
+      setFim({
+        acertos: respostas.filter((r) => r.acertou).length,
+        total: respostas.length,
+        proxima: resumoDaRevisao(cartas, novo).proxima,
+      })
+    }
+  }
+
+  // Um apontamento escrito à mão não traz perguntas — mas dá para as tirar
+  // dele, com o mesmo caminho dos slides.
+  async function fazerCartas(n) {
+    const { texto: corpo } = noteOf(n)
+    if (!corpo.trim()) return
+    setAFazerCartas(n.id); setErro(null)
+    try {
+      const res = await fetch('/api/resumo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto: corpo, nome: n.title, cadeira: nomeCadeira || undefined, lang }),
+      })
+      const out = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)
+      await onGuardarResumo({ nome: n.title, resumo: out, course_id: n.course_id })
+    } catch (e) {
+      setErro(errorText(e, t))
+    } finally {
+      setAFazerCartas(null)
+    }
+  }
+
   function editar(n) {
     const { titulo: tt, texto: tx } = noteOf(n)
     setEditando(n.id); setTitulo(n.title || tt); setTexto(tx); setPaginas(0); setModo('escrever')
@@ -140,6 +186,33 @@ export default function Notebook({
       </div>
 
       <ErrorBox error={erro} onClose={() => setErro(null)} />
+
+      {/* ---------- Testar-me ---------- */}
+      {modo === 'quiz' ? (
+        <Quiz cartas={doDia} onTerminar={fecharSessao} onSair={fecharSessao} />
+      ) : fim ? (
+        <QuizFim {...fim} lang={lang} onFechar={() => setFim(null)} />
+      ) : !cartas.length && !modo && itens.length > 0 ? (
+        <p className="text-xs text-slate-500">{t('quiz.noCards')}</p>
+      ) : cartas.length > 0 && !modo ? (
+        <button onClick={() => { setFim(null); setModo('quiz') }} disabled={!doDia.length}
+          className="card w-full p-3.5 flex items-center gap-3 text-left active:scale-[0.99] transition disabled:active:scale-100">
+          <span className="w-9 h-9 rounded-xl bg-accent-500/15 text-accent-300 flex items-center justify-center shrink-0">
+            <Icon name="spark" className="w-5 h-5" />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold text-slate-200">{t('quiz.open')}</span>
+            <span className="block text-xs text-slate-500">
+              {doDia.length
+                ? t('quiz.todayCount', { n: doDia.length })
+                : t('quiz.allCaught', { data: daRevisao.proxima
+                  ? new Date(`${daRevisao.proxima}T12:00:00`).toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'short' })
+                  : '' })}
+            </span>
+          </span>
+          {doDia.length > 0 && <Icon name="chevron" className="w-4 h-4 text-slate-500 shrink-0" />}
+        </button>
+      ) : null}
 
       {/* ---------- Como acrescentar ---------- */}
       {!modo && (
@@ -263,7 +336,14 @@ export default function Notebook({
 
                 {estaAberto && (
                   <div className="px-3 pb-3 pt-2.5 border-t border-white/10">
-                    {nota ? <Texto>{corpo}</Texto> : dados ? (
+                    {nota ? (<>
+                      <Texto>{corpo}</Texto>
+                      <button onClick={() => fazerCartas(n)} disabled={Boolean(aFazerCartas) || guardando}
+                        className="w-full mt-3 py-2 rounded-xl text-sm font-medium text-nova-200 bg-nova-500/10 border border-nova-500/25 flex items-center justify-center gap-2 disabled:opacity-60">
+                        <Icon name="spark" className="w-4 h-4" />
+                        {aFazerCartas === n.id ? t('note.making') : t('note.makeCards')}
+                      </button>
+                    </>) : dados ? (
                       <div className="space-y-2.5">
                         <p className="text-sm text-slate-300 leading-relaxed">{dados.resumo}</p>
                         {(dados.topicos || []).map((topico, i) => (
@@ -286,9 +366,15 @@ export default function Notebook({
                           <div>
                             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">{t('plan.questions')}</p>
                             <ol className="space-y-1 list-decimal list-inside">
-                              {dados.perguntas.map((q, i) => (
-                                <li key={i} className="text-sm text-slate-300 leading-relaxed">{q}</li>
-                              ))}
+                              {dados.perguntas.map((q, i) => {
+                                const { pergunta, resposta } = perguntaDe(q)
+                                return (
+                                  <li key={i} className="text-sm text-slate-300 leading-relaxed">
+                                    {pergunta}
+                                    {resposta && <span className="block text-xs text-slate-500 mt-0.5 ml-1">{resposta}</span>}
+                                  </li>
+                                )
+                              })}
                             </ol>
                           </div>
                         )}

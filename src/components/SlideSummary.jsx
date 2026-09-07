@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Icon, Spinner, ErrorBox } from './ui.jsx'
 import { lerPptx, slidesEmTexto, podeLerPptx } from '../lib/pptx.js'
+import { perguntaDe } from '../lib/revisao.js'
 import { errorText } from '../lib/errors.js'
 import { useT } from '../i18n/index.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -168,9 +169,15 @@ export default function SlideSummary({ cadeira = null, nomeCadeira = null, onSav
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{t('plan.questions')}</p>
               <ol className="space-y-1.5 list-decimal list-inside">
-                {resultado.perguntas.map((q, i) => (
-                  <li key={i} className="text-sm text-slate-300 leading-relaxed">{q}</li>
-                ))}
+                {resultado.perguntas.map((q, i) => {
+                  const { pergunta, resposta } = perguntaDe(q)
+                  return (
+                    <li key={i} className="text-sm text-slate-300 leading-relaxed">
+                      {pergunta}
+                      {resposta && <span className="block text-xs text-slate-500 mt-0.5 ml-1">{resposta}</span>}
+                    </li>
+                  )
+                })}
               </ol>
             </div>
           )}

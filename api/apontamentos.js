@@ -24,7 +24,7 @@ const MAX_IMAGENS = 6
 const MAX_BYTES = 4 * 1024 * 1024   // a Vercel corta o corpo aos ~4,5 MB
 
 const IDIOMA = {
-  pt: 'Escreve em português de Portugal — a menos que os apontamentos estejam noutra língua, e nesse caso mantém a língua deles.',
+  pt: 'Escreve em português de Portugal — a menos que os apontamentos estejam noutra língua, e nesse caso mantém a língua deles. Com a acentuação toda no sítio — nunca escrevas "nao", "sao" ou "materia" sem acento.',
   en: 'Write in English — unless the notes are in another language, in which case keep theirs.',
 }
 

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon, ErrorBox } from '../components/ui.jsx'
 import CoursePicker from '../components/CoursePicker.jsx'
 import GoalCard from '../components/GoalCard.jsx'
+import GradeChart from '../components/GradeChart.jsx'
 import ErasmusGpa from '../components/ErasmusGpa.jsx'
 import CwiModules from '../components/CwiModules.jsx'
 import PassFailCourse from '../components/PassFailCourse.jsx'
@@ -506,6 +507,11 @@ export default function Grades() {
             {t('home.avgSub', { n: withAvg.length, total: courses.length, ects: totalEcts })}
           </p>
         </div>
+      </div>
+
+      {/* A média não é um número, é uma linha: mostra-se para onde vai. */}
+      <div className="mb-4">
+        <GradeChart courses={courses} gradesOf={compsOf} goal={goalAvg} lang={lang} />
       </div>
 
       {/* Objetivo de média do semestre atual */}

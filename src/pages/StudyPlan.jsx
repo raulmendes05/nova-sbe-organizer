@@ -11,6 +11,7 @@ import { gerarPlano, totalMinutos, duracao } from '../lib/planner.js'
 import {
   weekKeyOf, weekBounds, planBody, planMeta, planOfWeek, noteBody, summaryBody,
 } from '../lib/plan.js'
+import { corpoDeRevisao, linhaDeRevisao } from '../lib/revisao.js'
 import { useT } from '../i18n/index.jsx'
 
 export default function StudyPlan() {
@@ -133,6 +134,22 @@ export default function StudyPlan() {
         title: titulo, body: noteBody(titulo, corpo),
         course_id: course_id || null, is_task: false, done: false,
       })
+    } catch { /* mensagem ja em `error` */ } finally { setGuardando(false) }
+  }
+
+  // O estado da revisão de uma cadeira vive numa linha só, reescrita no fim de
+  // cada sessão.
+  async function guardarRevisao(courseId, estado) {
+    const linha = linhaDeRevisao(rows, courseId)
+    setGuardando(true)
+    try {
+      if (linha) await update(linha.id, { body: corpoDeRevisao(estado) })
+      else {
+        await add({
+          title: t('quiz.open'), body: corpoDeRevisao(estado),
+          course_id: courseId || null, is_task: false, done: false,
+        })
+      }
     } catch { /* mensagem ja em `error` */ } finally { setGuardando(false) }
   }
 
@@ -362,7 +379,8 @@ export default function StudyPlan() {
             onEscolherCadeira={setDoCaderno}
             onGuardarNota={guardarNota} onEditarNota={editarNota}
             onApagar={(id) => remove(id).catch(() => {})}
-            onGuardarResumo={guardarResumo} onAddTask={juntar} guardando={guardando} />
+            onGuardarResumo={guardarResumo} onAddTask={juntar}
+            onGuardarRevisao={guardarRevisao} guardando={guardando} />
         )
       )}
     </div>
