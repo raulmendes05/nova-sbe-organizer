@@ -7,25 +7,12 @@ import { flatCatalog } from '../data/curriculum.js'
 import { COURSE_COLORS } from '../lib/helpers.js'
 import { hasSchedule, turnosFor, blocksFor, officialBlock, clashesFor, allClashes } from '../lib/enroll.js'
 import { datesFor } from '../data/schedules.js'
+import { encolher } from '../lib/imagem.js'
 import { errorText } from '../lib/errors.js'
 import { useT } from '../i18n/index.jsx'
 
 const DIACRITICS = new RegExp('[\\u0300-\\u036f]', 'g')
 const norm = (s) => s.toLowerCase().normalize('NFD').replace(DIACRITICS, '')
-
-// A Vercel corta corpos acima de ~4.5 MB e uma captura de telemovel passa
-// disso à vontade. Encolher no browser é mais rápido do que falhar no envio.
-const MAX_SIDE = 1600
-async function encolher(file) {
-  const bitmap = await createImageBitmap(file)
-  const escala = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height))
-  const canvas = document.createElement('canvas')
-  canvas.width = Math.round(bitmap.width * escala)
-  canvas.height = Math.round(bitmap.height * escala)
-  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height)
-  const dataUrl = canvas.toDataURL('image/jpeg', 0.85)
-  return { image: dataUrl.split(',')[1], mime: 'image/jpeg' }
-}
 
 /**
  * Escolher as cadeiras e os turnos do semestre. Duas entradas — a captura do

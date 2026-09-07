@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
 import { Icon, Spinner, ErrorBox } from './ui.jsx'
-import CourseSelect from './CourseSelect.jsx'
 import { lerPptx, slidesEmTexto, podeLerPptx } from '../lib/pptx.js'
 import { errorText } from '../lib/errors.js'
 import { useT } from '../i18n/index.jsx'
@@ -29,14 +28,13 @@ async function base64De(file) {
  * mandar 30 MB de imagens para um servidor que corta aos 4,5 — e responde
  * muito mais depressa.
  */
-export default function SlideSummary({ onSave, onAddTask, guardando }) {
+export default function SlideSummary({ cadeira = null, nomeCadeira = null, onSave, onAddTask, guardando }) {
   const { t } = useT()
   const { lang } = useAuth()
   const [ficheiro, setFicheiro] = useState(null)
   const [aLer, setALer] = useState(false)
   const [resultado, setResultado] = useState(null)
   const [erro, setErro] = useState(null)
-  const [cadeira, setCadeira] = useState(null)
   const [abertos, setAbertos] = useState(() => new Set([0]))
   const [postas, setPostas] = useState(() => new Set())
   const [guardado, setGuardado] = useState(false)
@@ -55,7 +53,7 @@ export default function SlideSummary({ onSave, onAddTask, guardando }) {
     const ext = extensaoDe(file.name)
     setALer(true)
     try {
-      const corpo = { nome: file.name, lang, cadeira: cadeira || undefined }
+      const corpo = { nome: file.name, lang, cadeira: nomeCadeira || undefined }
       if (ext === 'pptx') {
         if (!podeLerPptx()) throw new Error(t('plan.noPptx'))
         const slides = await lerPptx(file)
@@ -104,11 +102,6 @@ export default function SlideSummary({ onSave, onAddTask, guardando }) {
 
       <input ref={fileRef} type="file" accept={ACEITA} className="hidden"
         onChange={(e) => { resumir(e.target.files?.[0]); e.target.value = '' }} />
-
-      <div className="mb-3">
-        <label className="label">{t('common.course')}</label>
-        <CourseSelect value={cadeira} onChange={setCadeira} />
-      </div>
 
       <button onClick={() => fileRef.current?.click()} disabled={aLer}
         className="w-full rounded-2xl bg-nova-500/15 border border-nova-500/30 p-4 text-left flex items-start gap-3 active:scale-[0.99] transition disabled:opacity-60">

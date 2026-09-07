@@ -20,10 +20,18 @@ export const SUMMARY_TAG = '#resumo:'
 /** A chave de uma semana: a segunda-feira, em ISO. */
 export const weekKeyOf = (base = new Date(), offset = 0) => isoOf(mondayOf(base, offset))
 
-export const planBody = (semana) => `${PLAN_TAG}${semana}`
+// "#plano:<semana>" ou "#plano:<semana>|<dia>|<minutos>" — o dia e a duracao
+// vem do plano sugerido; uma tarefa escrita a mao pode nao os ter.
+export const planBody = (semana, dia = null, minutos = null) =>
+  `${PLAN_TAG}${[semana, dia || '', minutos || ''].join('|').replace(/\|+$/, '')}`
 export const isPlanRow = (n) => String(n?.body || '').startsWith(PLAN_TAG)
-export const planWeek = (n) =>
-  isPlanRow(n) ? String(n.body).slice(PLAN_TAG.length).split('\n')[0].trim() : null
+const planParts = (n) =>
+  isPlanRow(n) ? String(n.body).slice(PLAN_TAG.length).split('\n')[0].split('|') : []
+export const planWeek = (n) => planParts(n)[0]?.trim() || null
+export const planMeta = (n) => {
+  const [, dia, minutos] = planParts(n)
+  return { dia: dia?.trim() || null, minutos: Number(minutos) || null }
+}
 
 export const summaryBody = (nome, texto) => `${SUMMARY_TAG}${nome}\n${texto}`
 export const isSummaryRow = (n) => String(n?.body || '').startsWith(SUMMARY_TAG)
@@ -50,62 +58,28 @@ const DIACRITICS = new RegExp('[\\u0300-\\u036f]', 'g')
 export const normTitulo = (s) =>
   String(s || '').toLowerCase().normalize('NFD').replace(DIACRITICS, '').replace(/\s+/g, ' ').trim()
 
-const diasEntre = (isoA, isoB) => {
-  const [ay, am, ad] = isoA.split('-').map(Number)
-  const [by, bm, bd] = isoB.split('-').map(Number)
-  return Math.round((new Date(by, bm - 1, bd) - new Date(ay, am - 1, ad)) / 86400000)
+// ---------------------------------------------------------------------------
+//  Caderno: apontamentos de uma cadeira.
+//
+//  Mesma tabela, outro marcador — "#apontamento:<titulo>\n<texto>". O texto e
+//  escrito pelo aluno (ou transcrito de uma foto), por isso fica em texto
+//  simples, ao contrario dos resumos, que sao JSON.
+// ---------------------------------------------------------------------------
+export const NOTE_TAG = '#apontamento:'
+
+export const noteBody = (titulo, texto) => `${NOTE_TAG}${titulo}\n${texto}`
+export const isNoteRow = (n) => String(n?.body || '').startsWith(NOTE_TAG)
+export function noteOf(n) {
+  const body = String(n?.body || '')
+  const corte = body.indexOf('\n')
+  const cabeca = (corte === -1 ? body : body.slice(0, corte)).slice(NOTE_TAG.length)
+  return { titulo: cabeca.trim(), texto: corte === -1 ? '' : body.slice(corte + 1) }
 }
 
-// Quanto tempo antes de uma prova e que faz sentido ja aparecer no plano.
-const HORIZONTE_EXAME = 21
-const HORIZONTE_PRAZO = 14
-
-/**
- * O que ha para fazer nesta semana, a partir do que a app ja sabe: prazos por
- * entregar e provas a chegar. Nao grava nada — sao propostas, e o aluno e que
- * decide o que entra no plano.
- *
- * `jaNoPlano` traz os titulos que ele ja escolheu, para nao os propor de novo.
- */
-export function suggestions({ semana, assignments = [], exames = [], courses = [], jaNoPlano = [], t }) {
-  const { inicio, fim } = weekBounds(semana)
-  const feitos = new Set(jaNoPlano.map(normTitulo))
-  const porNome = Object.fromEntries((courses || []).map((c) => [normTitulo(c.name), c.id]))
-  const out = []
-
-  for (const a of assignments) {
-    if (!a.due_date || a.status === 'done') continue
-    const dia = String(a.due_date).slice(0, 10)
-    const faltam = diasEntre(inicio, dia)
-    if (dia < inicio && a.status !== 'done') {
-      // ja passou: so vale a pena lembrar na semana em que estamos
-      if (diasEntre(dia, inicio) > 7) continue
-    } else if (faltam > HORIZONTE_PRAZO) continue
-    const desta = dia >= inicio && dia <= fim
-    out.push({
-      id: `p:${a.id}`,
-      titulo: t(desta ? 'plan.sugDeliver' : 'plan.sugAhead', { o: a.title }),
-      course_id: a.course_id || null,
-      quando: dia,
-      urgente: desta || dia < inicio,
-      tipo: 'prazo',
-    })
-  }
-
-  for (const e of exames) {
-    const faltam = diasEntre(inicio, e.date)
-    if (faltam < 0 || faltam > HORIZONTE_EXAME) continue
-    out.push({
-      id: `e:${e.course}:${e.date}:${e.type}`,
-      titulo: t('plan.sugStudy', { tipo: t(`examType.${e.type}`), cadeira: e.course }),
-      course_id: porNome[normTitulo(e.course)] || null,
-      quando: e.date,
-      urgente: e.date >= inicio && e.date <= fim,
-      tipo: 'exame',
-    })
-  }
-
-  return out
-    .filter((s) => !feitos.has(normTitulo(s.titulo)))
-    .sort((a, b) => (a.quando < b.quando ? -1 : a.quando > b.quando ? 1 : 0))
+/** Tudo o que ha no caderno de uma cadeira, do mais recente para tras. */
+export function notebookOf(rows, courseId) {
+  return (rows || [])
+    .filter((n) => (isNoteRow(n) || isSummaryRow(n)) && (courseId ? n.course_id === courseId : !n.course_id))
+    .slice()
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
 }

@@ -3,7 +3,7 @@ import { supabase } from './supabase.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useT } from '../i18n/index.jsx'
 import { errorText } from './errors.js'
-import { isPlanRow, isSummaryRow } from './plan.js'
+import { isPlanRow, isSummaryRow, isNoteRow } from './plan.js'
 
 const FEITO = 'notesMerge.v1'
 const aDecorrer = new Set()
@@ -41,7 +41,7 @@ export function useNotesMerge() {
         if (error) throw error
 
         for (const n of data || []) {
-          if (isPlanRow(n) || isSummaryRow(n)) continue
+          if (isPlanRow(n) || isSummaryRow(n) || isNoteRow(n)) continue
           const primeiraLinha = String(n.body || '').split('\n')[0].trim().slice(0, 80)
           const { error: e1 } = await supabase.from('assignments').insert({
             user_id: uid,

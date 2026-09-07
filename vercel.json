@@ -14,6 +14,9 @@
     },
     "api/resumo.js": {
       "maxDuration": 60
+    },
+    "api/apontamentos.js": {
+      "maxDuration": 60
     }
   }
 }
