@@ -266,6 +266,13 @@ export const en = {
   'term.year': 'Year {year}',
   'term.yearAndTerm': 'Year {year} · Semester {term}',
 
+  // Half of the semester (T1/T2) — courses that don't run the whole semester
+  'term.half.agora': '{term} — running now',
+  'term.half.antes': '{term} — only starts in the second half of the semester',
+  'term.half.depois': '{term} — already finished',
+  'term.half.startsOn': 'starts {date}',
+  'term.half.ended': 'ended {date}',
+
   // ---- Next class ----
   'when.now': 'In progress · until {end}',
   'when.inMin': 'Starts in {n} min',

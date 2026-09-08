@@ -6,6 +6,8 @@ import CourseSelect from '../components/CourseSelect.jsx'
 import { assignmentKinds, dueLabel, formatDateTime, lighten, isCourseDone, localeOf } from '../lib/helpers.js'
 import { useT } from '../i18n/index.jsx'
 import { upcomingExams, allUpcomingExams } from '../data/exams.js'
+import { withTerms } from '../lib/terms.js'
+import TermBadge from '../components/TermBadge.jsx'
 
 const toneClasses = {
   rose: 'bg-rose-500/15 text-rose-300 border border-rose-500/20',
@@ -33,6 +35,9 @@ export default function Assignments() {
   const { rows: courses } = useCourses()
   const { t, lang } = useT()
   const grades = useCollection('grades', { orderBy: 'created_at', ascending: true })
+  // O horario e o que diz em que trimestre o aluno tem cada cadeira — sem ele
+  // as cadeiras de meio semestre mostravam o exame da metade errada.
+  const schedule = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
   const [open, setOpen] = useState(false)
@@ -46,7 +51,7 @@ export default function Assignments() {
   // Só as cadeiras que o aluno ainda vai fazer (sem nota final / não concluídas)
   const pendingCourses = courses.filter(
     (c) => !isCourseDone(c, grades.rows.filter((g) => g.course_id === c.id)))
-  const myExams = upcomingExams(pendingCourses)
+  const myExams = upcomingExams(withTerms(pendingCourses, schedule.rows))
   const norm = (s) => s.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
   const baseExams = examScope === 'todas' ? allUpcomingExams() : myExams
   const exams = examScope === 'todas' && examSearch.trim()
@@ -167,7 +172,10 @@ export default function Assignments() {
                   </div>
                   <div className="w-px self-stretch bg-white/10" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-100 truncate">{e.course}</p>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <p className="font-semibold text-slate-100 truncate">{e.course}</p>
+                      <TermBadge term={e.half} />
+                    </div>
                     <p className="text-xs text-slate-400 mt-0.5">
                       {t(`examType.${e.type}`)} · {e.time}
                       {clash && <span className="text-amber-300"> · ⚠️ {t('deadlines.sameDay')}</span>}

@@ -10,10 +10,12 @@ import ErasmusGpa from '../components/ErasmusGpa.jsx'
 import CwiModules from '../components/CwiModules.jsx'
 import PassFailCourse from '../components/PassFailCourse.jsx'
 import DuplicateCourses from '../components/DuplicateCourses.jsx'
-import { localeOf, COURSE_COLORS, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, isPassFail, passFailEcts, passRow, PASS_MARK, checkNumber, LIMITS } from '../lib/helpers.js'
+import { localeOf, COURSE_COLORS, formatDate, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, isPassFail, passFailEcts, passRow, PASS_MARK, checkNumber, LIMITS } from '../lib/helpers.js'
 import { cwiTitle, cwiRow, cwiDone, CWI_MODULES } from '../data/cwi.js'
 import { assessmentFor, partsFor, partFor, passMarkFor, PASS_DEFAULT } from '../data/assessments.js'
 import { useT } from '../i18n/index.jsx'
+import TermBadge from '../components/TermBadge.jsx'
+import { enrolledTerm, catalogTerm, termStatus, termRange } from '../lib/terms.js'
 
 const YEAR_OPTS = [1, 2, 3]
 const TERM_OPTS = [1, 2]
@@ -30,6 +32,7 @@ export default function Grades() {
     error: coursesError, clearError: clearCoursesError } = useCourses()
   const { rows: grades, loading: gradesLoading, add: addGrade, update: updateGrade, remove: removeGrade,
     error: gradesError, clearError: clearGradesError } = useCollection('grades', { orderBy: 'created_at', ascending: true })
+  const schedule = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
   // Cadeiras e componentes falham pelos mesmos motivos (rede, RLS) — uma
   // caixa chega para os dois.
   const error = coursesError || gradesError
@@ -63,6 +66,18 @@ export default function Grades() {
   const [gradeEditId, setGradeEditId] = useState(null)
 
   const compsOf = (courseId) => grades.filter((g) => g.course_id === courseId)
+
+  // O horario diz em que metade do semestre corre cada cadeira: Etica, Law,
+  // Business Principles... uns tem-nas no T1, outros no T2. Sem isto a lista
+  // dava a entender que se anda a ter tudo ao mesmo tempo.
+  //
+  // Um turno inscrito no horario prova que a cadeira e para agora, e chega.
+  // O palpite do catalogo ja nao prova nada, por isso so vale nas cadeiras do
+  // semestre a decorrer: os trimestres sao datas DESTE ano letivo, e nao
+  // dizem nada sobre uma cadeira feita ha dois anos.
+  const halfOf = (c) =>
+    enrolledTerm(c, schedule.rows)
+    ?? (termKey(c.year, c.term) === currentTermKey ? catalogTerm(c.code) : null)
 
   function toggleExpand(c) {
     const open = expanded === c.id
@@ -261,17 +276,32 @@ export default function Grades() {
     const passeEscrito = notaPasse.toLocaleString(localeOf(lang))
     // Equivalencia que voltou sem nota (Erasmus): vale creditos, nao vale media.
     const equivPasse = Boolean(c.is_equivalence) && Boolean(passRow(comps))
+    // Em que metade do semestre e que esta cadeira corre, e se ja la vamos.
+    const half = halfOf(c)
+    const estado = termStatus(half)
+    const quando = estado === 'agora' ? null : termRange(half)
     return (
       <div key={c.id} className="rounded-xl bg-white/[0.04] border border-white/10 overflow-hidden">
         <button onClick={() => toggleExpand(c)} className="w-full p-3.5 flex items-center gap-3 text-left">
           <div className="w-1.5 h-10 rounded-full" style={{ background: c.color || '#3d78bf', boxShadow: `0 0 10px ${c.color || '#3d78bf'}55` }} />
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-slate-100 truncate">{c.name}</p>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <p className="font-semibold text-slate-100 truncate">{c.name}</p>
+              <TermBadge term={half} />
+            </div>
             <p className="text-xs text-slate-400">
               {c.ects} ECTS
               {cwi || passe || equivPasse
                 ? <> · {t('grades.passFail')}</>
                 : usesComponents && <> · {t('grades.assessedPct', { n: gw })}</>}
+              {/* Uma cadeira que ainda nao comecou (ou que ja acabou) nao e
+                  igual as outras: sem isto a lista dava a entender que se
+                  anda a ter tudo ao mesmo tempo. */}
+              {quando && (
+                <> · {estado === 'antes'
+                  ? t('term.half.startsOn', { date: formatDate(`${quando.start}T12:00:00`, lang) })
+                  : t('term.half.ended', { date: formatDate(`${quando.end}T12:00:00`, lang) })}</>
+              )}
             </p>
           </div>
           <div className="text-right">

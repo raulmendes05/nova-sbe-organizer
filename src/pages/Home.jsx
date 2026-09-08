@@ -11,6 +11,9 @@ import {
   termKey, weightedAvg, upcomingClasses, whenLabel, classTimeRange,
 } from '../lib/helpers.js'
 import { upcomingExams } from '../data/exams.js'
+import { dayOf } from '../lib/week.js'
+import { withTerms } from '../lib/terms.js'
+import TermBadge from '../components/TermBadge.jsx'
 
 const toneClasses = {
   rose: 'bg-rose-500/15 text-rose-300 border border-rose-500/20',
@@ -31,7 +34,10 @@ export default function Home() {
   const dayName = dayLong(t, dow)
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
-  const todayClasses = schedule.rows.filter((b) => b.day_of_week === dow)
+  // As aulas de hoje como elas sao mesmo: a mesma regra da grelha do horario
+  // (lib/week.js). Filtrar so pelo dia da semana punha as cadeiras do T2 a
+  // aparecer durante o T1 — e as de qualquer trimestre a aparecer nos feriados.
+  const todayClasses = dayOf(schedule.rows).blocks
   const nextClass = upcomingClasses(schedule.rows, new Date(), 1)[0]
   const upcoming = assignments.rows
     .filter((a) => a.status !== 'done')
@@ -57,7 +63,9 @@ export default function Home() {
   const openCount = assignments.rows.filter((a) => a.status !== 'done').length
   const pendingCourses = courses.filter(
     (c) => !isCourseDone(c, grades.rows.filter((g) => g.course_id === c.id)))
-  const upExams = upcomingExams(pendingCourses).slice(0, 3)
+  // O trimestre de cada cadeira sai do turno inscrito no horario: sem ele, a
+  // Etica do T2 mostrava o exame do T1.
+  const upExams = upcomingExams(withTerms(pendingCourses, schedule.rows)).slice(0, 3)
   const loading = schedule.loading || assignments.loading
 
   return (
@@ -195,7 +203,10 @@ export default function Home() {
                   return (
                     <div key={i} className="card p-3.5 flex items-center gap-3">
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-slate-100 truncate">{e.course}</p>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <p className="font-semibold text-slate-100 truncate">{e.course}</p>
+                          <TermBadge term={e.half} />
+                        </div>
                         <p className="text-xs text-slate-400 mt-0.5">{t(`examType.${e.type}`)} · {formatDate(e.when, lang)}</p>
                       </div>
                       <span className={`chip ${toneClasses[dl.tone]}`}>{dl.text}</span>

@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useT } from '../i18n/index.jsx'
 import { errorText, apiError } from '../lib/errors.js'
 import { useCourses } from '../context/CoursesContext.jsx'
-import { weekOf } from '../lib/week.js'
+import { weekOf, termOfTitle } from '../lib/week.js'
+import { courseTerm, termStatus, withTerms } from '../lib/terms.js'
 import { gerarPlano, duracao } from '../lib/planner.js'
 import {
   weekKeyOf, planBody, planMeta, planOfWeek, noteBody, noteOf,
@@ -138,6 +139,8 @@ export default function Claudio() {
       aluno: { nome: displayName, curso: program, ano: academicYear, semestre: semester },
       cadeiras: courses.map((c) => {
         const base = { nome: c.name, codigo: c.code, ects: c.ects, ano: c.year, semestre: c.term,
+          // 'S1' = semestre inteiro; 'T1'/'T2' = so essa metade do semestre.
+          trimestre: courseTerm(c, schedule.rows),
           equivalencia: !!c.is_equivalence }
         // Careers with Impact nao tem nota: sao 4 modulos feito/nao feito. Dar
         // os "componentes" ao modelo faria-o falar de pesos que nao existem.
@@ -153,9 +156,14 @@ export default function Claudio() {
         }
         return { ...base, nota_final: c.final_grade, componentes: compsOf(c.id) }
       }),
+      // `trimestre` e o que impede o Claudio de falar de uma aula de T2 como se
+      // fosse esta semana: o horario semanal e o mesmo, mas cada bloco so corre
+      // na sua metade do semestre.
       horario: schedule.rows.map((b) => ({
         id: b.id, titulo: b.title, dia: dayName(b.day_of_week), dia_num: b.day_of_week,
         inicio: hhmm(b.start_time), fim: hhmm(b.end_time), sala: b.location, tipo: b.kind,
+        trimestre: termOfTitle(b.title),
+        corre_agora: termOfTitle(b.title) === 'S1' || termStatus(termOfTitle(b.title)) === 'agora',
       })),
       prazos: assignments.rows.filter((a) => a.status !== 'done').map((a) => ({
         titulo: a.title, tipo: a.kind, data: a.due_date,
@@ -267,7 +275,9 @@ export default function Claudio() {
       const semana = weekKeyOf(new Date(), offset)
       const doSemestre = courses.filter((c) =>
         !c.is_equivalence && (!c.year || c.year === Number(academicYear)) && (!c.term || c.term === Number(semester)))
-      const usadas = doSemestre.length ? doSemestre : courses
+      // Com o trimestre de cada cadeira, senao as provas saiam da metade errada
+      // do semestre (o exame de Etica do T1 a quem a tem no T2).
+      const usadas = withTerms(doSemestre.length ? doSemestre : courses, schedule.rows)
       const plano = gerarPlano({
         semana,
         dias: weekOf(schedule.rows, new Date(), offset),

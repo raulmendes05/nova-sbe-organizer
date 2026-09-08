@@ -7,6 +7,7 @@ import Notebook from '../components/Notebook.jsx'
 import { localeOf } from '../lib/helpers.js'
 import { upcomingExams } from '../data/exams.js'
 import { weekOf } from '../lib/week.js'
+import { withTerms } from '../lib/terms.js'
 import { gerarPlano, totalMinutos, duracao } from '../lib/planner.js'
 import {
   weekKeyOf, weekBounds, planBody, planMeta, planOfWeek, noteBody, summaryBody,
@@ -46,6 +47,13 @@ export default function StudyPlan() {
   // Cadeiras deste semestre — as provas das outras já não interessam
   const desteSemestre = courses.filter((c) =>
     !c.is_equivalence && (!c.year || c.year === Number(academicYear)) && (!c.term || c.term === Number(semester)))
+  // As mesmas cadeiras, mas com o trimestre em que o aluno as tem (T1/T2): e
+  // o que faz as provas serem as da metade certa do semestre.
+  const comTrimestre = useMemo(() => {
+    const doSemestre = courses.filter((c) =>
+      !c.is_equivalence && (!c.year || c.year === Number(academicYear)) && (!c.term || c.term === Number(semester)))
+    return withTerms(doSemestre.length ? doSemestre : courses, horario.rows)
+  }, [courses, horario.rows, academicYear, semester])
   const cadernoAberto = doCaderno === undefined
     ? ((desteSemestre[0] || courses[0])?.id ?? null)
     : doCaderno
@@ -59,13 +67,13 @@ export default function StudyPlan() {
   const proposto = useMemo(() => gerarPlano({
     semana,
     dias,
-    courses: desteSemestre.length ? desteSemestre : courses,
+    courses: comTrimestre,
     assignments: prazos.rows,
-    exames: upcomingExams(desteSemestre.length ? desteSemestre : courses, segunda),
+    exames: upcomingExams(comTrimestre, segunda),
     grades: notas.rows,
     jaNoPlano: itens.map((x) => x.title),
     t,
-  }), [semana, dias, courses, prazos.rows, notas.rows, itens, t]) // eslint-disable-line react-hooks/exhaustive-deps
+  }), [semana, dias, comTrimestre, prazos.rows, notas.rows, itens, t]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const intervalo = (() => {
     const fmt = (d) => d.toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'short' })

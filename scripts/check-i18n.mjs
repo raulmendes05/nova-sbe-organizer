@@ -52,6 +52,7 @@ const DYNAMIC = [
   ...['I', 'II', 'III', 'IV'].map((m) => `cwi.${m}.name`),
   ...['porfazer', 'feito', 'duvida', 'errado'].map((v) => `hb.state.${v}`),
   ...['certo', 'quase', 'errado'].map((v) => `hb.verdict.${v}`),
+  ...['agora', 'antes', 'depois'].map((v) => `term.half.${v}`),
 ]
 for (const k of DYNAMIC) if (!used.has(k)) used.set(k, ['(construida dinamicamente)'])
 

@@ -80,6 +80,21 @@ export function blockOn(block, iso) {
 }
 
 /**
+ * Um dia como ele e mesmo: a data, o que o calendario diz dele e as aulas que
+ * la correm — sem as de outro trimestre, sem as dos feriados, e com o horario
+ * trocado nos dias de compensacao.
+ */
+export function dayOf(blocks, date = new Date()) {
+  const iso = isoOf(date)
+  const dia = {
+    n: date.getDay() === 0 ? 7 : date.getDay(),
+    date, iso, status: dayStatus(iso), hoje: iso === isoOf(new Date()),
+  }
+  dia.blocks = (blocks || []).filter((b) => runsOn(b, dia)).map((b) => blockOn(b, iso))
+  return dia
+}
+
+/**
  * Os 7 dias de uma semana, cada um com a data, o que o calendario diz dele e
  * as aulas que la correm.
  */

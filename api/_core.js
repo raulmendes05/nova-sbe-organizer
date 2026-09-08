@@ -307,6 +307,7 @@ ${renderCalendar()}
 - Sabe distinguir **semanas com aulas** (T1/T2/T3/T4) das épocas de **exames**, **pausas** (Natal, Páscoa) e **feriados**. Se o aluno perguntar "há aulas na próxima semana?", "quando começam/acabam as aulas", "quando é a pausa/os exames", responde com estas datas.
 - **Não marques** aulas nem sugiras estudar "em aula" em feriados/pausas; ao criar prazos ou tarefas evita cair num feriado sem avisar.
 - **Dias de compensação:** nesses dias há aulas, mas segue-se o horário de **outro dia da semana** (ex.: 15/mar corre as aulas de terça). Avisa o aluno quando for relevante.
+- **Cadeiras de meio semestre (T1/T2):** Ética, Business Principles, Law, Human Behaviour e outras não correm o semestre inteiro — correm só num trimestre, e cada aluno tem a sua metade. No contexto, cada cadeira traz \`trimestre\` ('S1' = semestre inteiro; 'T1'/'T2' = só essa metade) e cada bloco do horário traz \`trimestre\` e \`corre_agora\`. Nunca fales de uma aula com \`corre_agora: false\` como se fosse esta semana, e usa o \`trimestre\` da cadeira para saber qual é o exame dela (as duas metades têm exames em datas diferentes).
 - Datas em ISO. Confirma sempre com o calendário antes de afirmar que "há/não há aulas".
 
 # Contexto atual do estudante (dados reais da app)

@@ -73,7 +73,22 @@ export function renderExams() {
   }).join('\n')
 }
 
-// Exames a chegar das cadeiras do aluno (por código, respeitando T1/T2), a partir de hoje.
+// O trimestre que uma chave de exame representa: '1463_T2' -> 'T2'.
+const halfOfKey = (k) => (/_T([1-4])$/.test(k) ? k.slice(-2) : null)
+
+/**
+ * Exames a chegar das cadeiras do aluno, a partir de hoje.
+ *
+ * As cadeiras que correm meio semestre (Ética, Business Principles, Law...)
+ * têm duas linhas — `1463_T1` e `1463_T2` — com exames em datas diferentes.
+ * Qual delas conta depende do TRIMESTRE em que o aluno anda, que vem em
+ * `c.half` (ver lib/terms.js, `withTerms`). Não confundir com `c.term`, que é
+ * o semestre: era essa confusão que mostrava o exame do T1 a quem tem a
+ * cadeira no T2.
+ *
+ * Sem trimestre conhecido ficam as duas linhas — cada uma marcada com o seu
+ * `half`, para o ecrã poder dizer qual é qual em vez de escolher à sorte.
+ */
 export function upcomingExams(courses, now = new Date()) {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const out = []
@@ -82,20 +97,29 @@ export function upcomingExams(courses, now = new Date()) {
     const code = String(c.code)
     let keys = []
     if (EXAMS[code]) keys = [code]
-    else if (c.term && EXAMS[`${code}_T${c.term}`]) keys = [`${code}_T${c.term}`]
+    else if (c.half && EXAMS[`${code}_${c.half}`]) keys = [`${code}_${c.half}`]
     else keys = [`${code}_T1`, `${code}_T2`].filter((k) => EXAMS[k])
     for (const k of keys) {
+      const half = halfOfKey(k)
       for (const it of EXAMS[k].items) {
         const [y, m, d] = it.date.split('-').map(Number)
         const when = new Date(y, m - 1, d)
         if (when >= todayStart) {
-          out.push({ course: c.name, type: it.type, typeLabel: EXAM_TYPE_PT[it.type], date: it.date, time: it.time, when })
+          out.push({ course: c.name, half, type: it.type, typeLabel: EXAM_TYPE_PT[it.type], date: it.date, time: it.time, when })
         }
       }
     }
   }
   out.sort((a, b) => a.when - b.when || (a.time > b.time ? 1 : -1))
-  return out
+  // Com o trimestre por saber ficam as duas linhas — e o recurso e o MESMO
+  // exame nas duas (mesma data, mesma hora). Duas vezes na lista era so ruido.
+  const vistos = new Set()
+  return out.filter((e) => {
+    const k = `${e.course}|${e.type}|${e.date}|${e.time}`
+    if (vistos.has(k)) return false
+    vistos.add(k)
+    return true
+  })
 }
 
 // Calendário completo: todos os exames de todas as cadeiras (a partir de hoje).

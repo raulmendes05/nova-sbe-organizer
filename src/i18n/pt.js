@@ -266,6 +266,13 @@ export const pt = {
   'term.year': '{year}º ano',
   'term.yearAndTerm': '{year}º ano · {term}º semestre',
 
+  // Metade do semestre (T1/T2) — as cadeiras que nao correm o semestre todo
+  'term.half.agora': '{term} — a decorrer',
+  'term.half.antes': '{term} — só começa na segunda metade do semestre',
+  'term.half.depois': '{term} — já terminou',
+  'term.half.startsOn': 'começa {date}',
+  'term.half.ended': 'terminou {date}',
+
   // ---- Proxima aula ----
   'when.now': 'A decorrer · até {end}',
   'when.inMin': 'Começa em {n} min',
