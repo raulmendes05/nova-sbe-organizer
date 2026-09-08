@@ -15,6 +15,7 @@ import Exams from './pages/Exams.jsx'
 import ProximaAula from './pages/ProximaAula.jsx'
 import Claudio from './pages/Claudio.jsx'
 import Profile from './pages/Profile.jsx'
+import Feedback from './pages/Feedback.jsx'
 
 export default function App() {
   if (!isConfigured) return <NotConfigured />
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="/provas/:code" element={<Exams />} />
         <Route path="/claudio" element={<Claudio />} />
         <Route path="/perfil" element={<Profile />} />
+        <Route path="/mensagens" element={<Feedback />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

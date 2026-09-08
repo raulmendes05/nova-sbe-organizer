@@ -14,7 +14,8 @@ Stack: React + Vite + Tailwind + Supabase (login + base de dados) + Vercel (depl
 4. No menu lateral vai a **SQL Editor** → **New query**.
 5. Abre o ficheiro [`supabase/schema.sql`](supabase/schema.sql) deste projeto, copia **tudo**, cola no editor e clica **Run**. Deve aparecer *Success*.
 6. **New query** outra vez e repete o passo anterior com [`supabase/exams.sql`](supabase/exams.sql) — cria a biblioteca partilhada de provas antigas e o bucket de ficheiros.
-7. No menu vai a **Project Settings** (roda dentada) → **API**. Copia dois valores:
+7. **New query** mais uma vez, agora com [`supabase/feedback.sql`](supabase/feedback.sql) — a tabela das mensagens que os utilizadores enviam pela aba no canto do ecrã. **Antes de correr, confirma o email dentro da função `is_admin()`**: é esse que passa a ver todas as mensagens.
+8. No menu vai a **Project Settings** (roda dentada) → **API**. Copia dois valores:
    - **Project URL** → `https://xxxx.supabase.co`
    - **anon public** (em *Project API keys*) → começa por `eyJ...`
 
@@ -103,6 +104,35 @@ para ignorar as pastas `Archive*` (matéria pré-2015).
 
 ---
 
+## Passo 2.7 — Receber as mensagens por email (Resend) · ~2 min
+
+A aba **Mensagem**, no canto do ecrã, deixa qualquer utilizador reportar um erro ou
+pedir uma melhoria. A mensagem é sempre guardada no Supabase e aparece em
+**/mensagens** dentro da app — este passo é só para além disso te chegar um email.
+
+1. Vai a **https://resend.com** e cria conta (gratuito: 3000 emails/mês).
+2. **API Keys** → **Create API Key**. Copia a chave (`re_...`).
+3. Guarda-a em `.env.local` como `RESEND_API_KEY` (e, mais à frente, na Vercel).
+
+**Atenção ao destino.** Sem domínio verificado, o Resend recusa enviar para
+qualquer endereço que não seja o da conta com que te registaste — responde
+`403 You can only send testing emails to your own email address`. Como a conta
+Resend aqui é do `raulmendes2005@gmail.com` e a conta da app é
+`75960@novasbe.pt`, é preciso dizer-lhe o destino à mão:
+
+```
+FEEDBACK_TO=raulmendes2005@gmail.com
+```
+
+Se um dia verificares um domínio teu no Resend, deixa de haver limite e podes
+mudar o `FEEDBACK_TO` para o que quiseres (e o `FEEDBACK_FROM` para um endereço
+teu, em vez do `onboarding@resend.dev`).
+
+> Sem `RESEND_API_KEY` nada rebenta: a mensagem continua a ser guardada e triada,
+> só não recebes o aviso. O aluno vê "enviado" à mesma.
+
+---
+
 ## Passo 3 — Pôr online (Vercel) · ~3 min
 
 1. Cria um repositório no GitHub e faz push deste projeto.
@@ -113,6 +143,8 @@ para ignorar as pastas `Archive*` (matéria pré-2015).
    - `GEMINI_API_KEY` (para o Cláudio funcionar online)
    - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
      (para o separador Provas funcionar online)
+   - `RESEND_API_KEY` **e** `FEEDBACK_TO` (sem o segundo o email é recusado —
+     ver o passo 2.7). `FEEDBACK_FROM` só se tiveres domínio verificado.
 4. Clica **Deploy**. Em ~1 min tens o link (ex: `nova-sbe.vercel.app`).
 
 A partir daqui, cada `git push` para a branch principal faz deploy automático — igual ao Champi.

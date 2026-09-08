@@ -33,6 +33,9 @@ const MAX_OUTPUT_TOKENS = 16384
 
 // Duas tentativas por modelo, com esperas curtas: isto corre dentro de uma
 // função serverless, não pode arrastar-se.
+// A mesma escada de modelos serve outros pedidos curtos (ver _feedback.js).
+export const MODEL_CHAIN = [MODEL, ...FALLBACK_MODELS]
+
 const ATTEMPTS_PER_MODEL = 2
 const BACKOFF_MS = [600, 1500]
 // Corta uma tentativa pendurada em vez de deixar a função esgotar o tempo.

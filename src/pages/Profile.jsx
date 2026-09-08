@@ -6,6 +6,7 @@ import { PageHeader, Icon } from '../components/ui.jsx'
 import { PROGRAMS } from '../data/curriculum.js'
 import { termKey, checkNumber, LIMITS } from '../lib/helpers.js'
 import { errorText } from '../lib/errors.js'
+import { isAdmin } from '../lib/feedback.js'
 
 /* ---------- Seccao com titulo e ajuda ---------- */
 function Section({ title, hint, children }) {
@@ -187,6 +188,15 @@ export default function Profile() {
               className="input w-28 text-lg font-semibold" placeholder={t('profile.goalPlaceholder')} />
             <span className="text-slate-500">/ 20</span>
           </div>
+        </Section>
+
+        {/* ---- Mensagens ---- */}
+        <Section title={t('feedback.inboxTitle')}
+          hint={isAdmin(user) ? t('profile.inboxHintAdmin') : t('profile.inboxHint')}>
+          <button onClick={() => navigate('/mensagens')} className="btn-ghost px-4 py-2.5 text-sm">
+            <Icon name="chat" className="w-4 h-4" />
+            {isAdmin(user) ? t('profile.inboxBtnAdmin') : t('profile.inboxBtn')}
+          </button>
         </Section>
 
         {/* ---- Rever os primeiros passos ---- */}

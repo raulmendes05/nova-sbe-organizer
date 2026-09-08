@@ -3,6 +3,7 @@ import BottomNav from './BottomNav.jsx'
 import SideNav from './SideNav.jsx'
 import GoalPrompt from './GoalPrompt.jsx'
 import FirstSteps from './FirstSteps.jsx'
+import FeedbackButton from './FeedbackButton.jsx'
 import { CoursesProvider } from '../context/CoursesContext.jsx'
 import { useRoomBackfill } from '../lib/useRoomBackfill.js'
 import { useNotesMerge } from '../lib/useNotesMerge.js'
@@ -30,6 +31,9 @@ export default function Layout() {
         {/* Barra inferior (só telemóvel) */}
         <BottomNav />
       </div>
+      {/* Sempre a vista, em todos os ecras: e o unico caminho que um aluno
+          tem para dizer que alguma coisa esta mal. */}
+      <FeedbackButton />
       <FirstSteps />
       <GoalPrompt />
     </CoursesProvider>

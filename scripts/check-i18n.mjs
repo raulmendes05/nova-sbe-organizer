@@ -53,6 +53,9 @@ const DYNAMIC = [
   ...['porfazer', 'feito', 'duvida', 'errado'].map((v) => `hb.state.${v}`),
   ...['certo', 'quase', 'errado'].map((v) => `hb.verdict.${v}`),
   ...['agora', 'antes', 'depois'].map((v) => `term.half.${v}`),
+  ...['bug', 'melhoria', 'outro'].flatMap((v) => [`feedback.kind.${v}`, `feedback.placeholder.${v}`]),
+  ...['novo', 'visto', 'resolvido'].map((v) => `feedback.status.${v}`),
+  ...['alta', 'media', 'baixa'].map((v) => `feedback.severity.${v}`),
 ]
 for (const k of DYNAMIC) if (!used.has(k)) used.set(k, ['(construida dinamicamente)'])
 
