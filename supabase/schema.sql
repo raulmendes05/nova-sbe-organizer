@@ -73,8 +73,18 @@ create table if not exists public.grades (
   title       text not null,                -- ex: "Exame Final", "Trabalho de grupo"
   weight      numeric not null default 0,   -- peso em % (0-100)
   grade       numeric,                      -- nota 0-20 (null = ainda sem nota)
+  -- Quando esta linha foi CONCLUIDA. So interessa aos creditos Pass/Fail: os 4
+  -- modulos do Careers with Impact fazem-se ao longo do curso, um por semestre,
+  -- e a candidatura a Erasmus so conta os que ja estavam fechados. null = usa o
+  -- ano/semestre da propria cadeira, que e como funcionava antes disto.
+  year        smallint,                     -- ano do curso: 1 | 2 | 3
+  term        smallint,                     -- semestre: 1 | 2
   created_at  timestamptz not null default now()
 );
+
+-- Migracao para bases de dados ja existentes:
+alter table public.grades add column if not exists year smallint;
+alter table public.grades add column if not exists term smallint;
 
 -- ------------------------------------------------------------
 --  NOTAS PESSOAIS + TAREFAS (notes)

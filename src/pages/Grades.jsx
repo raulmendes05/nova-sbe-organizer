@@ -11,7 +11,7 @@ import CwiModules from '../components/CwiModules.jsx'
 import PassFailCourse from '../components/PassFailCourse.jsx'
 import DuplicateCourses from '../components/DuplicateCourses.jsx'
 import { localeOf, COURSE_COLORS, formatDate, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, isPassFail, passFailEcts, passRow, PASS_MARK, checkNumber, LIMITS } from '../lib/helpers.js'
-import { cwiTitle, cwiRow, cwiDone, CWI_MODULES } from '../data/cwi.js'
+import { cwiTitle, cwiRow, cwiDone, cwiCredits, CWI_MODULES } from '../data/cwi.js'
 import { assessmentFor, partsFor, partFor, passMarkFor, PASS_DEFAULT } from '../data/assessments.js'
 import { useT } from '../i18n/index.jsx'
 import TermBadge from '../components/TermBadge.jsx'
@@ -197,12 +197,23 @@ export default function Grades() {
   // feito. Assim nao ha nota nenhuma inventada na base de dados.
   async function toggleCwi(course, id, feito) {
     try {
-      if (feito) await addGrade({ course_id: course.id, title: cwiTitle(id), weight: 0, grade: null })
+      // Nasce com o ano/semestre da cadeira — que e o palpite certo na maior
+      // parte dos casos — e depois da para corrigir modulo a modulo.
+      if (feito) await addGrade({ course_id: course.id, title: cwiTitle(id), weight: 0, grade: null,
+        year: course.year ?? null, term: course.term ?? null })
       else {
         const row = cwiRow(compsOf(course.id), id)
         if (row) await removeGrade(row.id)
       }
     } catch { /* mensagem ja em `error` */ }
+  }
+
+  // Em que semestre e que este modulo foi concluido. Os 4 fazem-se ao longo do
+  // curso, e numa candidatura a Erasmus so contam os que ja estavam fechados.
+  async function mudarPeriodoCwi(course, id, year, term) {
+    const row = cwiRow(compsOf(course.id), id)
+    if (!row) return
+    try { await updateGrade(row.id, { year, term }) } catch { /* mensagem ja em `error` */ }
   }
 
   // Cadeira Pass/Fail simples (Data Handling): a linha existe = está feita.
@@ -303,7 +314,9 @@ export default function Grades() {
 
         {isOpen && cwi && (
           <div className="border-t border-white/10 p-3.5 bg-white/[0.02] space-y-3.5">
-            <CwiModules rows={comps} onToggle={(id, feito) => toggleCwi(c, id, feito)}
+            <CwiModules rows={comps} course={c}
+              onToggle={(id, feito) => toggleCwi(c, id, feito)}
+              onPeriodo={(id, a, sm) => mudarPeriodoCwi(c, id, a, sm)}
               notaAntiga={c.final_grade ?? null} onLimpar={() => limparCwi(c)} />
             <div className="flex gap-2 pt-1">
               <button onClick={() => openEditCourse(c)} className="btn-ghost flex-1 py-2 text-sm">
@@ -544,7 +557,13 @@ export default function Grades() {
             year: x.c.year,
             term: x.c.term,
             isEquivalence: Boolean(x.c.is_equivalence),
-            passFail: passFailEcts(x.c, compsOf(x.c.id)),
+            // Os creditos Pass/Fail ja ganhos, cada um com a sua data. No
+            // Careers with Impact sao ate 4, feitos em semestres diferentes.
+            creditos: isCwi(x.c)
+              ? cwiCredits(compsOf(x.c.id), x.c)
+              : (passFailEcts(x.c, compsOf(x.c.id)) > 0
+                  ? [{ ects: passFailEcts(x.c, compsOf(x.c.id)), year: x.c.year, term: x.c.term }]
+                  : []),
           }))} />
       </div>
 

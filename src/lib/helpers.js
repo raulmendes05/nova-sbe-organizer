@@ -356,17 +356,22 @@ export const termOrdinal = (year, term) => (Number(year) - 1) * 2 + Number(term)
  * Na nota (os 75%) nunca entraram: o Weight da folha e IF(ISNUMBER(Grade),...)
  * e uma linha marcada PASS nao e um numero.
  *
- * `items`: { ects, avg, year, term, isEquivalence, passFail }
+ * `items`: { ects, avg, year, term, isEquivalence, creditos }
+ *   `creditos`: os ECTS Pass/Fail ja ganhos nesta cadeira, cada um com a sua
+ *   propria data — [{ ects, year, term }]. Os 4 modulos do Careers with Impact
+ *   fazem-se ao longo do curso, um por semestre, e cada um conta no seu.
  * `applyKey`: o termKey(ano, semestre) em que se concorre.
  */
 export function erasmusScope(items, applyYear, applyTerm) {
   const applyKey = termKey(applyYear, applyTerm)
   const lista = items || []
 
+  // Um periodo so conta se estiver fechado antes do semestre da candidatura.
+  const antes = (year, term) => Boolean(year && term) && termKey(year, term) < applyKey
+
   const conta = (x) => {
     if (x.isEquivalence) return false             // creditadas de fora: nao contam
-    if (!x.year || !x.term) return false          // sem semestre: nao da para situar
-    return termKey(x.year, x.term) < applyKey
+    return antes(x.year, x.term)                  // sem semestre: nao da para situar
   }
 
   const dentro = lista.filter(conta)
@@ -378,19 +383,30 @@ export function erasmusScope(items, applyYear, applyTerm) {
   // creditos (os 25%). Ver o "GPA Calculators Bachelors": Weight so conta
   // linhas com ISNUMBER, mas Completed ECTs conta toda a linha com a celula da
   // nota preenchida. Daqui sai a soma: ECTS com nota + creditos Pass/Fail.
-  const ects = comNota.reduce((t, x) => t + Number(x.ects || 0), 0)
-    + dentro.reduce((t, x) => t + Number(x.passFail || 0), 0)
+  // Os creditos Pass/Fail nao seguem a cadeira: cada um tem a sua data, por isso
+  // filtram-se um a um. Um Careers with Impact com o Modulo I feito no 1.o ano e
+  // o IV por fazer conta 1 ECTS, nao 4 nem 0.
+  const creditos = lista
+    .filter((x) => !x.isEquivalence)
+    .flatMap((x) => x.creditos || [])
+    .filter((c) => antes(c.year, c.term))
+  const ectsPassFail = creditos.reduce((t, c) => t + Number(c.ects || 0), 0)
+
+  const ects = comNota.reduce((t, x) => t + Number(x.ects || 0), 0) + ectsPassFail
 
   // Cadeiras com nota que ficaram de fora — e a diferenca que o aluno ve.
   const foraComNota = lista.filter((x) => !conta(x) && x.avg !== null && x.avg !== undefined)
 
-  // Para as notas de rodape. Os modulos Pass/Fail da propria Nova (Careers with
-  // Impact, Data Handling) continuam a contar: sao cadeiras do plano, feitas ca.
-  const ectsPassFail = dentro.reduce((t, x) => t + Number(x.passFail || 0), 0)
   // As equivalencias que ficaram de fora — o aluno tem de saber que existem e
   // porque e que nao aparecem na soma.
   const equivalencias = lista.filter((x) =>
-    x.isEquivalence && (x.avg !== null && x.avg !== undefined || Number(x.passFail || 0) > 0))
+    x.isEquivalence && (x.avg !== null && x.avg !== undefined || (x.creditos || []).length > 0))
+  // Creditos Pass/Fail ja ganhos mas ainda sem data util (deste semestre ou sem
+  // semestre): o aluno perde-os na conta sem perceber porque.
+  const creditosFora = lista
+    .filter((x) => !x.isEquivalence)
+    .flatMap((x) => x.creditos || [])
+    .filter((c) => !antes(c.year, c.term))
 
   return {
     gpa: weightedAvg(comNota),
@@ -400,6 +416,8 @@ export function erasmusScope(items, applyYear, applyTerm) {
     equivalencias: equivalencias.length,
     ectsEquivalencias: equivalencias.reduce((t, x) => t + Number(x.ects || 0), 0),
     ectsPassFail,
+    creditosFora: creditosFora.length,
+    ectsCreditosFora: creditosFora.reduce((t, c) => t + Number(c.ects || 0), 0),
     // Do semestre em curso ou de um semestre futuro: nao entram, e e de proposito.
     excluidas: foraComNota.filter((x) => !x.isEquivalence && x.year && x.term).length,
     // Sem ano/semestre definido: a app nao as sabe situar e o aluno tem de as arrumar.

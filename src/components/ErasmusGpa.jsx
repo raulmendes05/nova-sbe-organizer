@@ -113,6 +113,11 @@ export default function ErasmusGpa({ items = [], defaultYear, defaultTerm }) {
           {t('erasmus.excluded', { n: r.excluidas })}
         </p>
       )}
+      {r.creditosFora > 0 && (
+        <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2 mt-2 leading-relaxed">
+          {t('erasmus.creditsOut', { n: r.creditosFora, ects: r.ectsCreditosFora })}
+        </p>
+      )}
       {r.semPeriodo > 0 && (
         <p className="text-xs text-amber-200/90 bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2 mt-2 leading-relaxed">
           {t('erasmus.noTerm', { n: r.semPeriodo })}

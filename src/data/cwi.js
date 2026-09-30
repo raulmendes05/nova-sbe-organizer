@@ -43,3 +43,23 @@ export function cwiDone(rows) {
 /** A linha gravada de um modulo (para o poder apagar quando se desmarca). */
 export const cwiRow = (rows, id) =>
   (rows || []).find((r) => String(r.title || '').trim() === cwiTitle(id)) || null
+
+/**
+ * Quando um modulo foi concluido: { year, term }.
+ *
+ * A linha do modulo tem a sua propria data (os 4 fazem-se ao longo do curso, um
+ * por semestre). Quem marcou modulos antes de isso existir tem-na a null —
+ * cai no ano/semestre da cadeira, que era o que valia ate entao.
+ */
+export function cwiPeriod(rows, id, course) {
+  const r = cwiRow(rows, id)
+  return {
+    year: r?.year ?? course?.year ?? null,
+    term: r?.term ?? course?.term ?? null,
+    proprio: Boolean(r?.year && r?.term),   // false = herdado da cadeira
+  }
+}
+
+/** Os creditos ja ganhos no Careers with Impact, cada um com a sua data. */
+export const cwiCredits = (rows, course) =>
+  cwiDone(rows).map((m) => ({ ects: m.ects, ...cwiPeriod(rows, m.id, course) }))
