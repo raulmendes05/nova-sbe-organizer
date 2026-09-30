@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useT } from '../i18n/index.jsx'
 import { errorText, apiError } from '../lib/errors.js'
 import { useCourses } from '../context/CoursesContext.jsx'
-import { weekOf, termOfTitle } from '../lib/week.js'
+import { weekOf, termOfTitle, isoOf } from '../lib/week.js'
 import { courseTerm, termStatus, withTerms } from '../lib/terms.js'
 import { gerarPlano, duracao } from '../lib/planner.js'
 import {
@@ -15,6 +15,7 @@ import { useCollection } from '../lib/useCollection.js'
 import { Icon } from '../components/ui.jsx'
 import { hhmm, COURSE_COLORS, simulateGrade, isCwi, isPassFail, passRow, checkNumber, LIMITS } from '../lib/helpers.js'
 import { CWI_MODULES, cwiDone } from '../data/cwi.js'
+import { dayStatus, hasClasses, dowOf } from '../data/calendar.js'
 import { pt } from '../i18n/pt.js'
 
 const SUGGESTION_KEYS = ['claudio.s1', 'claudio.s2', 'claudio.s3', 'claudio.s4']
@@ -135,7 +136,30 @@ export default function Claudio() {
     // horários oficiais estão em pt, e misturar as duas línguas no contexto só
     // dá ao modelo mais uma coisa para desencontrar.
     const dayName = (n) => pt[`day.${n}.long`] || n
+
+    // O modelo nao tem relogio nem calendario: se ninguem lhe disser que dia e
+    // hoje, ele inventa — chegou a responder "hoje e domingo" numa terca-feira,
+    // e a partir dai tudo o que dissesse sobre "amanha" estava errado.
+    //
+    // A data sai daqui, do browser, e nao do servidor: "amanha" e o amanha do
+    // aluno, no fuso do telemovel dele, nao o do datacenter.
+    const agora = new Date()
+    const diaDe = (d) => {
+      const iso = isoOf(d)
+      const st = dayStatus(iso)
+      return {
+        data: iso,
+        dia_da_semana: dayName(dowOf(iso)),
+        calendario: st.label,        // 'Aulas T1', 'Feriado...', 'Pausa...', 'Exames...'
+        ha_aulas: hasClasses(iso),   // false num feriado ou fora do periodo letivo
+      }
+    }
+    const maisDias = (n) => new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + n)
+
     return {
+      // Nunca deduzas a data a partir de outra coisa — esta aqui.
+      hoje: { ...diaDe(agora), horas: `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}` },
+      amanha: diaDe(maisDias(1)),
       aluno: { nome: displayName, curso: program, ano: academicYear, semestre: semester },
       cadeiras: courses.map((c) => {
         const base = { nome: c.name, codigo: c.code, ects: c.ects, ano: c.year, semestre: c.term,
