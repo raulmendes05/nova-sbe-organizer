@@ -347,6 +347,7 @@ export const en = {
   'schedule.weeksAway.one': '1 week away',
   'schedule.deadlineInClass': 'In this class',
   'schedule.deadlineSameDay': 'Same day',
+  'schedule.examStart': 'That is the start time — the official calendar does not give the length.',
   'schedule.makeupClass': 'Make-up class',
   'schedule.makeup': 'Make-up day',
   'schedule.icsName': 'Nova SBE Schedule',

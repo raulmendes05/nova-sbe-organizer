@@ -7,7 +7,8 @@ import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon, ErrorBox } from '../
 import CourseSelect from '../components/CourseSelect.jsx'
 import { days as weekDays, scheduleKinds, hhmm, todayDow } from '../lib/helpers.js'
 import { officialBlock } from '../lib/enroll.js'
-import { weekOf, withDeadlines } from '../lib/week.js'
+import { weekOf, withDeadlines, withExams } from '../lib/week.js'
+import { withTerms } from '../lib/terms.js'
 import { localeOf } from '../lib/helpers.js'
 import EnrollFlow from '../components/EnrollFlow.jsx'
 import ShiftFinder from '../components/ShiftFinder.jsx'
@@ -109,19 +110,39 @@ export default function Schedule() {
     return { preSelect: codigos, preTurnos: porCodigo }
   })()
 
+  // As cadeiras que contam para os exames: as DESTE semestre, cada uma com o
+  // trimestre em que o aluno a tem (e o que decide se o exame de Etica e o de
+  // outubro ou o de dezembro).
+  const cadeirasDoSemestre = useMemo(() => {
+    const ano = Number(academicYear) || null
+    const termo = Number(semester) || null
+    const meus = ano && termo
+      ? courses.filter((c) => c.year === ano && c.term === termo)
+      : courses
+    return withTerms(meus, rows)
+  }, [courses, rows, academicYear, semester])
+
   // A semana a mostrar: as aulas que la correm mesmo (T1/T2, feriados, pausas
-  // e dias de compensacao) mais os prazos que caem nesses dias.
+  // e dias de compensacao), os prazos que caem nesses dias e os testes e
+  // exames dessas cadeiras. Os prazos primeiro, para nao se colarem a um
+  // exame em vez de a uma aula.
   const dias = useMemo(() => {
-    const base = withDeadlines(weekOf(rows, new Date(), semana), prazos.rows, courses)
+    const base = withExams(
+      withDeadlines(weekOf(rows, new Date(), semana), prazos.rows, courses),
+      cadeirasDoSemestre)
     return base.map((d) => {
       const st = d.status
-      const semAulas = !d.blocks.length && (st.type === 'holiday' || st.type === 'break')
-      const aviso = st.type === 'holiday' || st.type === 'break'
-        ? (lang === 'en' ? st.labelEn : st.label)
-        : st.type === 'makeup' ? t('schedule.makeup') : null
-      return { ...d, semAulas, aviso }
+      const vazio = !d.blocks.length
+      const periodo = lang === 'en' ? st.labelEn : st.label
+      // Na epoca de exames nao ha aulas nenhumas: dizer que dias sao evita que
+      // a semana pareca uma avaria. Onde ha exame meu, a faixa ja o diz.
+      const aviso = st.type === 'holiday' || st.type === 'break' ? periodo
+        : st.type === 'exams' && vazio ? periodo
+        : st.type === 'makeup' ? t('schedule.makeup')
+        : null
+      return { ...d, semAulas: vazio && ['holiday', 'break', 'exams'].includes(st.type), aviso }
     })
-  }, [rows, prazos.rows, courses, semana, lang, t])
+  }, [rows, prazos.rows, courses, cadeirasDoSemestre, semana, lang, t])
 
   const intervalo = (() => {
     const fmt = (d) => d.toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'short' })

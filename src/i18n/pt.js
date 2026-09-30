@@ -347,6 +347,7 @@ export const pt = {
   'schedule.weeksAway.one': '1 semana de distância',
   'schedule.deadlineInClass': 'Nesta aula',
   'schedule.deadlineSameDay': 'Neste dia',
+  'schedule.examStart': 'A hora é a do início — a duração não vem no calendário oficial.',
   'schedule.makeupClass': 'Aula de compensação',
   'schedule.makeup': 'Dia de compensação',
   'schedule.icsName': 'Horário Nova SBE',

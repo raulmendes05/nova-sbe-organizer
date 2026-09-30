@@ -5,6 +5,8 @@ import { useT } from '../i18n/index.jsx'
 const PX_PER_MIN = 1.05          // 1h ≈ 63px
 const MIN_BLOCK = 26             // altura mínima para um bloco continuar legível
 const PRAZO_H = 20               // etiqueta de um prazo solto (não é uma aula)
+const EXAME_H = 32               // faixa de um exame: hora de início + cadeira
+const MIN_SPAN = 4 * 60          // altura mínima da grelha, em minutos
 
 const toMin = (t) => {
   const [h, m] = hhmm(t).split(':').map(Number)
@@ -59,9 +61,11 @@ export default function WeekGrid({ days: semana, courseById, onPick }) {
   // A grelha começa/acaba nas horas mesmo usadas, com folga de meia hora.
   const [from, to] = useMemo(() => {
     if (!blocks.length) return [8 * 60, 19 * 60]
-    const lo = Math.min(...blocks.map((b) => toMin(b.start_time)))
-    const hi = Math.max(...blocks.map((b) => toMin(b.end_time)))
-    return [Math.floor((lo - 30) / 60) * 60, Math.ceil((hi + 30) / 60) * 60]
+    const lo = Math.floor((Math.min(...blocks.map((b) => toMin(b.start_time))) - 30) / 60) * 60
+    const hi = Math.ceil((Math.max(...blocks.map((b) => toMin(b.end_time))) + 30) / 60) * 60
+    // Na semana de exames nao ha aulas: ha uma faixa fina por dia e mais nada.
+    // Sem um minimo, a grelha ficava com duas horas de altura.
+    return [lo, Math.max(hi, lo + MIN_SPAN)]
   }, [blocks])
 
   const height = (to - from) * PX_PER_MIN
@@ -124,6 +128,28 @@ export default function WeekGrid({ days: semana, courseById, onPick }) {
                     const w = 100 / (b.cols || 1)
                     const lado = { left: `calc(${b.col * w}% + 2px)`, width: `calc(${w}% - 4px)` }
 
+                    // Um exame não é uma aula do aluno: vem do calendário da
+                    // escola, não se edita, e a única hora publicada é a do
+                    // início — por isso é uma faixa, não uma caixa com um fim
+                    // inventado.
+                    if (b.__exame) {
+                      const e = b.__exame
+                      const tipo = t(`examType.${e.type}`)
+                      return (
+                        <div key={b.id}
+                          title={`${tipo} · ${b.title}${e.half ? ` (${e.half})` : ''} · ${hhmm(b.start_time)}\n${t('schedule.examStart')}`}
+                          className="absolute rounded-md px-1.5 py-0.5 overflow-hidden border border-rose-400/50 bg-rose-500/[0.16]"
+                          style={{ ...lado, top: (s - from) * PX_PER_MIN + 1, height: EXAME_H }}>
+                          <span className="block text-[10px] font-semibold text-rose-50 truncate leading-tight">
+                            {b.title}
+                          </span>
+                          <span className="block text-[9px] font-semibold text-rose-200 truncate leading-tight">
+                            <span className="tabular-nums">{hhmm(b.start_time)}</span> · {tipo}
+                          </span>
+                        </div>
+                      )
+                    }
+
                     // Um prazo que não tem aula onde encaixar aparece como uma
                     // etiqueta fina à hora a que é — não é uma aula, não deve
                     // ocupar o espaço de uma.
@@ -145,11 +171,14 @@ export default function WeekGrid({ days: semana, courseById, onPick }) {
                     // Prazos que acontecem NESTA aula (ver lib/week.js) — a
                     // apresentação de Ética aparece na aula de Ética.
                     const prazos = b.prazos || []
+                    // Um teste feito dentro desta aula (ver lib/week.js).
+                    const exame = b.exame || null
                     // Fora da hora da aula, a hora vem à frente: o título é
                     // que fica cortado numa coluna estreita, não ela.
                     const etiqueta = (p) => (p.dentro ? p.title : `${p.hora} · ${p.title}`)
                     const titulo = [`${b.title} · ${hhmm(b.start_time)}-${hhmm(b.end_time)}`,
                       ...(b.__mu ? [t('schedule.makeupClass')] : []),
+                      ...(exame ? [`${t(`examType.${exame.type}`)} · ${exame.time}`] : []),
                       ...prazos.map((p) => `${t(p.dentro ? 'schedule.deadlineInClass' : 'schedule.deadlineSameDay')}: ${etiqueta(p)}`)].join('\n')
                     return (
                       <button key={b.id} onClick={() => onPick(b)}
@@ -161,11 +190,20 @@ export default function WeekGrid({ days: semana, courseById, onPick }) {
                           height: h - 2,
                           background: `linear-gradient(180deg, ${color}38, ${color}22)`,
                           borderLeft: `3px solid ${color}`,
-                          boxShadow: prazos.length ? 'inset 0 0 0 1.5px rgba(245, 158, 11, 0.55)' : undefined,
+                          boxShadow: exame ? 'inset 0 0 0 1.5px rgba(244, 63, 94, 0.65)'
+                            : prazos.length ? 'inset 0 0 0 1.5px rgba(245, 158, 11, 0.55)' : undefined,
                         }}>
                         <span className="block text-[11px] font-semibold text-slate-100 leading-tight line-clamp-2">
                           {b.title}
                         </span>
+                        {exame && (
+                          <span className="mt-1 flex items-center gap-1 rounded bg-rose-500/25 px-1 py-0.5 text-[9px] font-bold text-rose-100 leading-tight">
+                            <span className="w-1 h-1 rounded-full bg-rose-300 shrink-0" />
+                            <span className="truncate">
+                              <span className="tabular-nums">{exame.time}</span> · {t(`examType.${exame.type}`)}
+                            </span>
+                          </span>
+                        )}
                         {prazos.map((p) => (
                           <span key={p.id}
                             className="mt-1 flex items-center gap-1 rounded bg-amber-400/20 px-1 py-0.5 text-[9px] font-semibold text-amber-100 leading-tight">
@@ -173,7 +211,7 @@ export default function WeekGrid({ days: semana, courseById, onPick }) {
                             <span className="truncate">{etiqueta(p)}</span>
                           </span>
                         ))}
-                        {h > 44 + prazos.length * 13 && (
+                        {h > 44 + (prazos.length + (exame ? 1 : 0)) * 13 && (
                           <span className="block text-[9px] text-slate-400 mt-0.5 leading-tight">
                             {hhmm(b.start_time)}–{hhmm(b.end_time)}
                             {b.location ? ` · ${b.location}` : ''}

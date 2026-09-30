@@ -77,7 +77,7 @@ export function renderExams() {
 const halfOfKey = (k) => (/_T([1-4])$/.test(k) ? k.slice(-2) : null)
 
 /**
- * Exames a chegar das cadeiras do aluno, a partir de hoje.
+ * As linhas de exames que servem esta cadeira.
  *
  * As cadeiras que correm meio semestre (Ética, Business Principles, Law...)
  * têm duas linhas — `1463_T1` e `1463_T2` — com exames em datas diferentes.
@@ -89,30 +89,40 @@ const halfOfKey = (k) => (/_T([1-4])$/.test(k) ? k.slice(-2) : null)
  * Sem trimestre conhecido ficam as duas linhas — cada uma marcada com o seu
  * `half`, para o ecrã poder dizer qual é qual em vez de escolher à sorte.
  */
-export function upcomingExams(courses, now = new Date()) {
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+function keysFor(c) {
+  const code = String(c.code)
+  if (EXAMS[code]) return [code]
+  if (c.half && EXAMS[`${code}_${c.half}`]) return [`${code}_${c.half}`]
+  return [`${code}_T1`, `${code}_T2`].filter((k) => EXAMS[k])
+}
+
+/**
+ * TODOS os exames das cadeiras do aluno, sem filtro de data — por ordem.
+ *
+ * Sem filtro porque o horário é navegável para trás: quem volta à semana
+ * passada tem de ver o teste que fez nela.
+ */
+export function courseExams(courses) {
   const out = []
   for (const c of courses || []) {
     if (!c.code) continue
-    const code = String(c.code)
-    let keys = []
-    if (EXAMS[code]) keys = [code]
-    else if (c.half && EXAMS[`${code}_${c.half}`]) keys = [`${code}_${c.half}`]
-    else keys = [`${code}_T1`, `${code}_T2`].filter((k) => EXAMS[k])
-    for (const k of keys) {
+    for (const k of keysFor(c)) {
       const half = halfOfKey(k)
       for (const it of EXAMS[k].items) {
         const [y, m, d] = it.date.split('-').map(Number)
-        const when = new Date(y, m - 1, d)
-        if (when >= todayStart) {
-          out.push({ course: c.name, half, type: it.type, typeLabel: EXAM_TYPE_PT[it.type], date: it.date, time: it.time, when })
-        }
+        out.push({
+          course: c.name, courseId: c.id ?? null, half,
+          type: it.type, typeLabel: EXAM_TYPE_PT[it.type],
+          date: it.date, time: it.time, when: new Date(y, m - 1, d),
+        })
       }
     }
   }
   out.sort((a, b) => a.when - b.when || (a.time > b.time ? 1 : -1))
   // Com o trimestre por saber ficam as duas linhas — e o recurso e o MESMO
   // exame nas duas (mesma data, mesma hora). Duas vezes na lista era so ruido.
+  // A chave e o NOME da cadeira, o que tambem colapsa cadeiras duplicadas
+  // (uma criada pelo catalogo, outra pela inscricao dos turnos).
   const vistos = new Set()
   return out.filter((e) => {
     const k = `${e.course}|${e.type}|${e.date}|${e.time}`
@@ -120,6 +130,12 @@ export function upcomingExams(courses, now = new Date()) {
     vistos.add(k)
     return true
   })
+}
+
+/** Os que ainda estao para vir, para as listas de "proximos exames". */
+export function upcomingExams(courses, now = new Date()) {
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  return courseExams(courses).filter((e) => e.when >= todayStart)
 }
 
 // Calendário completo: todos os exames de todas as cadeiras (a partir de hoje).
