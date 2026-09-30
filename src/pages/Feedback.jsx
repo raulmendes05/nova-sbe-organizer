@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useT } from '../i18n/index.jsx'
 import { PageHeader, Icon, Spinner, EmptyState, ErrorBox } from '../components/ui.jsx'
@@ -157,6 +157,12 @@ export default function Feedback() {
                             </ul>
                           </div>
                         )}
+                        {tri.resposta && (
+                          <BlocoCopiavel titulo={t('feedback.triageReply')} texto={tri.resposta} tom="texto" />
+                        )}
+                        {tri.pedido && (
+                          <BlocoCopiavel titulo={t('feedback.triagePrompt')} texto={tri.pedido} />
+                        )}
                       </div>
                     )}
 
@@ -177,6 +183,61 @@ export default function Feedback() {
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * Um bloco de texto que se copia com um toque.
+ *
+ * Sao dois: o pedido para o agente de programacao e a resposta para quem
+ * reportou. Escrever qualquer um deles a mao a partir da triagem era o passo
+ * chato que fazia os reports ficarem por tratar e as pessoas sem resposta.
+ */
+function BlocoCopiavel({ titulo, texto, tom = 'mono' }) {
+  const { t } = useT()
+  const [copiado, setCopiado] = useState(false)
+  const ref = useRef(null)
+
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(texto)
+    } catch {
+      // Sem permissao para a area de transferencia (ou fora de https):
+      // seleciona o texto, para se poder copiar a mao em vez de ficar sem nada.
+      const el = ref.current
+      if (el) {
+        const sel = window.getSelection()
+        const range = document.createRange()
+        range.selectNodeContents(el)
+        sel.removeAllRanges()
+        sel.addRange(range)
+      }
+      return
+    }
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 2000)
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <Rotulo>{titulo}</Rotulo>
+        <button onClick={copiar}
+          className={`shrink-0 -mt-1 inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[11px] font-semibold border transition ${
+            copiado ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                    : 'bg-white/[0.06] text-slate-300 border-white/10 hover:bg-white/10'
+          }`}>
+          <Icon name={copiado ? 'check' : 'archive'} className="w-3.5 h-3.5" />
+          {copiado ? t('feedback.copied') : t('feedback.copy')}
+        </button>
+      </div>
+      <pre ref={ref}
+        className={`text-[12px] leading-relaxed text-slate-200 whitespace-pre-wrap break-words
+                   rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 select-all
+                   ${tom === 'mono' ? 'font-mono' : 'font-sans text-[13px]'}`}>
+        {texto}
+      </pre>
     </div>
   )
 }

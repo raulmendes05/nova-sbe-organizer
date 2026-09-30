@@ -755,6 +755,10 @@ export const pt = {
   'feedback.triageFiles': 'Onde mexer',
   'feedback.triageFix': 'Como resolver',
   'feedback.triageAsk': 'Falta saber',
+  'feedback.triageReply': 'Resposta para lhe enviares',
+  'feedback.triagePrompt': 'Pedido pronto a colar',
+  'feedback.copy': 'Copiar',
+  'feedback.copied': 'Copiado',
 
   'profile.inboxHint': 'Vê o que já enviaste pelo botão de mensagens e se já foi resolvido.',
   'profile.inboxHintAdmin': 'As mensagens que os utilizadores enviaram, já lidas e triadas pelo Cláudio.',
