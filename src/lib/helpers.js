@@ -344,8 +344,17 @@ export const termOrdinal = (year, term) => (Number(year) - 1) * 2 + Number(term)
  * semestre em curso via uma GPA que a escola nunca lhe ia dar: mais alta ou
  * mais baixa, mas sempre a errada.
  *
- * As equivalencias entram sempre. Sao creditos ja obtidos e nao tem semestre
- * proprio no plano de estudos — deixa-las de fora era perder ECTS reais.
+ * As equivalencias NAO entram — nem na nota nem nos creditos.
+ *
+ * A folha da Uniao de Estudantes conta-lhes os ECTS (o "Completed ECTs" e
+ * IF(Grade<>"", ECTS, ""), e um "PASS" preenche a celula), mas a propria folha
+ * avisa que nao foi validada pela Nova. E, sobretudo, a conta e feita no
+ * momento da CANDIDATURA: quem se candidata a Erasmus ainda nao o fez, por
+ * isso esses creditos nao deviam sequer existir no calculo. Conta-los inflava
+ * os 25% do ritmo com creditos que a escola ainda nao ve.
+ *
+ * Na nota (os 75%) nunca entraram: o Weight da folha e IF(ISNUMBER(Grade),...)
+ * e uma linha marcada PASS nao e um numero.
  *
  * `items`: { ects, avg, year, term, isEquivalence, passFail }
  * `applyKey`: o termKey(ano, semestre) em que se concorre.
@@ -355,7 +364,7 @@ export function erasmusScope(items, applyYear, applyTerm) {
   const lista = items || []
 
   const conta = (x) => {
-    if (x.isEquivalence) return true
+    if (x.isEquivalence) return false             // creditadas de fora: nao contam
     if (!x.year || !x.term) return false          // sem semestre: nao da para situar
     return termKey(x.year, x.term) < applyKey
   }
@@ -375,12 +384,13 @@ export function erasmusScope(items, applyYear, applyTerm) {
   // Cadeiras com nota que ficaram de fora — e a diferenca que o aluno ve.
   const foraComNota = lista.filter((x) => !conta(x) && x.avg !== null && x.avg !== undefined)
 
-  // Para as notas de rodape: de onde vieram os ECTS que nao trazem nota.
-  const equivalencias = dentro.filter((x) =>
+  // Para as notas de rodape. Os modulos Pass/Fail da propria Nova (Careers with
+  // Impact, Data Handling) continuam a contar: sao cadeiras do plano, feitas ca.
+  const ectsPassFail = dentro.reduce((t, x) => t + Number(x.passFail || 0), 0)
+  // As equivalencias que ficaram de fora — o aluno tem de saber que existem e
+  // porque e que nao aparecem na soma.
+  const equivalencias = lista.filter((x) =>
     x.isEquivalence && (x.avg !== null && x.avg !== undefined || Number(x.passFail || 0) > 0))
-  const ectsPassFail = dentro
-    .filter((x) => !x.isEquivalence)
-    .reduce((t, x) => t + Number(x.passFail || 0), 0)
 
   return {
     gpa: weightedAvg(comNota),
@@ -391,9 +401,9 @@ export function erasmusScope(items, applyYear, applyTerm) {
     ectsEquivalencias: equivalencias.reduce((t, x) => t + Number(x.ects || 0), 0),
     ectsPassFail,
     // Do semestre em curso ou de um semestre futuro: nao entram, e e de proposito.
-    excluidas: foraComNota.filter((x) => x.year && x.term).length,
+    excluidas: foraComNota.filter((x) => !x.isEquivalence && x.year && x.term).length,
     // Sem ano/semestre definido: a app nao as sabe situar e o aluno tem de as arrumar.
-    semPeriodo: foraComNota.filter((x) => !x.year || !x.term).length,
+    semPeriodo: foraComNota.filter((x) => !x.isEquivalence && (!x.year || !x.term)).length,
   }
 }
 

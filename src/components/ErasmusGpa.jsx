@@ -119,7 +119,7 @@ export default function ErasmusGpa({ items = [], defaultYear, defaultTerm }) {
         </p>
       )}
 
-      {r.ectsEquivalencias > 0 && ectsDraft === null && (
+      {r.equivalencias > 0 && (
         <p className="text-xs text-slate-500 mt-2">
           {t('erasmus.equivalences', { ects: r.ectsEquivalencias, n: r.equivalencias })}
         </p>
