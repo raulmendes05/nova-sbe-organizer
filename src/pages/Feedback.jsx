@@ -157,9 +157,6 @@ export default function Feedback() {
                             </ul>
                           </div>
                         )}
-                        {tri.resposta && (
-                          <BlocoCopiavel titulo={t('feedback.triageReply')} texto={tri.resposta} tom="texto" />
-                        )}
                         {tri.pedido && (
                           <BlocoCopiavel titulo={t('feedback.triagePrompt')} texto={tri.pedido} />
                         )}
@@ -188,13 +185,13 @@ export default function Feedback() {
 }
 
 /**
- * Um bloco de texto que se copia com um toque.
+ * O pedido para o agente de programacao, copiavel com um toque.
  *
- * Sao dois: o pedido para o agente de programacao e a resposta para quem
- * reportou. Escrever qualquer um deles a mao a partir da triagem era o passo
- * chato que fazia os reports ficarem por tratar e as pessoas sem resposta.
+ * E o fim da linha deste ecra: o report foi lido e percebido, e o que falta e
+ * mandar resolver. O pedido acaba a encomendar tambem o email de resposta
+ * para quem reportou — essa so se escreve depois de haver o que contar.
  */
-function BlocoCopiavel({ titulo, texto, tom = 'mono' }) {
+function BlocoCopiavel({ titulo, texto }) {
   const { t } = useT()
   const [copiado, setCopiado] = useState(false)
   const ref = useRef(null)
@@ -233,9 +230,8 @@ function BlocoCopiavel({ titulo, texto, tom = 'mono' }) {
         </button>
       </div>
       <pre ref={ref}
-        className={`text-[12px] leading-relaxed text-slate-200 whitespace-pre-wrap break-words
-                   rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 select-all
-                   ${tom === 'mono' ? 'font-mono' : 'font-sans text-[13px]'}`}>
+        className="text-[12px] leading-relaxed text-slate-200 whitespace-pre-wrap break-words
+                   font-mono rounded-xl bg-black/30 border border-white/10 px-3 py-2.5 select-all">
         {texto}
       </pre>
     </div>

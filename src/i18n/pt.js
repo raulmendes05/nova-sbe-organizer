@@ -755,7 +755,6 @@ export const pt = {
   'feedback.triageFiles': 'Onde mexer',
   'feedback.triageFix': 'Como resolver',
   'feedback.triageAsk': 'Falta saber',
-  'feedback.triageReply': 'Resposta para lhe enviares',
   'feedback.triagePrompt': 'Pedido pronto a colar',
   'feedback.copy': 'Copiar',
   'feedback.copied': 'Copiado',

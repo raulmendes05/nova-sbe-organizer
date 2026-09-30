@@ -755,7 +755,6 @@ export const en = {
   'feedback.triageFiles': 'Where to look',
   'feedback.triageFix': 'How to fix it',
   'feedback.triageAsk': 'Still unclear',
-  'feedback.triageReply': 'Reply to send back',
   'feedback.triagePrompt': 'Ready-to-paste request',
   'feedback.copy': 'Copy',
   'feedback.copied': 'Copied',

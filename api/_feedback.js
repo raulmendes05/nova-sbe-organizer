@@ -72,22 +72,6 @@ const TRIAGE_SCHEMA = {
       type: 'array', items: { type: 'string' },
       description: 'O que falta saber para poder resolver. Vazio se não faltar nada.',
     },
-    resposta: {
-      type: 'string',
-      description: [
-        'Um email curto, pronto a enviar DE VOLTA a quem escreveu o report.',
-        'Na MESMA língua em que a pessoa escreveu (se escreveu em inglês, responde em inglês).',
-        'Trata-a por tu — são colegas, não é apoio ao cliente.',
-        'Agradece; mostra que percebeste, repetindo o problema por outras palavras',
-        '(é o que prova que não foi lido na diagonal); e diz o que vai acontecer a seguir.',
-        'NUNCA digas que já está corrigido nem prometas prazos: isto é escrito no momento',
-        'em que o report chega, e ainda não se mexeu em nada.',
-        'Se o report for vago, faz a pergunta que falta em vez de fingir que percebeste.',
-        'NÃO menciones ficheiros, funções nem nada do código: quem reportou não mantém a app',
-        'e isso só soa a desculpa técnica. Fala do que ela vê no ecrã.',
-        'Sem assunto, sem assinatura e sem markdown — só o corpo do email.',
-      ].join(' '),
-    },
     pedido: {
       type: 'string',
       description: [
@@ -97,11 +81,14 @@ const TRIAGE_SCHEMA = {
         '(2) o que devia acontecer em vez disso; (3) onde é provável que esteja, nomeando ficheiros.',
         'NÃO prescrevas a solução linha a linha — dá o problema e as pistas, e deixa o agente investigar.',
         'Se o report for vago, diz isso no pedido em vez de inventares um problema concreto.',
+        'Termina SEMPRE com esta linha, tal e qual: "Quando estiver resolvido, escreve-me o',
+        'email de resposta para quem reportou isto." — a resposta so vale a pena depois de',
+        'haver alguma coisa para contar, e quem resolveu e quem sabe o que dizer.',
         'Uma ou duas frases por ponto. Sem markdown.',
       ].join(' '),
     },
   },
-  required: ['titulo', 'tipo', 'gravidade', 'resumo', 'causa_provavel', 'sugestao', 'pedido', 'resposta'],
+  required: ['titulo', 'tipo', 'gravidade', 'resumo', 'causa_provavel', 'sugestao', 'pedido'],
 }
 
 // O suficiente para o modelo situar o report sem lhe despejar o repositorio
@@ -157,10 +144,6 @@ export async function triage({ kind, message, page, apiKey, userAgent }) {
     'vai colar, tal e qual, num agente de programação para o problema ser resolvido.',
     'Tem de se aguentar sozinho, sem o resto desta triagem por perto, e tem de',
     'preservar as palavras do utilizador — é nelas que está o sintoma verdadeiro.',
-    '',
-    'O campo `resposta` é o outro lado: o email de volta para quem reportou. Quem',
-    'escreve um report e não recebe nada não volta a escrever — e são estes reports',
-    'que fazem a app melhorar. Escreve como se fosses responder a um colega.',
     '',
     `# A app\n${APP_MAP}`,
     '',
@@ -231,7 +214,6 @@ function emailHtml({ row, t }) {
   ${bloco('Onde mexer', t.ficheiros?.length ? `<ul style="margin:0;padding-left:20px"><li><code>${t.ficheiros.map(esc).join('</code></li><li><code>')}</code></li></ul>` : '')}
   ${bloco('Como resolver', `<p style="margin:0;white-space:pre-wrap">${esc(t.sugestao)}</p>`)}
   ${bloco('Falta saber', t.perguntar?.length ? `<ul style="margin:0;padding-left:20px">${lista(t.perguntar)}</ul>` : '')}
-  ${bloco('Resposta para lhe enviares', t.resposta ? `<pre style="margin:0;padding:12px 14px;background:#f8fafc;color:#0f172a;border:1px solid #e2e8f0;border-radius:8px;white-space:pre-wrap;word-break:break-word;font:14px/1.6 system-ui,sans-serif">${esc(t.resposta)}</pre>` : '')}
   ${bloco('Para colar no agente', t.pedido ? `<pre style="margin:0;padding:12px 14px;background:#0f172a;color:#e2e8f0;border-radius:8px;white-space:pre-wrap;word-break:break-word;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace">${esc(t.pedido)}</pre>` : '')}
   ` : '<p style="margin:20px 0 0;font-size:13px;color:#94a3b8">(Sem triagem automática desta vez.)</p>'}
 
@@ -262,9 +244,6 @@ function emailText({ row, t }) {
       t.perguntar?.length ? '' : null,
       t.perguntar?.length ? `Falta saber:\n- ${t.perguntar.join('\n- ')}` : null,
       // O pedido vai no fim e separado: e a parte que se seleciona e cola.
-      t.resposta ? '' : null,
-      t.resposta ? '--- RESPOSTA PARA LHE ENVIARES ---' : null,
-      t.resposta || null,
       t.pedido ? '' : null,
       t.pedido ? '--- PARA COLAR NO AGENTE ---' : null,
       t.pedido || null,
