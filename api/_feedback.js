@@ -107,11 +107,25 @@ Ecrãs (src/pages/):
 Dados (src/data/): curriculum.js (planos de curso), schedules.js (grelha de
 turnos S1 26/27, com o trimestre de cada sessão no campo 't'), exams.js (datas de
 exames), calendar.js (períodos T1/T2/T3/T4, feriados, compensações),
-assessments.js (pesos do syllabus), cwi.js.
+assessments.js (pesos do syllabus), cwi.js (os 4 módulos do Careers with Impact).
 
 Lógica (src/lib/): week.js (que aulas correm em que dia), terms.js (em que
 metade do semestre corre cada cadeira), enroll.js (turnos -> blocos do
 horário), helpers.js (datas, médias), planner.js, plan.js.
+
+O QUE JÁ EXISTE (não digas que falta):
+- Careers with Impact (código 1471) e os dois Data Handling (1321 Excel, 1322
+  Data Tools) já são tratados como Pass/Fail, fora da média mas com os ECTS a
+  contar. Ver PASS_FAIL_CODES/isCwi/isPassFail em lib/helpers.js e os ecrãs
+  CwiModules.jsx (os 4 módulos) e PassFailCourse.jsx (feito/não feito).
+  Adicionam-se como qualquer cadeira: Notas -> botão + -> catálogo.
+- Equivalências (cadeiras creditadas de fora), num separador próprio das Notas.
+- GPA de Erasmus, com escolha do semestre da candidatura (ErasmusGpa.jsx).
+- Simulador da nota que falta no exame, e mínimos por componente (assessments.js).
+- Trimestres T1/T2: etiqueta nas cadeiras e filtro no horário e nos exames.
+- Objetivo de média por semestre, plano de estudo semanal, caderno por cadeira,
+  resumos de slides, exercícios, exportar o horário para .ics, PWA offline.
+- Aba de mensagens (é por ela que este report chegou).
 
 Notas importantes:
 - A escala de notas é 0-20. Créditos em ECTS.
@@ -139,6 +153,13 @@ export async function triage({ kind, message, page, apiKey, userAgent }) {
     'Responde em português de Portugal. Sê concreto: nomeia ficheiros e funções em',
     'vez de dar conselhos genéricos. Se a mensagem for vaga demais para saber o que',
     'se passa, di-lo em `perguntar` em vez de inventares uma causa.',
+    '',
+    'CUIDADO com pedidos de coisas que já existem. Muita gente pede o que não',
+    'encontrou, não o que falta. Antes de dizeres que uma funcionalidade não existe,',
+    'procura-a na lista "O QUE JÁ EXISTE" abaixo. Se lá estiver, o problema é de',
+    'descoberta e não de código: di-lo no `resumo`, e o `pedido` deve ser para',
+    'tornar aquilo encontrável, não para o construir de novo.',
+    'Nomeia apenas ficheiros que aparecem no mapa — não inventes caminhos.',
     '',
     'O campo `pedido` é o mais importante: é o texto que a pessoa que mantém a app',
     'vai colar, tal e qual, num agente de programação para o problema ser resolvido.',
