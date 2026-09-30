@@ -329,6 +329,74 @@ export function erasmusGpa(gpa, ects, semesters) {
   return { gpa: round2(g), ritmo, valor: Math.round(valor * 100) / 100 }
 }
 
+/**
+ * A ordem de um semestre no percurso: 1.o ano 1.o sem = 1, ... 3.o ano 2.o sem = 6.
+ * E o que permite contar quantos semestres ja se concluiram.
+ */
+export const termOrdinal = (year, term) => (Number(year) - 1) * 2 + Number(term)
+
+/**
+ * O que conta para uma candidatura a mobilidade feita num dado semestre.
+ *
+ * A candidatura e avaliada com as notas ATE ao semestre anterior — o semestre
+ * em que se concorre ainda esta a decorrer e as suas notas ainda nao existem
+ * quando a escola olha para o processo. Quem ja tivesse lancado na app notas do
+ * semestre em curso via uma GPA que a escola nunca lhe ia dar: mais alta ou
+ * mais baixa, mas sempre a errada.
+ *
+ * As equivalencias entram sempre. Sao creditos ja obtidos e nao tem semestre
+ * proprio no plano de estudos — deixa-las de fora era perder ECTS reais.
+ *
+ * `items`: { ects, avg, year, term, isEquivalence, passFail }
+ * `applyKey`: o termKey(ano, semestre) em que se concorre.
+ */
+export function erasmusScope(items, applyYear, applyTerm) {
+  const applyKey = termKey(applyYear, applyTerm)
+  const lista = items || []
+
+  const conta = (x) => {
+    if (x.isEquivalence) return true
+    if (!x.year || !x.term) return false          // sem semestre: nao da para situar
+    return termKey(x.year, x.term) < applyKey
+  }
+
+  const dentro = lista.filter(conta)
+  const comNota = dentro.filter((x) => x.avg !== null && x.avg !== undefined)
+
+  // A folha da escola nao trata as equivalencias a parte: o que decide e a nota
+  // da linha. Com um numero, a cadeira entra na media (os 75%) E nos creditos;
+  // marcada Pass/Fail — que e como as cadeiras de Erasmus voltam — vale so os
+  // creditos (os 25%). Ver o "GPA Calculators Bachelors": Weight so conta
+  // linhas com ISNUMBER, mas Completed ECTs conta toda a linha com a celula da
+  // nota preenchida. Daqui sai a soma: ECTS com nota + creditos Pass/Fail.
+  const ects = comNota.reduce((t, x) => t + Number(x.ects || 0), 0)
+    + dentro.reduce((t, x) => t + Number(x.passFail || 0), 0)
+
+  // Cadeiras com nota que ficaram de fora — e a diferenca que o aluno ve.
+  const foraComNota = lista.filter((x) => !conta(x) && x.avg !== null && x.avg !== undefined)
+
+  // Para as notas de rodape: de onde vieram os ECTS que nao trazem nota.
+  const equivalencias = dentro.filter((x) =>
+    x.isEquivalence && (x.avg !== null && x.avg !== undefined || Number(x.passFail || 0) > 0))
+  const ectsPassFail = dentro
+    .filter((x) => !x.isEquivalence)
+    .reduce((t, x) => t + Number(x.passFail || 0), 0)
+
+  return {
+    gpa: weightedAvg(comNota),
+    ects,
+    semestres: Math.max(0, termOrdinal(applyYear, applyTerm) - 1),
+    contadas: comNota.length,
+    equivalencias: equivalencias.length,
+    ectsEquivalencias: equivalencias.reduce((t, x) => t + Number(x.ects || 0), 0),
+    ectsPassFail,
+    // Do semestre em curso ou de um semestre futuro: nao entram, e e de proposito.
+    excluidas: foraComNota.filter((x) => x.year && x.term).length,
+    // Sem ano/semestre definido: a app nao as sabe situar e o aluno tem de as arrumar.
+    semPeriodo: foraComNota.filter((x) => !x.year || !x.term).length,
+  }
+}
+
 const round2 = (n) => Math.round(n * 100) / 100
 
 // Estado do objetivo de média: compara a média atual com a meta e devolve

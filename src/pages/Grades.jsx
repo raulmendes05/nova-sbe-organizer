@@ -111,24 +111,6 @@ export default function Grades() {
     ? withAvg.reduce((s, x) => s + x.avg * Number(x.c.ects || 0), 0) / totalEcts
     : null
 
-  // Para a GPA de Erasmus, a folha da escola nao trata as equivalencias a
-  // parte: o que decide e a nota da linha. Com um numero, a cadeira entra na
-  // media (os 75%) E nos creditos; marcada Pass/Fail — que e como as cadeiras
-  // de Erasmus voltam — vale so os creditos (os 25%).
-  // Ver o "GPA Calculators Bachelors": Weight so conta linhas com ISNUMBER,
-  // mas Completed ECTs conta toda a linha com a celula da nota preenchida.
-  const ectsPassFail = perCourse.reduce(
-    (s, x) => s + passFailEcts(x.c, compsOf(x.c.id)), 0)
-  const ectsFeitos = totalEcts + ectsPassFail
-  // So para explicar a soma a quem tem equivalencias.
-  const comEquivalencia = perCourse.filter((x) =>
-    x.c.is_equivalence && (x.avg !== null || passFailEcts(x.c, compsOf(x.c.id)) > 0))
-  const ectsEquivalencias = comEquivalencia.reduce((s, x) => s + Number(x.c.ects || 0), 0)
-  // Os modulos Pass/Fail da Nova (Careers with Impact, Data Handling) tem a sua
-  // propria linha; sem isto, uma equivalencia Pass aparecia contada nas duas.
-  const ectsPassFailNova = perCourse.reduce(
-    (s, x) => s + (x.c.is_equivalence ? 0 : passFailEcts(x.c, compsOf(x.c.id))), 0)
-
   // Agrupar regulares por ano/semestre
   const groups = Object.values(
     regular.reduce((acc, item) => {
@@ -552,8 +534,18 @@ export default function Grades() {
 
       {/* Candidatura a mobilidade: outra metrica, a partir dos mesmos numeros */}
       <div className="mb-4">
-        <ErasmusGpa gpa={globalAvg} ects={ectsFeitos} ectsPassFail={ectsPassFailNova}
-          ectsEquivalencias={ectsEquivalencias} equivalencias={comEquivalencia.length} />
+        {/* Passa as cadeiras em bruto, nao a media ja feita: a candidatura so
+            conta o que estava fechado no semestre anterior, e e o proprio
+            componente que corta pelo semestre escolhido. */}
+        <ErasmusGpa defaultYear={defYear} defaultTerm={defTerm}
+          items={perCourse.map((x) => ({
+            ects: Number(x.c.ects || 0),
+            avg: x.avg,
+            year: x.c.year,
+            term: x.c.term,
+            isEquivalence: Boolean(x.c.is_equivalence),
+            passFail: passFailEcts(x.c, compsOf(x.c.id)),
+          }))} />
       </div>
 
       {/* Separadores */}
