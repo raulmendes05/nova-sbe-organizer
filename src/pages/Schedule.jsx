@@ -8,7 +8,7 @@ import CourseSelect from '../components/CourseSelect.jsx'
 import { days as weekDays, scheduleKinds, hhmm, todayDow } from '../lib/helpers.js'
 import { officialBlock } from '../lib/enroll.js'
 import { weekOf, withDeadlines, withExams, isoOf } from '../lib/week.js'
-import { withTerms } from '../lib/terms.js'
+import { withTerms, enrolledTerm } from '../lib/terms.js'
 import { localeOf } from '../lib/helpers.js'
 import EnrollFlow from '../components/EnrollFlow.jsx'
 import ShiftFinder from '../components/ShiftFinder.jsx'
@@ -193,10 +193,16 @@ export default function Schedule() {
   const cadeirasDoSemestre = useMemo(() => {
     const ano = Number(academicYear) || null
     const termo = Number(semester) || null
-    const meus = ano && termo
-      ? courses.filter((c) => c.year === ano && c.term === termo)
-      : courses
-    return withTerms(meus, rows)
+    // Ter turnos no horario PROVA que o aluno anda na cadeira. Vale mais do que
+    // o ano/semestre da ficha, que pode estar vazio ou noutro ano — o catalogo
+    // nao esta organizado por ano. Era isso que escondia o exame a quem tinha a
+    // cadeira no horario mas a ficha a dizer outra coisa.
+    const temTurnos = (c) => Boolean(enrolledTerm(c, rows))
+    // Sem turnos, vale a ficha — com a mesma tolerancia do plano de estudo e do
+    // Claudio: um campo por preencher nao chega para excluir a cadeira.
+    const daFicha = (c) =>
+      (!ano || !c.year || c.year === ano) && (!termo || !c.term || c.term === termo)
+    return withTerms(courses.filter((c) => temTurnos(c) || daFicha(c)), rows)
   }, [courses, rows, academicYear, semester])
 
   // A semana a mostrar: as aulas que la correm mesmo (T1/T2, feriados, pausas
