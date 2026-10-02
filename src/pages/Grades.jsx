@@ -103,12 +103,15 @@ export default function Grades() {
   const perCourse = courses.map((c) => ({ c, avg: resolveGrade(c, compsOf(c.id)) }))
   const doCurso = perCourse.filter((x) => !x.c.is_equivalence)
   const equivalences = perCourse.filter((x) => x.c.is_equivalence)
-  // Careers with Impact nao e de nenhum semestre: os quatro modulos fazem-se ao
-  // longo do curso, cada um no seu. Agrupa-la num semestre era dizer que foi
-  // toda feita nesse — e e precisamente o contrario que o "Feito em" de cada
-  // modulo veio arrumar.
-  const aoLongo = doCurso.filter((x) => isCwi(x.c))
-  const regular = doCurso.filter((x) => !isCwi(x.c))
+  // As pass/fail nao sao de nenhum semestre: os quatro modulos do Careers with
+  // Impact fazem-se ao longo do curso, cada um no seu, e os Data Handling
+  // fazem-se quando calha. Agrupa-las num semestre dizia que foram feitas
+  // nesse — e e o contrario que o "Feito em" de cada modulo veio arrumar.
+  //
+  // `doCurso` ja deixou de fora as equivalencias, por isso um Data Handling
+  // que tenha vindo creditado continua no separador das Equivalencias.
+  const aoLongo = doCurso.filter((x) => isPassFail(x.c))
+  const regular = doCurso.filter((x) => !isPassFail(x.c))
 
   // Media global — todas as cadeiras com nota (incl. equivalencias)
   const withAvg = perCourse.filter((x) => x.avg !== null)
