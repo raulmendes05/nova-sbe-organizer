@@ -7,7 +7,7 @@
 // Os blocos com marca de meio-semestre no título — "(T1)"/"(T2)" — só entram
 // na metade a que pertencem.
 import { PERIODS, dayStatus, dowOf } from '../data/calendar.js'
-import { runsOn, blockOn } from './week.js'
+import { blocksOn } from './week.js'
 
 // Europe/Lisbon com a regra de mudança de hora da UE — para as horas ficarem
 // certas quer em outubro (WEST, +1) quer depois da mudança (WET, +0).
@@ -67,7 +67,7 @@ function nextISO(iso) {
  *                as entregas lado a lado.
  * @returns { text, count, deadlineCount }
  */
-export function buildICS(blocks, { semester = 1, name = 'Horário Nova SBE', dtstamp, deadlines = [] } = {}) {
+export function buildICS(blocks, { semester = 1, name = 'Horário Nova SBE', dtstamp, deadlines = [], excecoes = [] } = {}) {
   const halves = Number(semester) === 2 ? ['T3', 'T4'] : ['T1', 'T2']
   const p1 = PERIODS.find((p) => p.key === halves[0])
   const p2 = PERIODS.find((p) => p.key === halves[1])
@@ -77,18 +77,14 @@ export function buildICS(blocks, { semester = 1, name = 'Horário Nova SBE', dts
   const events = []
 
   for (let iso = p1.start; iso <= p2.end; iso = nextISO(iso)) {
-    const st = dayStatus(iso)
-    if (st.type !== 'classes' && st.type !== 'makeup') continue
-    const dia = { n: dowOf(iso), iso, status: st }
+    const dia = { n: dowOf(iso), iso, status: dayStatus(iso) }
 
     // A mesma regra da grelha (lib/week.js) — trimestre certo, dias de
-    // compensação e as cadeiras que só têm aula em datas certas —, para o
-    // ficheiro do calendário não dizer uma coisa e a app outra.
-    for (const original of blocks || []) {
-      if (!runsOn(original, dia)) continue
-      const b = blockOn(original, iso)
-
-      const uid = `${original.id}-${iso}@nova-sbe-organizer`
+    // compensação, as cadeiras que só têm aula em datas certas e as aulas
+    // desmarcadas naquela semana —, para o ficheiro do calendário não dizer
+    // uma coisa e a app outra.
+    for (const b of blocksOn(blocks, dia, excecoes)) {
+      const uid = `${b.id}-${iso}@nova-sbe-organizer`
       const ev = [
         'BEGIN:VEVENT',
         `UID:${uid}`,

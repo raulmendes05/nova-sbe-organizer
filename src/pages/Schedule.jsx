@@ -7,7 +7,7 @@ import { PageHeader, Fab, Modal, Spinner, EmptyState, Icon, ErrorBox } from '../
 import CourseSelect from '../components/CourseSelect.jsx'
 import { days as weekDays, scheduleKinds, hhmm, todayDow } from '../lib/helpers.js'
 import { officialBlock } from '../lib/enroll.js'
-import { weekOf, withDeadlines, withExams } from '../lib/week.js'
+import { weekOf, withDeadlines, withExams, isoOf } from '../lib/week.js'
 import { withTerms } from '../lib/terms.js'
 import { localeOf } from '../lib/helpers.js'
 import EnrollFlow from '../components/EnrollFlow.jsx'
@@ -20,6 +20,7 @@ import { buildICS } from '../lib/ics.js'
 const empty = {
   title: '', course_id: null, day_of_week: todayDow(),
   start_time: '09:00', end_time: '10:30', location: '', kind: 'aula',
+  on_date: null,          // preenchido = aula de um dia so, nao do horario
 }
 
 export default function Schedule() {
@@ -29,8 +30,17 @@ export default function Schedule() {
   const { rows: courses } = useCourses()
   const { semester, academicYear, lang } = useAuth()
   const prazos = useCollection('assignments', { orderBy: 'due_date', ascending: true })
+  // Alteracoes que valem para UMA semana so: a aula desmarcada, a de
+  // reposicao. Vivem a parte do horario recorrente (ver supabase/schema.sql).
+  const excecoes = useCollection('schedule_exceptions', { orderBy: 'on_date', ascending: true })
   const { t } = useT()
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
+
+  // "12 dez" — para os botoes dizerem a QUE dia e que se referem.
+  const dataCurta = (iso) => {
+    const [y, m, d] = String(iso).split('-').map(Number)
+    return new Date(y, m - 1, d).toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'short' })
+  }
 
   const [open, setOpen] = useState(false)
   // Quem chega aqui pelo botao dos primeiros passos ja disse que quer
@@ -40,7 +50,12 @@ export default function Schedule() {
   const [procuraAberta, setProcuraAberta] = useState(false)
   const [semana, setSemana] = useState(0)   // 0 = esta semana
   const [form, setForm] = useState(empty)
-  const [editId, setEditId] = useState(null)
+  // O que o modal esta a editar: um bloco do horario, uma aula de um dia so,
+  // ou nada (aula nova).
+  const [alvo, setAlvo] = useState(null)   // null | { tipo: 'bloco' | 'extra', id }
+  // O dia da grelha em que se tocou — e sobre ele que correm o "desmarcar so
+  // neste dia" e o "so numa semana".
+  const [diaBase, setDiaBase] = useState(null)
   const [aviso, setAviso] = useState(null)
   const [exported, setExported] = useState(null)
 
@@ -50,6 +65,7 @@ export default function Schedule() {
       semester: Number(semester) || 1,
       name: t('schedule.icsName'),
       deadlines: porEntregar,
+      excecoes: excecoes.rows,
     })
     if (!count && !deadlineCount) { setExported(t('schedule.nothingToExport')); return }
     const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' })
@@ -66,27 +82,88 @@ export default function Schedule() {
     setTimeout(() => setExported(null), 4000)
   }
 
-  function openNew() { setForm({ ...empty, day_of_week: todayDow() }); setEditId(null); setAviso(null); setOpen(true) }
-  function openEdit(b) {
+  /**
+   * O dia que o "so num dia" propoe: hoje, se hoje estiver a vista; senao o
+   * primeiro da semana que se esta a ver. Propor uma data fora do ecra era
+   * propor a semana errada.
+   */
+  function diaPadrao() {
+    const hojeIso = isoOf(new Date())
+    return dias.some((d) => d.iso === hojeIso) ? hojeIso : dias[0].iso
+  }
+
+  function openNew() {
+    setForm({ ...empty, day_of_week: todayDow(), on_date: null })
+    setAlvo(null); setDiaBase(diaPadrao()); setAviso(null); setOpen(true)
+  }
+
+  /**
+   * Tocar num bloco da grelha. `iso` e o dia em que se tocou — sem ele nao se
+   * saberia QUAL das semanas desmarcar.
+   *
+   * Uma aula desmarcada repoe-se logo ao toque: e um so gesto, desfaz-se da
+   * mesma maneira, e abrir um modal para dizer "sim" nao protegia de nada.
+   */
+  function openEdit(b, iso) {
+    if (b.__cancelada) { excecoes.remove(b.__cancelada.id).catch(() => {}); return }
+    const e = b.__extra || null
     setForm({
       title: b.title, course_id: b.course_id, day_of_week: b.day_of_week,
       start_time: hhmm(b.start_time), end_time: hhmm(b.end_time),
       location: b.location || '', kind: b.kind || 'aula',
+      on_date: e ? e.on_date : null,
     })
-    setEditId(b.id); setAviso(null); setOpen(true)
+    setAlvo(e ? { tipo: 'extra', id: e.id } : { tipo: 'bloco', id: b.id })
+    setDiaBase(iso || e?.on_date || null)
+    setAviso(null); setOpen(true)
   }
 
-  async function save(e) {
-    e.preventDefault()
+  const soNesteDia = Boolean(form.on_date)
+
+  async function save(ev) {
+    ev.preventDefault()
     // O <input type="time"> aceita qualquer par de horas: sem isto dava para
     // gravar uma aula das 18:00 as 09:00, que nem se via na grelha.
     if (form.end_time <= form.start_time) { setAviso(t('valid.endBeforeStart')); return }
+    if (soNesteDia && !form.on_date) { setAviso(t('valid.needDate')); return }
     setAviso(null)
+
+    const { on_date, day_of_week, ...comum } = form
     try {
-      if (editId) await update(editId, form)
-      else await add(form)
+      if (soNesteDia) {
+        // Aula de um dia so: vive nas excecoes, nao no horario recorrente.
+        const linha = { ...comum, on_date, action: 'extra', block_id: null }
+        if (alvo?.tipo === 'extra') await excecoes.update(alvo.id, linha)
+        else await excecoes.add(linha)
+      } else if (alvo?.tipo === 'extra') {
+        // Passou de "so neste dia" para "todas as semanas": muda de tabela.
+        await add({ ...comum, day_of_week })
+        await excecoes.remove(alvo.id)
+      } else if (alvo?.tipo === 'bloco') {
+        await update(alvo.id, { ...comum, day_of_week })
+      } else {
+        await add({ ...comum, day_of_week })
+      }
       setOpen(false)
     } catch { /* o useCollection ja pos a mensagem em `error` — o modal fica aberto */ }
+  }
+
+  /** Desmarcar esta aula so no dia em que se tocou. O horario fica intacto. */
+  async function desmarcar() {
+    try {
+      await excecoes.add({ action: 'skip', block_id: alvo.id, on_date: diaBase })
+      setOpen(false)
+    } catch { /* mensagem ja visivel */ }
+  }
+
+  /** Apagar: a linha certa consoante o que se esta a editar. */
+  async function apagar() {
+    if (!window.confirm(t(alvo?.tipo === 'extra' ? 'schedule.confirmDeleteOne' : 'schedule.confirmDelete'))) return
+    try {
+      if (alvo?.tipo === 'extra') await excecoes.remove(alvo.id)
+      else await remove(alvo.id)
+      setOpen(false)
+    } catch { /* mensagem ja visivel */ }
   }
 
   // O que ja esta gravado, para o ecra das turmas abrir com tudo marcado em vez
@@ -128,7 +205,9 @@ export default function Schedule() {
   // exame em vez de a uma aula.
   const dias = useMemo(() => {
     const base = withExams(
-      withDeadlines(weekOf(rows, new Date(), semana), prazos.rows, courses),
+      withDeadlines(
+        weekOf(rows, new Date(), semana, { excecoes: excecoes.rows, canceladas: true }),
+        prazos.rows, courses),
       cadeirasDoSemestre)
     return base.map((d) => {
       const st = d.status
@@ -142,7 +221,7 @@ export default function Schedule() {
         : null
       return { ...d, semAulas: vazio && ['holiday', 'break', 'exams'].includes(st.type), aviso }
     })
-  }, [rows, prazos.rows, courses, cadeirasDoSemestre, semana, lang, t])
+  }, [rows, prazos.rows, excecoes.rows, courses, cadeirasDoSemestre, semana, lang, t])
 
   const intervalo = (() => {
     const fmt = (d) => d.toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'short' })
@@ -169,7 +248,7 @@ export default function Schedule() {
           </button>
         )} />
 
-      <ErrorBox error={error} onClose={clearError} className="mb-4" />
+      <ErrorBox error={error || excecoes.error} onClose={() => { clearError(); excecoes.clearError() }} className="mb-4" />
 
       {/* Para quem deu skip ao pop-up de inscricao — ou quer trocar de turno */}
       <button onClick={() => setTurmasAberto(true)}
@@ -254,7 +333,7 @@ export default function Schedule() {
 
       <Fab onClick={openNew} />
 
-      <Modal open={open} onClose={() => setOpen(false)} title={editId ? t('schedule.editBlock') : t('schedule.newBlock')}>
+      <Modal open={open} onClose={() => setOpen(false)} title={alvo ? t('schedule.editBlock') : t('schedule.newBlock')}>
         <form onSubmit={save} className="space-y-3">
           <div>
             <label className="label">{t('schedule.name')}</label>
@@ -265,15 +344,38 @@ export default function Schedule() {
             <label className="label">{t('common.course')}</label>
             <CourseSelect value={form.course_id} onChange={(v) => setForm({ ...form, course_id: v })} />
           </div>
+          {/* Uma semana nunca e igual a outra: a aula de reposicao so existe
+              naquele dia e nao deve ficar no horario para sempre. */}
           <div>
-            <label className="label">{t('schedule.day')}</label>
-            <div className="grid grid-cols-7 gap-1">
-              {weekDays(t).map((d) => (
-                <button type="button" key={d.n} onClick={() => setForm({ ...form, day_of_week: d.n })}
-                  className={`py-2 seg ${form.day_of_week === d.n ? 'seg-on' : 'seg-off'}`}>{d.short}</button>
-              ))}
+            <label className="label">{t('schedule.repeat')}</label>
+            <div className="grid grid-cols-2 gap-1">
+              <button type="button"
+                onClick={() => setForm({ ...form, on_date: null })}
+                className={`py-2 seg ${soNesteDia ? 'seg-off' : 'seg-on'}`}>{t('schedule.everyWeek')}</button>
+              <button type="button"
+                onClick={() => setForm({ ...form, on_date: form.on_date || diaBase || isoOf(new Date()) })}
+                className={`py-2 seg ${soNesteDia ? 'seg-on' : 'seg-off'}`}>{t('schedule.oneDayOnly')}</button>
             </div>
           </div>
+
+          {soNesteDia ? (
+            <div>
+              <label className="label">{t('schedule.date')}</label>
+              <input type="date" className="input" required value={form.on_date || ''}
+                onChange={(e) => setForm({ ...form, on_date: e.target.value })} />
+              <p className="text-xs text-slate-500 mt-1">{t('schedule.oneDayHint')}</p>
+            </div>
+          ) : (
+            <div>
+              <label className="label">{t('schedule.day')}</label>
+              <div className="grid grid-cols-7 gap-1">
+                {weekDays(t).map((d) => (
+                  <button type="button" key={d.n} onClick={() => setForm({ ...form, day_of_week: d.n })}
+                    className={`py-2 seg ${form.day_of_week === d.n ? 'seg-on' : 'seg-off'}`}>{d.short}</button>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">{t('schedule.start')}</label>
@@ -299,17 +401,28 @@ export default function Schedule() {
               </select>
             </div>
           </div>
-          <ErrorBox error={aviso || error} onClose={() => { setAviso(null); clearError() }} />
-          <button className="btn-primary w-full mt-2">{editId ? t('common.save') : t('common.add')}</button>
+          <ErrorBox error={aviso || error || excecoes.error}
+            onClose={() => { setAviso(null); clearError(); excecoes.clearError() }} />
+          <button className="btn-primary w-full mt-2">{alvo ? t('common.save') : t('common.add')}</button>
+
+          {/* Desmarcar uma aula numa semana so — sem lhe tocar nas outras.
+              Repoe-se tocando na aula apagada que fica na grelha. */}
+          {alvo?.tipo === 'bloco' && diaBase && (
+            <div className="pt-1">
+              <button type="button" onClick={desmarcar}
+                className="w-full py-2.5 rounded-xl text-sm font-semibold text-amber-200 bg-amber-500/10 hover:bg-amber-500/15 border border-amber-500/25 flex items-center justify-center gap-2">
+                <Icon name="close" className="w-4 h-4" /> {t('schedule.skipThisDay', { date: dataCurta(diaBase) })}
+              </button>
+              <p className="text-xs text-slate-500 mt-1.5 text-center">{t('schedule.skipHint')}</p>
+            </div>
+          )}
+
           {/* Na grelha não cabe um botão por bloco — apaga-se aqui. */}
-          {editId && (
-            <button type="button"
-              onClick={async () => {
-                if (!window.confirm(t('schedule.confirmDelete'))) return
-                try { await remove(editId); setOpen(false) } catch { /* mensagem ja visivel */ }
-              }}
+          {alvo && (
+            <button type="button" onClick={apagar}
               className="w-full py-2.5 rounded-xl text-sm font-medium text-rose-300 hover:bg-rose-500/10 flex items-center justify-center gap-2">
-              <Icon name="trash" className="w-4 h-4" /> {t('common.delete')}
+              <Icon name="trash" className="w-4 h-4" />
+              {t(alvo.tipo === 'extra' ? 'common.delete' : 'schedule.deleteForever')}
             </button>
           )}
         </form>

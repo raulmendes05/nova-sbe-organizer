@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useT } from '../i18n/index.jsx'
 import { errorText, apiError } from '../lib/errors.js'
 import { useCourses } from '../context/CoursesContext.jsx'
-import { weekOf, termOfTitle, isoOf } from '../lib/week.js'
+import { weekOf, dayOf, termOfTitle, isoOf } from '../lib/week.js'
 import { courseTerm, termStatus, withTerms } from '../lib/terms.js'
 import { gerarPlano, duracao } from '../lib/planner.js'
 import {
@@ -114,6 +114,7 @@ export default function Claudio() {
   const coursesCtx = useCourses()
   const courses = coursesCtx.rows
   const schedule = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
+  const excecoes = useCollection('schedule_exceptions', { orderBy: 'on_date', ascending: true })
   const assignments = useCollection('assignments', { orderBy: 'due_date', ascending: true })
   const grades = useCollection('grades', { orderBy: 'created_at', ascending: true })
   const caderno = useCollection('notes', { orderBy: 'created_at', ascending: true })
@@ -152,6 +153,14 @@ export default function Claudio() {
         dia_da_semana: dayName(dowOf(iso)),
         calendario: st.label,        // 'Aulas T1', 'Feriado...', 'Pausa...', 'Exames...'
         ha_aulas: hasClasses(iso),   // false num feriado ou fora do periodo letivo
+        // As aulas desse dia como elas sao MESMO: trimestre certo, feriados,
+        // dias de compensacao e as alteracoes daquela semana. O `horario` em
+        // baixo e o recorrente e nao sabe nada disto — sem este campo, o
+        // Claudio mandava o aluno a uma aula que ele proprio desmarcou.
+        aulas: dayOf(schedule.rows, d, excecoes.rows).blocks.map((b) => ({
+          titulo: b.title, inicio: hhmm(b.start_time), fim: hhmm(b.end_time),
+          sala: b.location, so_neste_dia: Boolean(b.__extra),
+        })),
       }
     }
     const maisDias = (n) => new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + n)
@@ -188,6 +197,17 @@ export default function Claudio() {
         inicio: hhmm(b.start_time), fim: hhmm(b.end_time), sala: b.location, tipo: b.kind,
         trimestre: termOfTitle(b.title),
         corre_agora: termOfTitle(b.title) === 'S1' || termStatus(termOfTitle(b.title)) === 'agora',
+      })),
+      // Alteracoes de uma semana so, soltas do horario recorrente: a aula que o
+      // professor desmarcou, a de reposicao noutro dia.
+      alteracoes_do_horario: excecoes.rows.map((e) => ({
+        data: e.on_date,
+        o_que: e.action === 'skip' ? 'aula desmarcada neste dia' : 'aula so neste dia',
+        aula: e.action === 'skip'
+          ? (schedule.rows.find((b) => b.id === e.block_id)?.title ?? null)
+          : e.title,
+        inicio: e.start_time ? hhmm(e.start_time) : null,
+        sala: e.location || null,
       })),
       prazos: assignments.rows.filter((a) => a.status !== 'done').map((a) => ({
         titulo: a.title, tipo: a.kind, data: a.due_date,
@@ -304,7 +324,7 @@ export default function Claudio() {
       const usadas = withTerms(doSemestre.length ? doSemestre : courses, schedule.rows)
       const plano = gerarPlano({
         semana,
-        dias: weekOf(schedule.rows, new Date(), offset),
+        dias: weekOf(schedule.rows, new Date(), offset, { excecoes: excecoes.rows }),
         courses: usadas,
         assignments: assignments.rows,
         exames: upcomingExams(usadas, new Date(`${semana}T12:00:00`)),

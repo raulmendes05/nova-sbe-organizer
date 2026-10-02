@@ -11,6 +11,7 @@ import { useT } from '../i18n/index.jsx'
 export default function ProximaAula() {
   const { t, lang } = useT()
   const schedule = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
+  const excecoes = useCollection('schedule_exceptions', { orderBy: 'on_date', ascending: true })
   const { rows: courses } = useCourses()
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))
 
@@ -21,7 +22,8 @@ export default function ProximaAula() {
     return () => clearInterval(id)
   }, [])
 
-  const list = upcomingClasses(schedule.rows, now, 3)
+  // Sem as excecoes, mandava o aluno a uma aula que ele proprio desmarcou.
+  const list = upcomingClasses(schedule.rows, now, 3, 160, excecoes.rows)
   const next = list[0]
   const after = list.slice(1, 3)
 

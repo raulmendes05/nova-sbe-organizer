@@ -1,5 +1,5 @@
 import { dayStatus } from '../data/calendar.js'
-import { runsOn, blockOn } from './week.js'
+import { blocksOn } from './week.js'
 import { CWI_CODE, CWI_MODULES, cwiDone } from '../data/cwi.js'
 
 // ---------------------------------------------------------------------------
@@ -246,10 +246,12 @@ const isoOf = (d) =>
 
 // Aulas que vêm a seguir, por ordem. Respeita o CALENDÁRIO ACADÉMICO: só conta
 // dias em que há mesmo aulas (ignora pausas, feriados e o verão) e, nos dias de
-// compensação, usa o dia da semana que efetivamente corre nesse dia.
+// compensação, usa o dia da semana que efetivamente corre nesse dia. As aulas
+// desmarcadas numa semana (`excecoes`) não contam: dizer ao aluno para ir a
+// uma aula que ele próprio cancelou era pior do que não dizer nada.
 // horizonDays: até quão longe procurar (por defeito ~5 meses, para apanhar o
 // início do semestre depois de uma pausa longa).
-export function upcomingClasses(blocks, now = new Date(), limit = 3, horizonDays = 160) {
+export function upcomingClasses(blocks, now = new Date(), limit = 3, horizonDays = 160, excecoes = []) {
   const nowMin = now.getHours() * 60 + now.getMinutes()
   const out = []
   const base = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -260,9 +262,7 @@ export function upcomingClasses(blocks, now = new Date(), limit = 3, horizonDays
     // A mesma regra da grelha (lib/week.js): trimestre certo, feriados,
     // dias de compensação e as cadeiras que só têm aula em datas certas.
     const dia = { n: d.getDay() === 0 ? 7 : d.getDay(), iso, status: dayStatus(iso) }
-    const today = (blocks || [])
-      .filter((b) => runsOn(b, dia))
-      .map((b) => blockOn(b, iso))
+    const today = blocksOn(blocks, dia, excecoes)
       .map((b) => ({ block: b, day: b.day_of_week, sMin: toMinutes(b.start_time), eMin: toMinutes(b.end_time) }))
       .sort((a, b) => a.sMin - b.sMin)
     for (const x of today) {

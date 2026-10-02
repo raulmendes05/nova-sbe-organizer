@@ -29,6 +29,7 @@ export default function Home() {
   const schedule = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
   const assignments = useCollection('assignments', { orderBy: 'due_date', ascending: true })
   const grades = useCollection('grades', { orderBy: 'created_at', ascending: true })
+  const excecoes = useCollection('schedule_exceptions', { orderBy: 'on_date', ascending: true })
 
   const dow = todayDow()
   const dayName = dayLong(t, dow)
@@ -37,8 +38,8 @@ export default function Home() {
   // As aulas de hoje como elas sao mesmo: a mesma regra da grelha do horario
   // (lib/week.js). Filtrar so pelo dia da semana punha as cadeiras do T2 a
   // aparecer durante o T1 — e as de qualquer trimestre a aparecer nos feriados.
-  const todayClasses = dayOf(schedule.rows).blocks
-  const nextClass = upcomingClasses(schedule.rows, new Date(), 1)[0]
+  const todayClasses = dayOf(schedule.rows, new Date(), excecoes.rows).blocks
+  const nextClass = upcomingClasses(schedule.rows, new Date(), 1, 160, excecoes.rows)[0]
   const upcoming = assignments.rows
     .filter((a) => a.status !== 'done')
     .filter((a) => a.due_date)

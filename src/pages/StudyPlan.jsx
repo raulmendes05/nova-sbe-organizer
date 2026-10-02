@@ -23,6 +23,7 @@ export default function StudyPlan() {
   const prazos = useCollection('assignments', { orderBy: 'due_date', ascending: true })
   const notas = useCollection('grades', { orderBy: 'created_at', ascending: true })
   const horario = useCollection('schedule_blocks', { orderBy: 'start_time', ascending: true })
+  const excecoes = useCollection('schedule_exceptions', { orderBy: 'on_date', ascending: true })
   const { lang, academicYear, semester } = useAuth()
   const { t } = useT()
 
@@ -60,7 +61,9 @@ export default function StudyPlan() {
 
   // Os dias desta semana como eles são mesmo (T1/T2, feriados, compensações):
   // é daqui que sai quanto tempo de aulas tem cada dia.
-  const dias = useMemo(() => weekOf(horario.rows, new Date(), offset), [horario.rows, offset])
+  const dias = useMemo(
+    () => weekOf(horario.rows, new Date(), offset, { excecoes: excecoes.rows }),
+    [horario.rows, excecoes.rows, offset])
 
   // O plano proposto. Sai de uma conta com os prazos, as provas, o peso de cada
   // uma e as horas de aulas — não de o aluno se lembrar do que tem para fazer.

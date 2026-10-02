@@ -6,7 +6,7 @@
 //  horario de OUTRO dia da semana. Este ficheiro traduz uma semana do
 //  calendario para "que aulas ha, em que dia".
 // ============================================================
-import { PERIODS, dayStatus, hasClasses } from '../data/calendar.js'
+import { PERIODS, dayStatus, hasClasses, dowOf } from '../data/calendar.js'
 import { datesFor, sessionOnDate } from '../data/schedules.js'
 import { officialBlock } from './enroll.js'
 import { courseExams } from '../data/exams.js'
@@ -81,17 +81,61 @@ export function blockOn(block, iso) {
 }
 
 /**
+ * As aulas que correm MESMO num dia, ja com as alteracoes dessa semana.
+ *
+ * O horario e recorrente, mas uma semana nunca e igual a outra: ha a aula que
+ * o professor desmarcou e a de reposicao noutro dia. Essas alteracoes vivem na
+ * `schedule_exceptions` e valem para um dia so — o horario de base fica
+ * intacto, e desfazer e apagar a linha.
+ *
+ * Esta funcao e o unico sitio que decide isto. A grelha, a proxima aula, o
+ * plano de estudo, o Claudio e o ficheiro .ics passam todos por aqui, senao
+ * cancelava-se a aula num ecra e ela continuava a aparecer nos outros.
+ *
+ * `canceladas: true` devolve tambem as aulas canceladas, marcadas com
+ * `__cancelada` — a grelha mostra-as apagadas para se poderem repor. Quem so
+ * quer saber onde tem de estar (a proxima aula, o .ics) nao as quer.
+ */
+export function blocksOn(blocks, dia, excecoes = [], { canceladas = false } = {}) {
+  const saltos = new Map()
+  const extras = []
+  for (const e of excecoes || []) {
+    if (e.on_date !== dia.iso) continue
+    if (e.action === 'skip') saltos.set(e.block_id, e)
+    else if (e.action === 'extra') extras.push(e)
+  }
+
+  const normais = []
+  const fantasmas = []
+  for (const b of blocks || []) {
+    if (!runsOn(b, dia)) continue
+    const salto = saltos.get(b.id)
+    if (!salto) { normais.push(blockOn(b, dia.iso)); continue }
+    if (canceladas) fantasmas.push({ ...blockOn(b, dia.iso), __cancelada: salto })
+  }
+
+  const avulsas = extras.map((e) => ({
+    id: `extra-${e.id}`, __extra: e,
+    title: e.title, course_id: e.course_id, kind: e.kind,
+    day_of_week: dowOf(e.on_date),
+    start_time: e.start_time, end_time: e.end_time, location: e.location,
+  }))
+
+  return [...normais, ...fantasmas, ...avulsas]
+}
+
+/**
  * Um dia como ele e mesmo: a data, o que o calendario diz dele e as aulas que
  * la correm — sem as de outro trimestre, sem as dos feriados, e com o horario
  * trocado nos dias de compensacao.
  */
-export function dayOf(blocks, date = new Date()) {
+export function dayOf(blocks, date = new Date(), excecoes = [], opts = {}) {
   const iso = isoOf(date)
   const dia = {
     n: date.getDay() === 0 ? 7 : date.getDay(),
     date, iso, status: dayStatus(iso), hoje: iso === isoOf(new Date()),
   }
-  dia.blocks = (blocks || []).filter((b) => runsOn(b, dia)).map((b) => blockOn(b, iso))
+  dia.blocks = blocksOn(blocks, dia, excecoes, opts)
   return dia
 }
 
@@ -99,13 +143,13 @@ export function dayOf(blocks, date = new Date()) {
  * Os 7 dias de uma semana, cada um com a data, o que o calendario diz dele e
  * as aulas que la correm.
  */
-export function weekOf(blocks, base, offset = 0, hojeIso = isoOf(new Date())) {
+export function weekOf(blocks, base, offset = 0, { hoje = isoOf(new Date()), excecoes = [], canceladas = false } = {}) {
   const seg = mondayOf(base, offset)
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(seg.getFullYear(), seg.getMonth(), seg.getDate() + i)
     const iso = isoOf(d)
-    const dia = { n: i + 1, date: d, iso, status: dayStatus(iso), hoje: iso === hojeIso }
-    dia.blocks = (blocks || []).filter((b) => runsOn(b, dia)).map((b) => blockOn(b, iso))
+    const dia = { n: i + 1, date: d, iso, status: dayStatus(iso), hoje: iso === hoje }
+    dia.blocks = blocksOn(blocks, dia, excecoes, { canceladas })
     return dia
   })
 }
@@ -169,7 +213,7 @@ function mesmaCadeira(block, prazo, cursos, nomeCadeira) {
 function aulaDoPrazo(blocks, prazo, cursos, minuto) {
   const nomeCadeira = cadeiraDoPrazo(prazo, cursos)
   const candidatas = blocks.filter((b) =>
-    !b.__prazo && !b.__exame && mesmaCadeira(b, prazo, cursos, nomeCadeira))
+    !b.__prazo && !b.__exame && !b.__cancelada && mesmaCadeira(b, prazo, cursos, nomeCadeira))
   if (!candidatas.length) return null
   const dentro = candidatas.find((b) => minuto >= toMin(b.start_time) && minuto < toMin(b.end_time))
   if (dentro) return dentro
@@ -248,7 +292,7 @@ function aulaDoExame(blocks, e) {
   const minuto = toMin(e.time)
   const nome = semAcentos(e.course)
   return blocks.find((b) =>
-    !b.__prazo && !b.__exame
+    !b.__prazo && !b.__exame && !b.__cancelada
     && ((e.courseId && b.course_id && b.course_id === e.courseId) || nomeDoBloco(b.title) === nome)
     && minuto >= toMin(b.start_time) && minuto < toMin(b.end_time)) || null
 }

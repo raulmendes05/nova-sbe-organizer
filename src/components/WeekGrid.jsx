@@ -166,6 +166,11 @@ export default function WeekGrid({ days: semana, courseById, onPick }) {
                       )
                     }
 
+                    // Uma aula desmarcada nesta semana fica a vista, apagada
+                    // e riscada: se desaparecesse nao havia como repo-la, e o
+                    // aluno tambem nao via que a tinha desmarcado.
+                    const cancelada = Boolean(b.__cancelada)
+                    const avulsa = Boolean(b.__extra)
                     const color = c?.color || '#3d78bf'
                     const h = Math.max(MIN_BLOCK, (e - s) * PX_PER_MIN)
                     // Prazos que acontecem NESTA aula (ver lib/week.js) — a
@@ -177,25 +182,37 @@ export default function WeekGrid({ days: semana, courseById, onPick }) {
                     // que fica cortado numa coluna estreita, não ela.
                     const etiqueta = (p) => (p.dentro ? p.title : `${p.hora} · ${p.title}`)
                     const titulo = [`${b.title} · ${hhmm(b.start_time)}-${hhmm(b.end_time)}`,
+                      ...(cancelada ? [`${t('schedule.cancelled')} — ${t('schedule.restoreHint')}`] : []),
+                      ...(avulsa ? [t('schedule.oneOff')] : []),
                       ...(b.__mu ? [t('schedule.makeupClass')] : []),
                       ...(exame ? [`${t(`examType.${exame.type}`)} · ${exame.time}`] : []),
                       ...prazos.map((p) => `${t(p.dentro ? 'schedule.deadlineInClass' : 'schedule.deadlineSameDay')}: ${etiqueta(p)}`)].join('\n')
                     return (
-                      <button key={b.id} onClick={() => onPick(b)}
+                      <button key={b.id} onClick={() => onPick(b, d.iso)}
                         title={titulo}
-                        className="absolute rounded-lg px-1.5 py-1 text-left overflow-hidden transition active:scale-[0.98]"
+                        className={`absolute rounded-lg px-1.5 py-1 text-left overflow-hidden transition active:scale-[0.98] ${cancelada ? 'opacity-45' : ''}`}
                         style={{
                           ...lado,
                           top: (s - from) * PX_PER_MIN + 1,
                           height: h - 2,
-                          background: `linear-gradient(180deg, ${color}38, ${color}22)`,
-                          borderLeft: `3px solid ${color}`,
+                          background: cancelada ? 'rgba(255,255,255,0.04)' : `linear-gradient(180deg, ${color}38, ${color}22)`,
+                          borderLeft: `3px ${cancelada ? 'dashed' : 'solid'} ${color}`,
                           boxShadow: exame ? 'inset 0 0 0 1.5px rgba(244, 63, 94, 0.65)'
                             : prazos.length ? 'inset 0 0 0 1.5px rgba(245, 158, 11, 0.55)' : undefined,
                         }}>
-                        <span className="block text-[11px] font-semibold text-slate-100 leading-tight line-clamp-2">
+                        <span className={`block text-[11px] font-semibold leading-tight line-clamp-2 ${cancelada ? 'text-slate-400 line-through decoration-slate-500' : 'text-slate-100'}`}>
                           {b.title}
                         </span>
+                        {cancelada && (
+                          <span className="mt-0.5 inline-flex items-center gap-1 rounded bg-white/10 px-1 py-0.5 text-[9px] font-bold text-slate-300 leading-tight">
+                            {t('schedule.cancelled')}
+                          </span>
+                        )}
+                        {avulsa && (
+                          <span className="mt-0.5 inline-flex items-center gap-1 rounded bg-sky-400/20 px-1 py-0.5 text-[9px] font-bold text-sky-100 leading-tight">
+                            {t('schedule.oneOff')}
+                          </span>
+                        )}
                         {exame && (
                           <span className="mt-1 flex items-center gap-1 rounded bg-rose-500/25 px-1 py-0.5 text-[9px] font-bold text-rose-100 leading-tight">
                             <span className="w-1 h-1 rounded-full bg-rose-300 shrink-0" />
@@ -211,7 +228,7 @@ export default function WeekGrid({ days: semana, courseById, onPick }) {
                             <span className="truncate">{etiqueta(p)}</span>
                           </span>
                         ))}
-                        {h > 44 + (prazos.length + (exame ? 1 : 0)) * 13 && (
+                        {h > 44 + (prazos.length + (exame ? 1 : 0) + (cancelada || avulsa ? 1 : 0)) * 13 && (
                           <span className="block text-[9px] text-slate-400 mt-0.5 leading-tight">
                             {hhmm(b.start_time)}–{hhmm(b.end_time)}
                             {b.location ? ` · ${b.location}` : ''}
