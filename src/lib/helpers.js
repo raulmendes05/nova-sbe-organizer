@@ -165,6 +165,10 @@ export function passFailEcts(course, components) {
 
 // Uma cadeira está "concluída" se já tem nota final OU todas as componentes com nota.
 // (usado para não mostrar exames de cadeiras que o aluno já fez)
+// Os pesos sao percentagens: as componentes so descrevem a cadeira inteira
+// quando somam 100. A folga e para quem reparte em tercos (33,3 x 3 = 99,9).
+const PESO_COMPLETO = 99.5
+
 export function isCourseDone(course, components) {
   if (isCwi(course)) return cwiDone(components).length === CWI_MODULES.length
   if (isPassFail(course)) return Boolean(passRow(components))
@@ -173,10 +177,15 @@ export function isCourseDone(course, components) {
   const comps = components || []
   if (!comps.length) return false
   const totalW = comps.reduce((s, c) => s + Number(c.weight || 0), 0)
-  const gradedW = comps
-    .filter((c) => c.grade !== null && c.grade !== undefined && c.grade !== '')
-    .reduce((s, c) => s + Number(c.weight || 0), 0)
-  return totalW > 0 && totalW - gradedW <= 0.001
+  // So se conclui "feita" quando as componentes cobrem a cadeira TODA. Quem
+  // lanca a nota do teste de setembro e mais nada fica com 40% lancados em 40%
+  // registados — e isso nao quer dizer que acabou a cadeira, quer dizer
+  // precisamente o contrario: ainda falta o exame. Sem esta linha, a cadeira
+  // saia da lista dos exames a chegar no dia em que o aluno lancava a primeira
+  // nota.
+  if (totalW < PESO_COMPLETO) return false
+  const gradedW = gradedWeight(comps)
+  return totalW - gradedW <= 0.001
 }
 
 // Nota de uma cadeira: a nota final (principal) tem prioridade;
