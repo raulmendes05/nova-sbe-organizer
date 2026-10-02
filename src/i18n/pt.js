@@ -419,6 +419,8 @@ export const pt = {
   // ---- Notas (avaliacao) ----
   'grades.subtitle': 'Escala 0–20 · média ponderada por ECTS',
   'grades.semesters': 'Semestres',
+  'grades.acrossDegree': 'Ao longo do curso',
+  'grades.acrossDegreeHint': 'Não é de nenhum semestre — cada módulo diz em que semestre foi feito',
   'grades.equivalences': 'Equivalências',
   'grades.emptyTitle': 'Ainda sem cadeiras',
   'grades.emptyHint': 'Toca no + para adicionar do catálogo Nova SBE.',

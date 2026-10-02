@@ -101,8 +101,14 @@ export default function Grades() {
 
   // Equivalencias vao para um separador proprio, mas contam para a media/ECTS
   const perCourse = courses.map((c) => ({ c, avg: resolveGrade(c, compsOf(c.id)) }))
-  const regular = perCourse.filter((x) => !x.c.is_equivalence)
+  const doCurso = perCourse.filter((x) => !x.c.is_equivalence)
   const equivalences = perCourse.filter((x) => x.c.is_equivalence)
+  // Careers with Impact nao e de nenhum semestre: os quatro modulos fazem-se ao
+  // longo do curso, cada um no seu. Agrupa-la num semestre era dizer que foi
+  // toda feita nesse — e e precisamente o contrario que o "Feito em" de cada
+  // modulo veio arrumar.
+  const aoLongo = doCurso.filter((x) => isCwi(x.c))
+  const regular = doCurso.filter((x) => !isCwi(x.c))
 
   // Media global — todas as cadeiras com nota (incl. equivalencias)
   const withAvg = perCourse.filter((x) => x.avg !== null)
@@ -578,7 +584,7 @@ export default function Grades() {
       {loading ? (
         <Spinner />
       ) : tab === 'semesters' ? (
-        groups.length === 0 ? (
+        groups.length === 0 && aoLongo.length === 0 ? (
           <EmptyState icon="chart" title={t('grades.emptyTitle')} hint={t('grades.emptyHint')} />
         ) : (
           <div className="space-y-3">
@@ -607,6 +613,24 @@ export default function Grades() {
                 </section>
               )
             })}
+
+            {/* Fora dos semestres de proposito: ver `aoLongo` la em cima. */}
+            {aoLongo.length > 0 && (
+              <section className="card overflow-hidden">
+                <button onClick={() => toggleGroup('aoLongo')} className="w-full flex items-center gap-3 p-4 text-left">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-100">{t('grades.acrossDegree')}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{t('grades.acrossDegreeHint')}</p>
+                  </div>
+                  <span className={`text-slate-400 text-lg transition-transform duration-200 ${openGroups.has('aoLongo') ? 'rotate-180' : ''}`}>▾</span>
+                </button>
+                {openGroups.has('aoLongo') && (
+                  <div className="border-t border-white/10 p-2.5 space-y-2.5 bg-white/[0.02]">
+                    {aoLongo.map(courseCard)}
+                  </div>
+                )}
+              </section>
+            )}
           </div>
         )
       ) : (

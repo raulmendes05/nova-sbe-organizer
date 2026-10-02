@@ -419,6 +419,8 @@ export const en = {
   // ---- Grades ----
   'grades.subtitle': '0–20 scale · ECTS-weighted average',
   'grades.semesters': 'Semesters',
+  'grades.acrossDegree': 'Across the degree',
+  'grades.acrossDegreeHint': 'Belongs to no single semester — each module says which one it was done in',
   'grades.equivalences': 'Transfers',
   'grades.emptyTitle': 'No courses yet',
   'grades.emptyHint': 'Tap + to add from the Nova SBE catalogue.',
