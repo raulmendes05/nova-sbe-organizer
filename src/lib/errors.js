@@ -75,10 +75,21 @@ function known(haystack, t) {
   if (/invalid login|invalid_credentials/.test(s)) return t('login.errWrong')
   if (/already registered|already been registered|user_already_exists/.test(s)) return t('login.errExists')
   if (/rate limit|over_email_send_rate|too many requests/.test(s)) return t('login.errRate')
+  // O GoTrue so deixa repetir o envio do email depois de ~60s. A mensagem
+  // trazia os segundos e vinha em ingles; aproveitamos o numero.
+  const espera = s.match(/after (\d+) seconds?/)
+  if (espera || /for security purposes/.test(s)) return t('login.errWait', { n: espera ? espera[1] : 60 })
   if (/email_address_invalid|unable to validate email|invalid email/.test(s)) return t('login.errEmail')
+  // Antes da regra seguinte de proposito: esta mensagem tambem comeca por
+  // "New password should be..." e sairia como "demasiado fraca".
+  if (/same_password|should be different from the old/.test(s)) return t('newpass.errSame')
   if (/weak_password|password should be|password is too/.test(s)) return t('login.errWeak')
   if (/signup_disabled|signups not allowed|not allowed for this instance/.test(s)) return t('login.errSignupsOff')
   if (/email_not_confirmed|email not confirmed/.test(s)) return t('login.errNotConfirmed')
+  // Link de recuperacao gasto, expirado, ou aberto num browser diferente.
+  if (/otp_expired|invalid or has expired|token has expired|access_denied/.test(s)) return t('login.errLinkExpired')
+  // Sessao morta a meio: o aluno nao tem nada que ler "Auth session missing!".
+  if (/auth session missing|session_not_found|session from session id claim/.test(s)) return t('login.errExpired')
   // O GoTrue mascara qualquer erro de trigger com este texto (ver o
   // trg_enforce_nova_email em supabase/exams.sql).
   if (/database error saving new user|unexpected_failure/.test(s)) return t('login.errRefused')

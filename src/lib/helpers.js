@@ -98,6 +98,17 @@ export function dueLabel(iso, t = KEY) {
 //  A verificação diz o que está mal em vez de corrigir por conta própria: um
 //  38 encurtado para 20 em silêncio seria inventar uma nota que ninguém teve.
 // ---------------------------------------------------------------------------
+// Passo dos campos de nota. O `step` de um <input type="number"> nao e so
+// cosmetica: com step="0.1" o browser RECUSA 7,65 no submit ("os valores
+// validos mais proximos sao 7,6 e 7,7") e a nota nunca chegava a ser guardada.
+// As colunas sao `numeric` sem precisao fixa, por isso 7,65 cabe na base de
+// dados tal como foi escrito.
+export const GRADE_STEP = '0.01'
+// Pesos repartidos em tercos dao 33,3 ou 33,33 — com step="1" eram recusados
+// os dois. Duas casas em todos estes campos e o mesmo que a app mostra, por
+// isso nada do que entra aparece depois arredondado.
+export const WEIGHT_STEP = '0.01'
+
 export const LIMITS = {
   grade: { min: 0, max: 20 },        // escala portuguesa
   weight: { min: 0, max: 100 },      // peso de uma componente, em %
@@ -115,6 +126,11 @@ export function checkNumber(raw, { min, max }, t = KEY, { required = false } = {
   if (n < min || n > max) return t('valid.range', { min, max })
   return null
 }
+
+// Os 6 semestres de uma licenciatura. Serve os campos de "feito em" das
+// cadeiras que se fazem ao longo do curso (Data Handling, modulos do Careers
+// with Impact) — para as duas listarem exatamente as mesmas hipoteses.
+export const DEGREE_TERMS = [[1, 1], [1, 2], [2, 1], [2, 2], [3, 1], [3, 2]]
 
 // Etiqueta de grupo ano/semestre para agrupar cadeiras
 export function termLabel(year, term, t = KEY) {
@@ -161,6 +177,24 @@ export function passFailEcts(course, components) {
   if (isCwi(course)) return cwiDone(components).reduce((s, m) => s + m.ects, 0)
   if (!isPassFail(course) && !course?.is_equivalence) return 0
   return passRow(components) ? Number(course.ects || 0) : 0
+}
+
+/**
+ * Em que semestre e que uma cadeira Pass/Fail foi feita: { year, term }.
+ *
+ * Fica na linha do Pass e nao na cadeira, pelo mesmo motivo dos modulos do
+ * Careers with Impact: os dois Data Handling fazem-se ao longo do curso, fora
+ * dos semestres, e o que decide se o ECTS conta numa candidatura a Erasmus e a
+ * data em que ficou FEITO. Sem data propria, cai no ano/semestre da cadeira —
+ * que era o que valia antes de isto existir.
+ */
+export function passPeriod(components, course) {
+  const r = passRow(components)
+  return {
+    year: r?.year ?? course?.year ?? null,
+    term: r?.term ?? course?.term ?? null,
+    proprio: Boolean(r?.year && r?.term),   // false = herdado da cadeira
+  }
 }
 
 // Uma cadeira está "concluída" se já tem nota final OU todas as componentes com nota.
@@ -210,6 +244,24 @@ export function courseAverage(components) {
   if (totalWeight <= 0) return null
   const sum = graded.reduce((s, c) => s + Number(c.grade) * Number(c.weight || 0), 0)
   return sum / totalWeight
+}
+
+/**
+ * Nota em texto: uma casa decimal, duas quando o aluno precisou delas.
+ *
+ * Quem teve 7,65 tem de ver 7,65 — arredondar para 7,7 fazia parecer que a app
+ * tinha deitado fora o que ele escreveu. E com notas de passagem a 9,45 nem
+ * era so aparencia: uma media de 9,449 mostrada como "9,5" dava uma cadeira
+ * por passada quando estava reprovada.
+ */
+export function fmtGrade(n, vazio = '—') {
+  if (n === null || n === undefined || n === '') return vazio
+  const v = Number(n)
+  if (!isFinite(v)) return vazio
+  // Redondo a uma casa (15 -> 15,0) ou a duas (7,65) — nunca mais do que isso,
+  // que seria precisao inventada por uma divisao.
+  const casas = Math.abs(v * 10 - Math.round(v * 10)) < 1e-9 ? 1 : 2
+  return v.toFixed(casas)
 }
 
 // Simulador: que nota (média) é precisa nas componentes que faltam para

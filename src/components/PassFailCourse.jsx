@@ -1,4 +1,5 @@
 import { Icon } from './ui.jsx'
+import { termLabel, termKey, DEGREE_TERMS } from '../lib/helpers.js'
 import { useT } from '../i18n/index.jsx'
 
 /**
@@ -7,9 +8,16 @@ import { useT } from '../i18n/index.jsx'
  * O Careers with Impact tem ecrã próprio por ser dividido em módulos; aqui é
  * um interruptor só. Os ECTS contam assim que está feita, a nota nunca — que é
  * o que a folha oficial da escola faz com estas linhas.
+ *
+ * Depois de marcada aparece o semestre em que foi feita. Estas cadeiras não
+ * vivem num semestre (fazem-se ao longo do curso), mas a GPA de Erasmus só
+ * conta o que já estava fechado antes da candidatura — por isso a escolha tem
+ * de estar aqui, à vista, e não escondida no "Editar cadeira".
  */
-export default function PassFailCourse({ course, feita, onToggle, busy, notaAntiga = null, restos = 0, onLimpar }) {
+export default function PassFailCourse({ course, feita, onToggle, quando = null, onPeriodo, busy, notaAntiga = null, restos = 0, onLimpar }) {
   const { t } = useT()
+  const temPeriodo = Boolean(quando?.year && quando?.term)
+
   return (
     <div className="space-y-3">
       <p className="text-xs text-slate-500">{t('passfail.hint')}</p>
@@ -30,6 +38,34 @@ export default function PassFailCourse({ course, feita, onToggle, busy, notaAnti
           </span>
         </span>
       </button>
+
+      {/* Em que semestre a fez. Só depois de marcada — antes disso não há data
+          nenhuma para guardar. */}
+      {feita && onPeriodo && (
+        <div className="rounded-xl bg-white/[0.04] border border-white/10 p-3 space-y-2">
+          <label className="flex items-center gap-2">
+            <span className="text-xs text-slate-300 shrink-0">{t('passfail.doneIn')}</span>
+            <select
+              className="input py-1.5 text-xs flex-1"
+              disabled={busy}
+              value={temPeriodo ? termKey(quando.year, quando.term) : ''}
+              onChange={(e) => {
+                const [a, sm] = DEGREE_TERMS.find(([y, tt]) => termKey(y, tt) === Number(e.target.value)) || []
+                if (a) onPeriodo(a, sm)
+              }}>
+              <option value="" disabled>{t('passfail.doneInPick')}</option>
+              {DEGREE_TERMS.map(([a, sm]) => (
+                <option key={`${a}-${sm}`} value={termKey(a, sm)}>{termLabel(a, sm, t)}</option>
+              ))}
+            </select>
+          </label>
+          {temPeriodo ? (
+            <p className="text-[11px] text-slate-500 leading-relaxed">{t('passfail.doneInHint')}</p>
+          ) : (
+            <p className="text-[11px] text-amber-200/90 leading-relaxed">{t('passfail.doneInMissing')}</p>
+          )}
+        </div>
+      )}
 
       {(restos > 0 || notaAntiga !== null) && (
         <div className="rounded-xl bg-amber-500/10 border border-amber-500/25 p-3">

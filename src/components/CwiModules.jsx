@@ -1,11 +1,7 @@
 import { Icon } from './ui.jsx'
 import { CWI_MODULES, CWI_ECTS, CWI_ROLE_TO_PLAY_POINTS, cwiDone, cwiTitle, cwiPeriod } from '../data/cwi.js'
-import { termLabel, termKey } from '../lib/helpers.js'
+import { termLabel, termKey, DEGREE_TERMS } from '../lib/helpers.js'
 import { useT } from '../i18n/index.jsx'
-
-// Quando cada modulo pode ter sido feito. Um select com 6 hipoteses chega —
-// sao 3 anos de 2 semestres.
-const ALTURAS = [[1, 1], [1, 2], [2, 1], [2, 2], [3, 1], [3, 2]]
 
 /**
  * Careers with Impact: 4 modulos independentes, cada um feito / nao feito.
@@ -88,11 +84,11 @@ export default function CwiModules({ rows, course, onToggle, onPeriodo, busy, no
                     className="input py-1.5 text-xs flex-1"
                     value={quando.year && quando.term ? termKey(quando.year, quando.term) : ''}
                     onChange={(e) => {
-                      const [a, sm] = ALTURAS.find(([y, tt]) => termKey(y, tt) === Number(e.target.value)) || []
+                      const [a, sm] = DEGREE_TERMS.find(([y, tt]) => termKey(y, tt) === Number(e.target.value)) || []
                       if (a) onPeriodo(m.id, a, sm)
                     }}>
                     <option value="" disabled>{t('cwi.doneInPick')}</option>
-                    {ALTURAS.map(([a, sm]) => (
+                    {DEGREE_TERMS.map(([a, sm]) => (
                       <option key={`${a}-${sm}`} value={termKey(a, sm)}>{termLabel(a, sm, t)}</option>
                     ))}
                   </select>

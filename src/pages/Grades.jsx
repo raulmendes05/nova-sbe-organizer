@@ -10,7 +10,7 @@ import ErasmusGpa from '../components/ErasmusGpa.jsx'
 import CwiModules from '../components/CwiModules.jsx'
 import PassFailCourse from '../components/PassFailCourse.jsx'
 import DuplicateCourses from '../components/DuplicateCourses.jsx'
-import { localeOf, COURSE_COLORS, formatDate, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, isPassFail, passFailEcts, passRow, PASS_MARK, checkNumber, LIMITS } from '../lib/helpers.js'
+import { localeOf, COURSE_COLORS, formatDate, fmtGrade, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, isPassFail, passFailEcts, passPeriod, passRow, PASS_MARK, checkNumber, LIMITS, GRADE_STEP, WEIGHT_STEP } from '../lib/helpers.js'
 import { cwiTitle, cwiRow, cwiDone, cwiCredits, CWI_MODULES } from '../data/cwi.js'
 import { assessmentFor, partsFor, partFor, passMarkFor, PASS_DEFAULT } from '../data/assessments.js'
 import { useT } from '../i18n/index.jsx'
@@ -228,12 +228,25 @@ export default function Grades() {
   // Cadeira Pass/Fail simples (Data Handling): a linha existe = está feita.
   async function togglePasse(course, feita) {
     try {
-      if (feita) await addGrade({ course_id: course.id, title: PASS_MARK, weight: 0, grade: null })
+      // Nasce com o ano/semestre da cadeira (nas do catalogo, o slot em que o
+      // plano a poe) e o aluno corrige no proprio cartao — sem ter de ir
+      // editar a cadeira so para o ECTS contar para o Erasmus.
+      if (feita) await addGrade({ course_id: course.id, title: PASS_MARK, weight: 0, grade: null,
+        year: course.year ?? null, term: course.term ?? null })
       else {
         const row = passRow(compsOf(course.id))
         if (row) await removeGrade(row.id)
       }
     } catch { /* mensagem ja em `error` */ }
+  }
+
+  // Em que semestre e que a cadeira Pass/Fail ficou feita. Vive na linha do
+  // Pass: as cadeiras ao longo do curso nao tem semestre proprio, e e esta data
+  // que decide se o ECTS entra na GPA de Erasmus.
+  async function mudarPeriodoPasse(course, year, term) {
+    const row = passRow(compsOf(course.id))
+    if (!row) return
+    try { await updateGrade(row.id, { year, term }) } catch { /* mensagem ja em `error` */ }
   }
 
   // As componentes do syllabus de uma vez. Uma a uma e pela ordem do syllabus
@@ -316,7 +329,7 @@ export default function Grades() {
                 {passeFeita || equivPasse ? t('passfail.done') : t('passfail.todo')}
               </p>
             ) : (
-              <p className={`text-xl font-bold ${gradeColor(avg)}`}>{avg !== null ? avg.toFixed(1) : '—'}</p>
+              <p className={`text-xl font-bold ${gradeColor(avg)}`}>{fmtGrade(avg)}</p>
             )}
           </div>
         </button>
@@ -341,6 +354,8 @@ export default function Grades() {
         {isOpen && passe && (
           <div className="border-t border-white/10 p-3.5 bg-white/[0.02] space-y-3.5">
             <PassFailCourse course={c} feita={passeFeita} onToggle={(v) => togglePasse(c, v)}
+              quando={passeFeita ? passPeriod(comps, c) : null}
+              onPeriodo={c.is_equivalence ? null : (a, sm) => mudarPeriodoPasse(c, a, sm)}
               notaAntiga={c.final_grade ?? null} restos={restos} onLimpar={() => limparCwi(c)} />
             <div className="flex gap-2 pt-1">
               <button onClick={() => openEditCourse(c)} className="btn-ghost flex-1 py-2 text-sm">
@@ -378,7 +393,7 @@ export default function Grades() {
             {!equivPasse && (<>
             <div>
               <label className="label">{t('grades.finalGrade')}</label>
-              <input type="number" step="0.1" min="0" max="20" inputMode="decimal"
+              <input type="number" step={GRADE_STEP} min="0" max="20" inputMode="decimal"
                 aria-invalid={avisoNota ? 'true' : undefined}
                 className={`input text-lg font-semibold ${avisoNota ? 'border-rose-500/60' : ''}`}
                 placeholder={t('grades.noGradeYet')}
@@ -410,7 +425,7 @@ export default function Grades() {
                               <p className="text-xs text-slate-500">{t('grades.weight', { n: g.weight })}</p>
                             </div>
                             <span className={`font-bold ${g.grade === null ? 'text-slate-500' : gradeColor(Number(g.grade))}`}>
-                              {g.grade === null ? '—' : Number(g.grade).toFixed(1)}
+                              {fmtGrade(g.grade)}
                             </span>
                             <button onClick={() => removeGrade(g.id).catch(() => {})} className="p-1 text-slate-500 hover:text-rose-400">
                               <Icon name="trash" className="w-4 h-4" />
@@ -487,7 +502,7 @@ export default function Grades() {
                         <p className={`text-sm ${p.cls}`}><span className="text-slate-400">{t('grades.simToPass', { n: passeEscrito })}</span> {p.txt}</p>
                         <div className="flex items-center gap-2 mt-2.5">
                           <label className="text-sm text-slate-400">{t('grades.simTarget')}</label>
-                          <input type="number" step="0.5" min="0" max="20" inputMode="decimal"
+                          <input type="number" step={GRADE_STEP} min="0" max="20" inputMode="decimal"
                             className="input w-20 py-1.5 text-sm" placeholder={t('grades.simPlaceholder')}
                             value={simTarget} onChange={(e) => setSimTarget(e.target.value)} />
                           <span className="text-sm text-slate-500">/ 20</span>
@@ -571,7 +586,7 @@ export default function Grades() {
             creditos: isCwi(x.c)
               ? cwiCredits(compsOf(x.c.id), x.c)
               : (passFailEcts(x.c, compsOf(x.c.id)) > 0
-                  ? [{ ects: passFailEcts(x.c, compsOf(x.c.id)), year: x.c.year, term: x.c.term }]
+                  ? [{ ects: passFailEcts(x.c, compsOf(x.c.id)), ...passPeriod(compsOf(x.c.id), x.c) }]
                   : []),
           }))} />
       </div>
@@ -603,7 +618,7 @@ export default function Grades() {
                       <p className="font-bold text-slate-100">{group.label}</p>
                       <p className="text-xs text-slate-400 mt-0.5">
                         {t('grades.courseCount', { n: group.items.length })}
-                          {gAvg !== null && <> · {t('grades.average')} <span className={gradeColor(gAvg)}>{gAvg.toFixed(1)}</span></>}
+                          {gAvg !== null && <> · {t('grades.average')} <span className={gradeColor(gAvg)}>{fmtGrade(gAvg)}</span></>}
                       </p>
                     </div>
                     <span className={`text-slate-400 text-lg transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>▾</span>
@@ -726,12 +741,12 @@ export default function Grades() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">{t('grades.weightLabel')}</label>
-              <input type="number" step="1" min="0" max="100" className="input" required placeholder="40"
+              <input type="number" step={WEIGHT_STEP} min="0" max="100" className="input" required placeholder="40"
                 value={gradeForm.weight} onChange={(e) => setGradeForm({ ...gradeForm, weight: e.target.value })} />
             </div>
             <div>
               <label className="label">{t('grades.gradeLabel')}</label>
-              <input type="number" step="0.1" min="0" max="20" className="input" placeholder={t('grades.noGradeYetShort')}
+              <input type="number" step={GRADE_STEP} min="0" max="20" className="input" placeholder={t('grades.noGradeYetShort')}
                 value={gradeForm.grade} onChange={(e) => setGradeForm({ ...gradeForm, grade: e.target.value })} />
             </div>
           </div>

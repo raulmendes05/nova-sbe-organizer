@@ -5,6 +5,7 @@ import Layout from './components/Layout.jsx'
 import { Spinner } from './components/ui.jsx'
 import NotConfigured from './pages/NotConfigured.jsx'
 import Login from './pages/Login.jsx'
+import NewPassword from './pages/NewPassword.jsx'
 import Onboarding from './pages/Onboarding.jsx'
 import Home from './pages/Home.jsx'
 import Schedule from './pages/Schedule.jsx'
@@ -20,7 +21,7 @@ import Feedback from './pages/Feedback.jsx'
 export default function App() {
   if (!isConfigured) return <NotConfigured />
 
-  const { user, loading, displayName, academicYear } = useAuth()
+  const { user, loading, displayName, academicYear, recovery } = useAuth()
 
   if (loading) {
     return (
@@ -31,6 +32,11 @@ export default function App() {
   }
 
   if (!user) return <Login />
+
+  // A entrar por um link de recuperacao: define a palavra-passe nova antes de
+  // tudo o resto. Vem a frente do onboarding de proposito — quem recupera o
+  // acesso ja tem conta feita, so nao sabe a palavra-passe.
+  if (recovery) return <NewPassword />
 
   // Primeiro login: pedir nome + ano/semestre antes de mostrar a app
   if (!displayName || !academicYear) return <Onboarding />

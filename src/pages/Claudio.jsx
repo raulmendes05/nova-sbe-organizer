@@ -13,7 +13,7 @@ import {
 import { upcomingExams } from '../data/exams.js'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon } from '../components/ui.jsx'
-import { hhmm, COURSE_COLORS, simulateGrade, isCwi, isPassFail, passRow, checkNumber, LIMITS } from '../lib/helpers.js'
+import { hhmm, COURSE_COLORS, simulateGrade, isCwi, isPassFail, passPeriod, passRow, checkNumber, LIMITS } from '../lib/helpers.js'
 import { CWI_MODULES, cwiDone } from '../data/cwi.js'
 import { dayStatus, hasClasses, dowOf } from '../data/calendar.js'
 import { pt } from '../i18n/pt.js'
@@ -184,8 +184,11 @@ export default function Claudio() {
             modulos_por_fazer: CWI_MODULES.map((m) => m.id).filter((id) => !feitos.includes(id)) }
         }
         if (isPassFail(c)) {
+          const quando = passPeriod(linhasDe(c.id), c)
           return { ...base, sem_nota: true, avaliacao: 'pass/fail',
-            feita: Boolean(passRow(linhasDe(c.id))) }
+            feita: Boolean(passRow(linhasDe(c.id))),
+            // Faz-se ao longo do curso: o semestre esta na linha, nao na cadeira.
+            feita_em: quando.year && quando.term ? `${quando.year}.o ano, ${quando.term}.o semestre` : null }
         }
         return { ...base, nota_final: c.final_grade, componentes: compsOf(c.id) }
       }),
