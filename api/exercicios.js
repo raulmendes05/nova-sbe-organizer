@@ -9,7 +9,8 @@
 // no PDF, que é onde já estão bem. O que a app precisa é de saber que
 // exercícios existem, para o aluno marcar o que já fez.
 import { GoogleGenAI } from '@google/genai'
-import { lerDoR2 } from './_r2.js'
+import { lerDoR2ComPermissao } from './_r2.js'
+import { exigirSessao } from './_auth.js'
 
 const MODELS = [
   'gemini-3.5-flash',
@@ -110,6 +111,9 @@ const isQuota = (e) =>
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Método não permitido' }); return }
+  // Só alunos com sessão: sem isto qualquer pessoa gastava a quota do Gemini.
+  const sessao = await exigirSessao(req, res)
+  if (!sessao) return
   const key = process.env.GEMINI_API_KEY
   if (!key) { res.status(500).json({ error: 'GEMINI_API_KEY não configurada no servidor.' }); return }
 
@@ -124,9 +128,12 @@ export default async function handler(req, res) {
 
   let pdf
   try {
-    pdf = await lerDoR2(path)
+    // Só ficheiros que este aluno pode ver (ver podeLerDoR2 em _r2.js) — o
+    // caminho vem do browser e não se lê do bucket um caminho qualquer.
+    pdf = await lerDoR2ComPermissao(sessao.sb, path)
   } catch (e) {
-    res.status(400).json({ error: `Não consegui abrir o ficheiro: ${e.message}` })
+    const semPermissao = /permissão/.test(String(e?.message || ''))
+    res.status(semPermissao ? 403 : 400).json({ error: `Não consegui abrir o ficheiro: ${e.message}` })
     return
   }
   if (pdf.length > MAX_PDF) {

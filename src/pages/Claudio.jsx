@@ -17,6 +17,7 @@ import { hhmm, COURSE_COLORS, simulateGrade, isCwi, isPassFail, passPeriod, pass
 import { CWI_MODULES, cwiDone } from '../data/cwi.js'
 import { dayStatus, hasClasses, dowOf } from '../data/calendar.js'
 import { pt } from '../i18n/pt.js'
+import { authHeaders } from '../lib/api.js'
 
 const SUGGESTION_KEYS = ['claudio.s1', 'claudio.s2', 'claudio.s3', 'claudio.s4']
 
@@ -52,7 +53,7 @@ async function askClaudio(body, onText, textos = {}) {
   try {
     res = await fetch('/api/claudio', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await authHeaders(),
       body: JSON.stringify(body),
       signal: ac.signal,
     })

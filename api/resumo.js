@@ -7,6 +7,7 @@
 // Nada fica gravado aqui — a app é que decide o que guardar na conta do aluno.
 // A chave vive em process.env.GEMINI_API_KEY (a mesma do Cláudio).
 import { GoogleGenAI } from '@google/genai'
+import { exigirSessao } from './_auth.js'
 
 // A quota gratuita do Gemini é POR MODELO: com a lista toda, um dia mau num
 // modelo não deixa a funcionalidade em baixo.
@@ -97,6 +98,9 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'Método não permitido' })
     return
   }
+  // Só alunos com sessão: sem isto qualquer pessoa gastava a quota do Gemini.
+  const sessao = await exigirSessao(req, res)
+  if (!sessao) return
   const key = process.env.GEMINI_API_KEY
   if (!key) {
     res.status(500).json({ error: 'GEMINI_API_KEY não configurada no servidor.' })

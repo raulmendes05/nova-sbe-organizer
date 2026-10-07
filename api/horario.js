@@ -8,6 +8,7 @@
 // A chave vive em process.env.GEMINI_API_KEY (a mesma do Cláudio).
 import { GoogleGenAI } from '@google/genai'
 import { SCHEDULES, DAY_PT } from '../src/data/schedules.js'
+import { exigirSessao } from './_auth.js'
 
 const MODELS = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest']
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024   // a Vercel corta o corpo aos ~4.5 MB
@@ -73,6 +74,9 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'Método não permitido' })
     return
   }
+  // Só alunos com sessão: sem isto qualquer pessoa gastava a quota do Gemini.
+  const sessao = await exigirSessao(req, res)
+  if (!sessao) return
   const key = process.env.GEMINI_API_KEY
   if (!key) {
     res.status(500).json({ error: 'GEMINI_API_KEY não configurada no servidor.' })

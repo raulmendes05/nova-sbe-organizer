@@ -10,6 +10,7 @@ import { datesFor } from '../data/schedules.js'
 import { encolher } from '../lib/imagem.js'
 import { errorText } from '../lib/errors.js'
 import { useT } from '../i18n/index.jsx'
+import { authHeaders } from '../lib/api.js'
 
 const DIACRITICS = new RegExp('[\\u0300-\\u036f]', 'g')
 const norm = (s) => s.toLowerCase().normalize('NFD').replace(DIACRITICS, '')
@@ -67,7 +68,7 @@ export default function EnrollFlow({ onClose, onSaved, onStart, preSelect = [], 
       const corpo = await encolher(file)
       const res = await fetch('/api/horario', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders(),
         body: JSON.stringify(corpo),
       })
       const out = await res.json().catch(() => ({}))

@@ -8,6 +8,7 @@ import {
   handbookOf, handbookBody, contas, chaveDoExercicio, estadoDoVeredicto,
 } from '../lib/exercicios.js'
 import { useT } from '../i18n/index.jsx'
+import { authHeaders } from '../lib/api.js'
 
 const MAX_MB = 20
 const MAX_PELA_API = 3 * 1024 * 1024
@@ -72,7 +73,7 @@ async function paraOR2(file, t) {
 
 async function pedir(url, corpo) {
   const res = await fetch(url, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),
+    method: 'POST', headers: await authHeaders(), body: JSON.stringify(corpo),
   })
   const out = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)

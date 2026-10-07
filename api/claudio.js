@@ -5,12 +5,16 @@
 // escreve. Escolhido em vez de SSE por ser trivial de produzir e de ler — o
 // cliente parte o corpo por \n e faz JSON.parse de cada linha.
 import { streamClaudio } from './_core.js'
+import { exigirSessao } from './_auth.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Método não permitido' })
     return
   }
+  // Só alunos com sessão: sem isto qualquer pessoa gastava a quota do Gemini.
+  const sessao = await exigirSessao(req, res)
+  if (!sessao) return
 
   const key = process.env.GEMINI_API_KEY
   if (!key) {
