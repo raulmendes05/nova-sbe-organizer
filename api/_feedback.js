@@ -14,6 +14,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { GoogleGenAI } from '@google/genai'
 import { MODEL_CHAIN } from './_core.js'
+import { guardaDeModelos } from './_limite.js'
 
 const MAX_MESSAGE = 4000
 const MIN_MESSAGE = 5
@@ -141,7 +142,7 @@ Notas importantes:
  *
  * Nunca lanca: um modelo em baixo nao pode impedir a mensagem de ser gravada.
  */
-export async function triage({ kind, message, page, apiKey, userAgent }) {
+export async function triage({ kind, message, page, apiKey, userAgent, sb = null }) {
   if (!apiKey) return null
   const ai = new GoogleGenAI({ apiKey })
   const prompt = [
@@ -178,7 +179,11 @@ export async function triage({ kind, message, page, apiKey, userAgent }) {
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), TRIAGE_TIMEOUT_MS)
   try {
+    // A triagem gasta a mesma quota do Gemini que o Cláudio: conta igual.
+    // Sem quota não há triagem — a mensagem é gravada na mesma.
+    const guarda = guardaDeModelos(sb)
     for (const model of MODEL_CHAIN) {
+      if (!(await guarda.reservar(model))) continue
       try {
         const out = await ai.models.generateContent({
           model,
@@ -193,7 +198,8 @@ export async function triage({ kind, message, page, apiKey, userAgent }) {
         const texto = out?.text
         if (!texto) continue
         return { ...JSON.parse(texto), modelo: model }
-      } catch {
+      } catch (e) {
+        guarda.falhou(model, e)
         if (ac.signal.aborted) return null   // sem tempo: segue sem triagem
         // Modelo saturado ou sem quota — o proximo da lista que tente.
       }
@@ -350,7 +356,7 @@ export async function submitFeedback({ token, body, env = process.env }) {
 
   // A triagem vem ANTES de gravar: assim a linha nasce completa e ninguem
   // precisa de poder reescrever um report ja enviado (ver feedback.sql).
-  const t = await triage({ kind, message, page, userAgent, apiKey: env.GEMINI_API_KEY })
+  const t = await triage({ kind, message, page, userAgent, apiKey: env.GEMINI_API_KEY, sb })
 
   const { data: row, error } = await sb.from('feedback').insert({
     user_id: user.id,

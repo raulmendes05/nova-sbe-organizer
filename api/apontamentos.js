@@ -10,7 +10,7 @@
 // A chave vive em process.env.GEMINI_API_KEY (a mesma do Cláudio).
 import { GoogleGenAI } from '@google/genai'
 import { exigirSessao } from './_auth.js'
-import { exigirQuota } from './_limite.js'
+import { exigirQuota, guardaDeModelos, todosEsgotados, responderEsgotado } from './_limite.js'
 
 // A quota gratuita é por modelo: com a lista toda, um modelo esgotado não
 // deixa a funcionalidade em baixo.
@@ -101,12 +101,19 @@ export default async function handler(req, res) {
     partes.push({ inlineData: { mimeType: mime || 'image/jpeg', data } })
   })
 
+  // A app já gastou a quota gratuita de hoje em todos estes modelos? Diz já,
+  // sem gastar um pedido do aluno.
+  if (todosEsgotados(MODELS)) { responderEsgotado(res); return }
+
   // Limite diário por aluno: conta só agora, com o pedido já validado.
   if (!(await exigirQuota(sessao, 'apontamentos', res))) return
 
   const ai = new GoogleGenAI({ apiKey: key })
+  // Cada chamada ao Gemini passa pela parte do aluno e pelo tecto da app (_limite.js).
+  const guarda = guardaDeModelos(sessao.sb)
   let last
   for (const model of MODELS) {
+    if (!(await guarda.reservar(model))) continue
     const ac = new AbortController()
     const timer = setTimeout(() => ac.abort(), TIMEOUT_MS)
     try {
@@ -129,11 +136,14 @@ export default async function handler(req, res) {
       return
     } catch (e) {
       last = e
+      guarda.falhou(model, e)
       if (!isTransient(e) && !isQuota(e)) break
     } finally {
       clearTimeout(timer)
     }
   }
+  // Sem quota (do aluno, da app ou da Google): 429 com o porquê e a hora.
+  if (guarda.responder(res, last)) return
   const quota = isQuota(last)
   res.status(quota ? 429 : 502).json({
     error: quota

@@ -573,6 +573,9 @@ export const pt = {
   'error.network': 'Não foi possível contactar o servidor. Verifica a ligação à internet.',
   'error.aiLimit': 'Já fizeste os {n} pedidos de hoje para esta funcionalidade. O contador recomeça à meia-noite — volta amanhã.',
   'error.aiLimitTotal': 'Já fizeste os {n} pedidos de IA de hoje. O contador recomeça à meia-noite — volta amanhã.',
+  'error.aiGlobal': 'O Cláudio e as outras funções de IA atingiram o limite diário da app (plano gratuito). Volta a partir das {hour} (hora de Lisboa).',
+  'error.aiShare': 'Já usaste a tua parte dos pedidos de IA de hoje — a quota gratuita é partilhada por todos. Volta a partir das {hour} (hora de Lisboa).',
+  'error.aiBusy': 'Há muitos pedidos ao mesmo tempo. Espera um minuto e tenta outra vez.',
 
   // ---- Primeiro login ----
   'onboarding.welcome': 'Bem-vindo(a)!',

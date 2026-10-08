@@ -573,6 +573,9 @@ export const en = {
   'error.network': 'Could not reach the server. Check your internet connection.',
   'error.aiLimit': 'You\u2019ve used today\u2019s {n} requests for this feature. The counter resets at midnight (Lisbon time) \u2014 come back tomorrow.',
   'error.aiLimitTotal': 'You\u2019ve used today\u2019s {n} AI requests. The counter resets at midnight (Lisbon time) \u2014 come back tomorrow.',
+  'error.aiGlobal': 'Cl\u00e1udio and the other AI features have reached the app\u2019s daily limit (free plan). It resets at {hour} (Lisbon time).',
+  'error.aiShare': 'You\u2019ve used your share of today\u2019s AI requests \u2014 the free quota is shared by everyone. It resets at {hour} (Lisbon time).',
+  'error.aiBusy': 'Too many requests at once. Wait a minute and try again.',
 
   // ---- First sign-in ----
   'onboarding.welcome': 'Welcome!',
