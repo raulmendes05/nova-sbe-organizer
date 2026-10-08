@@ -10,6 +10,7 @@
 import { GoogleGenAI } from '@google/genai'
 import { lerDoR2ComPermissao } from './_r2.js'
 import { exigirSessao } from './_auth.js'
+import { exigirQuota } from './_limite.js'
 
 const MODELS = [
   'gemini-3.5-flash',
@@ -143,6 +144,9 @@ export default async function handler(req, res) {
   for (const data of fotos) partes.push({ inlineData: { mimeType: mime || 'image/jpeg', data } })
   // Também se pode corrigir o que já foi passado a texto (apontamentos antigos).
   if (escrito) partes.push({ text: texto.slice(0, 20000) })
+
+  // Limite diário por aluno: conta só agora, com o pedido já validado.
+  if (!(await exigirQuota(sessao, 'corrigir', res))) return
 
   const ai = new GoogleGenAI({ apiKey: key })
   let last

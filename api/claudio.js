@@ -6,6 +6,7 @@
 // cliente parte o corpo por \n e faz JSON.parse de cada linha.
 import { streamClaudio } from './_core.js'
 import { exigirSessao } from './_auth.js'
+import { exigirQuota } from './_limite.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -21,6 +22,9 @@ export default async function handler(req, res) {
     res.status(500).json({ error: 'GEMINI_API_KEY não configurada no servidor.' })
     return
   }
+
+  // Limite diário por aluno (cada volta do Cláudio conta um pedido).
+  if (!(await exigirQuota(sessao, 'claudio', res))) return
 
   const { messages, context, lang } = req.body || {}
   let started = false

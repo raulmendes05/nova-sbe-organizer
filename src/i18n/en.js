@@ -571,6 +571,8 @@ export const en = {
   'newpass.signOut': 'Do this later (sign out)',
   'error.empty': 'The server rejected the request without saying why.',
   'error.network': 'Could not reach the server. Check your internet connection.',
+  'error.aiLimit': 'You\u2019ve used today\u2019s {n} requests for this feature. The counter resets at midnight (Lisbon time) \u2014 come back tomorrow.',
+  'error.aiLimitTotal': 'You\u2019ve used today\u2019s {n} AI requests. The counter resets at midnight (Lisbon time) \u2014 come back tomorrow.',
 
   // ---- First sign-in ----
   'onboarding.welcome': 'Welcome!',

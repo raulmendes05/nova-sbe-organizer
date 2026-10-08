@@ -9,6 +9,7 @@
 import { GoogleGenAI } from '@google/genai'
 import { SCHEDULES, DAY_PT } from '../src/data/schedules.js'
 import { exigirSessao } from './_auth.js'
+import { exigirQuota } from './_limite.js'
 
 const MODELS = ['gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-flash-latest']
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024   // a Vercel corta o corpo aos ~4.5 MB
@@ -100,6 +101,9 @@ export default async function handler(req, res) {
       { text: PROMPT.replace('{CATALOGO}', catalogo()) },
     ],
   }]
+
+  // Limite diário por aluno: conta só agora, com o pedido já validado.
+  if (!(await exigirQuota(sessao, 'horario', res))) return
 
   const ai = new GoogleGenAI({ apiKey: key })
   let last

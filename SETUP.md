@@ -15,7 +15,8 @@ Stack: React + Vite + Tailwind + Supabase (login + base de dados) + Vercel (depl
 5. Abre o ficheiro [`supabase/schema.sql`](supabase/schema.sql) deste projeto, copia **tudo**, cola no editor e clica **Run**. Deve aparecer *Success*.
 6. **New query** outra vez e repete o passo anterior com [`supabase/exams.sql`](supabase/exams.sql) — cria a biblioteca partilhada de provas antigas e o bucket de ficheiros.
 7. **New query** mais uma vez, agora com [`supabase/feedback.sql`](supabase/feedback.sql) — a tabela das mensagens que os utilizadores enviam pela aba no canto do ecrã. **Antes de correr, confirma o email dentro da função `is_admin()`**: é esse que passa a ver todas as mensagens.
-8. No menu vai a **Project Settings** (roda dentada) → **API**. Copia dois valores:
+8. Por fim, corre por ordem os ficheiros de [`supabase/migrations/`](supabase/migrations/) (um de cada vez, pela ordem do nome): endurecem as funções e as policies, criam os índices em falta e o contador do limite diário de IA (`ai_usage`). Podem correr mais do que uma vez sem estragar nada.
+9. No menu vai a **Project Settings** (roda dentada) → **API**. Copia dois valores:
    - **Project URL** → `https://xxxx.supabase.co`
    - **anon public** (em *Project API keys*) → começa por `eyJ...`
 
@@ -145,6 +146,11 @@ teu, em vez do `onboarding@resend.dev`).
      (para o separador Provas funcionar online)
    - `RESEND_API_KEY` **e** `FEEDBACK_TO` (sem o segundo o email é recusado —
      ver o passo 2.7). `FEEDBACK_FROM` só se tiveres domínio verificado.
+   - Opcional — limite diário de pedidos de IA por aluno (recomeça à meia-noite
+     de Lisboa). Sem nada, valem estes: `AI_LIMIT_CLAUDIO=40`, `AI_LIMIT_RESUMO=10`,
+     `AI_LIMIT_APONTAMENTOS=10`, `AI_LIMIT_EXERCICIOS=25`, `AI_LIMIT_CORRIGIR=25`,
+     `AI_LIMIT_HORARIO=5` e `AI_LIMIT_TOTAL=60` (soma de tudo). `0` = sem limite.
+     Precisa do `supabase/migrations/20261008120100_ai_usage_limit.sql`; sem ele, deixa passar tudo.
 4. Clica **Deploy**. Em ~1 min tens o link (ex: `nova-sbe.vercel.app`).
 
 A partir daqui, cada `git push` para a branch principal faz deploy automático — igual ao Champi.

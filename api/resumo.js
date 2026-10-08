@@ -8,6 +8,7 @@
 // A chave vive em process.env.GEMINI_API_KEY (a mesma do Cláudio).
 import { GoogleGenAI } from '@google/genai'
 import { exigirSessao } from './_auth.js'
+import { exigirQuota } from './_limite.js'
 
 // A quota gratuita do Gemini é POR MODELO: com a lista toda, um dia mau num
 // modelo não deixa a funcionalidade em baixo.
@@ -129,6 +130,9 @@ export default async function handler(req, res) {
   if (cabecalho) partes.push({ text: cabecalho })
   if (temFicheiro) partes.push({ inlineData: { mimeType: mime || 'application/pdf', data: file } })
   if (temTexto) partes.push({ text: `Material:\n${texto.slice(0, MAX_TEXTO)}` })
+
+  // Limite diário por aluno: conta só agora, com o pedido já validado.
+  if (!(await exigirQuota(sessao, 'resumo', res))) return
 
   const ai = new GoogleGenAI({ apiKey: key })
   let last

@@ -11,6 +11,7 @@
 import { GoogleGenAI } from '@google/genai'
 import { lerDoR2ComPermissao } from './_r2.js'
 import { exigirSessao } from './_auth.js'
+import { exigirQuota } from './_limite.js'
 
 const MODELS = [
   'gemini-3.5-flash',
@@ -154,6 +155,9 @@ export default async function handler(req, res) {
   const partes = [{ text: prompt }]
   if (cadeira) partes.push({ text: `Cadeira: ${cadeira}` })
   partes.push({ inlineData: { mimeType: 'application/pdf', data: pdf.toString('base64') } })
+
+  // Limite diário por aluno: conta só agora, com o pedido já validado.
+  if (!(await exigirQuota(sessao, 'exercicios', res))) return
 
   const ai = new GoogleGenAI({ apiKey: key })
   let last

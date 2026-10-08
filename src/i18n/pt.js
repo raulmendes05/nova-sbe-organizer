@@ -571,6 +571,8 @@ export const pt = {
   'newpass.signOut': 'Fazer isto mais tarde (sair)',
   'error.empty': 'O servidor recusou o pedido mas não explicou porquê.',
   'error.network': 'Não foi possível contactar o servidor. Verifica a ligação à internet.',
+  'error.aiLimit': 'Já fizeste os {n} pedidos de hoje para esta funcionalidade. O contador recomeça à meia-noite — volta amanhã.',
+  'error.aiLimitTotal': 'Já fizeste os {n} pedidos de IA de hoje. O contador recomeça à meia-noite — volta amanhã.',
 
   // ---- Primeiro login ----
   'onboarding.welcome': 'Bem-vindo(a)!',

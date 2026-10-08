@@ -5,7 +5,7 @@ import SlideSummary from './SlideSummary.jsx'
 import Quiz, { QuizFim } from './Quiz.jsx'
 import Handbook, { carregarCaderno } from './Handbook.jsx'
 import { encolher } from '../lib/imagem.js'
-import { errorText } from '../lib/errors.js'
+import { errorText, erroDaApi } from '../lib/errors.js'
 import { localeOf } from '../lib/helpers.js'
 import { noteOf, isNoteRow, isSummaryRow, summaryOf, notebookOf } from '../lib/plan.js'
 import { cartasDe, estadoDe, paraHoje, responder, resumoDaRevisao, perguntaDe } from '../lib/revisao.js'
@@ -145,7 +145,7 @@ export default function Notebook({
         }),
       })
       const out = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)
+      if (!res.ok) throw erroDaApi(res, out)
       setTitulo(out.titulo || '')
       setTexto(out.texto || '')
       setPaginas(out.paginas || fotos.length)
@@ -194,7 +194,7 @@ export default function Notebook({
         body: JSON.stringify({ texto: corpo, nome: n.title, cadeira: nomeCadeira || undefined, lang }),
       })
       const out = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)
+      if (!res.ok) throw erroDaApi(res, out)
       await onGuardarResumo({ nome: n.title, resumo: out, course_id: n.course_id })
     } catch (e) {
       setErro(errorText(e, t))
