@@ -15,7 +15,7 @@ Stack: React + Vite + Tailwind + Supabase (login + base de dados) + Vercel (depl
 5. Abre o ficheiro [`supabase/schema.sql`](supabase/schema.sql) deste projeto, copia **tudo**, cola no editor e clica **Run**. Deve aparecer *Success*.
 6. **New query** outra vez e repete o passo anterior com [`supabase/exams.sql`](supabase/exams.sql) — cria a biblioteca partilhada de provas antigas e o bucket de ficheiros.
 7. **New query** mais uma vez, agora com [`supabase/feedback.sql`](supabase/feedback.sql) — a tabela das mensagens que os utilizadores enviam pela aba no canto do ecrã. **Antes de correr, confirma o email dentro da função `is_admin()`**: é esse que passa a ver todas as mensagens.
-8. Por fim, corre por ordem os ficheiros de [`supabase/migrations/`](supabase/migrations/) (um de cada vez, pela ordem do nome): endurecem as funções e as policies, criam os índices em falta e o contador do limite diário de IA (`ai_usage`). Podem correr mais do que uma vez sem estragar nada.
+8. Por fim, corre por ordem os ficheiros de [`supabase/migrations/`](supabase/migrations/) (um de cada vez, pela ordem do nome): endurecem as funções e as policies, criam os índices em falta e o contador do limite diário de IA (`ai_usage`). Podem correr mais do que uma vez sem estragar nada. (No projeto de produção já foram aplicadas a 8 out. 2026, com estas mesmas versões no histórico de migrações do Supabase.)
 9. No menu vai a **Project Settings** (roda dentada) → **API**. Copia dois valores:
    - **Project URL** → `https://xxxx.supabase.co`
    - **anon public** (em *Project API keys*) → começa por `eyJ...`
@@ -154,7 +154,7 @@ teu, em vez do `onboarding@resend.dev`).
      dia do Pacífico): `AI_GLOBAL_LIMIT_GEMINI_3_5_FLASH=18` e o mesmo para
      `GEMINI_3_6_FLASH` e `GEMINI_FLASH_LATEST`; `AI_GLOBAL_LIMIT_GEMINI_3_5_FLASH_LITE=450`
      e `AI_GLOBAL_LIMIT_GEMINI_3_1_FLASH_LITE=450`. `0` = sem limite. Precisa do
-     `supabase/migrations/20261008120100_ai_usage_limit.sql`; sem ele, deixa passar tudo.
+     `supabase/migrations/20261008133723_ai_usage_limit.sql`; sem ele, deixa passar tudo.
 4. Clica **Deploy**. Em ~1 min tens o link (ex: `nova-sbe.vercel.app`).
 
 A partir daqui, cada `git push` para a branch principal faz deploy automático — igual ao Champi.

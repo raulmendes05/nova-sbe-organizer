@@ -18,7 +18,7 @@
 //     quota real menos ~10%. Conta cada chamada ao Gemini, antes de a fazer,
 //     porque a Google também conta as que falham.
 //
-//  O SQL está em supabase/migrations/20261008120100_ai_usage_limit.sql. As
+//  O SQL está em supabase/migrations/20261008133723_ai_usage_limit.sql. As
 //  funções são chamadas com o token do PRÓPRIO aluno (o servidor só tem a
 //  anon key); a base de dados tira o aluno do token.
 //
