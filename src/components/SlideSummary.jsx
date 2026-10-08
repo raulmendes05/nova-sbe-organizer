@@ -5,6 +5,7 @@ import { perguntaDe } from '../lib/revisao.js'
 import { errorText } from '../lib/errors.js'
 import { useT } from '../i18n/index.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
+import { authHeaders } from '../lib/api.js'
 
 const MAX_PDF = 3.5 * 1024 * 1024   // em base64 isto ja da ~4,7 MB, o limite da Vercel
 const ACEITA = '.pptx,.pdf,.txt,.md'
@@ -72,7 +73,7 @@ export default function SlideSummary({ cadeira = null, nomeCadeira = null, onSav
 
       const res = await fetch('/api/resumo', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders(),
         body: JSON.stringify(corpo),
       })
       const out = await res.json().catch(() => ({}))

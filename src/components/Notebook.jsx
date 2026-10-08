@@ -11,6 +11,7 @@ import { noteOf, isNoteRow, isSummaryRow, summaryOf, notebookOf } from '../lib/p
 import { cartasDe, estadoDe, paraHoje, responder, resumoDaRevisao, perguntaDe } from '../lib/revisao.js'
 import { isHandbookRow, handbookOf, contas } from '../lib/exercicios.js'
 import { useT } from '../i18n/index.jsx'
+import { authHeaders } from '../lib/api.js'
 
 const MAX_FOTOS = 6
 
@@ -135,7 +136,7 @@ export default function Notebook({
       for (const f of fotos) encolhidas.push(await encolher(f))
       const res = await fetch('/api/apontamentos', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders(),
         body: JSON.stringify({
           imagens: encolhidas.map((x) => x.image),
           mime: 'image/jpeg',
@@ -189,7 +190,7 @@ export default function Notebook({
     try {
       const res = await fetch('/api/resumo', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders(),
         body: JSON.stringify({ texto: corpo, nome: n.title, cadeira: nomeCadeira || undefined, lang }),
       })
       const out = await res.json().catch(() => ({}))

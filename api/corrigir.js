@@ -8,7 +8,8 @@
 // resolve o exercício e diz que o fez por si, para o aluno saber o que está a
 // ler.
 import { GoogleGenAI } from '@google/genai'
-import { lerDoR2 } from './_r2.js'
+import { lerDoR2ComPermissao } from './_r2.js'
+import { exigirSessao } from './_auth.js'
 
 const MODELS = [
   'gemini-3.5-flash',
@@ -77,6 +78,9 @@ const isQuota = (e) =>
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') { res.status(405).json({ error: 'Método não permitido' }); return }
+  // Só alunos com sessão: sem isto qualquer pessoa gastava a quota do Gemini.
+  const sessao = await exigirSessao(req, res)
+  if (!sessao) return
   const key = process.env.GEMINI_API_KEY
   if (!key) { res.status(500).json({ error: 'GEMINI_API_KEY não configurada no servidor.' }); return }
 
@@ -97,7 +101,8 @@ export default async function handler(req, res) {
   let solucoes = null
   if (solucoesPath) {
     try {
-      const b = await lerDoR2(solucoesPath)
+      // Só se o aluno puder ver o ficheiro (ver podeLerDoR2 em _r2.js).
+      const b = await lerDoR2ComPermissao(sessao.sb, solucoesPath)
       if (b.length <= MAX_PDF) solucoes = b
     } catch { /* sem soluções: corrige-se pelo próprio modelo, e diz-se */ }
   }

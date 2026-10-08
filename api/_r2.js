@@ -5,7 +5,7 @@
 //  Este modulo devolve URLs assinados de curta duracao; as chaves do R2
 //  nunca chegam ao browser.
 // ============================================================
-import { createClient } from '@supabase/supabase-js'
+import { userClient, requireUser } from './_auth.js'
 import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
@@ -27,25 +27,6 @@ export function r2Client(env = process.env) {
 }
 
 export const r2Bucket = (env = process.env) => env.R2_BUCKET || 'exams'
-
-// Cliente Supabase a agir *em nome do utilizador*: as policies de RLS
-// aplicam-se na mesma, por isso e o proprio Postgres que autoriza.
-function userClient(token, env) {
-  if (!token) throw new Error('Sem sessão.')
-  const url = env.VITE_SUPABASE_URL
-  const anon = env.VITE_SUPABASE_ANON_KEY
-  if (!url || !anon) throw new Error('Supabase não configurado no servidor.')
-  return createClient(url, anon, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
-}
-
-async function requireUser(sb) {
-  const { data, error } = await sb.auth.getUser()
-  if (error || !data?.user) throw new Error('Sessão inválida.')
-  return data.user
-}
 
 // So se aceitam caminhos com a forma "codigo/ficheiro.ext" — sem ".." nem barras extra.
 const SAFE_PATH = /^[A-Za-z0-9._-]{1,64}\/[A-Za-z0-9._-]{1,120}$/
@@ -78,6 +59,35 @@ export async function lerDoR2(path, env = process.env) {
   if (!SAFE_PATH.test(String(path || ''))) throw new Error('Caminho inválido.')
   const out = await r2Client(env).send(new GetObjectCommand({ Bucket: r2Bucket(env), Key: path }))
   return Buffer.from(await out.Body.transformToByteArray())
+}
+
+// Os cadernos de exercicios (Handbook) vao para "handbook/<uuid>.<ext>", com
+// um nome gerado pelo servidor e impossivel de adivinhar. Nao tem linha em
+// exam_files: o caminho fica guardado so nas notas do proprio aluno.
+const HANDBOOK_PATH = /^handbook\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[a-z0-9]{1,8}$/
+
+/**
+ * Pode esta sessao ler este ficheiro do R2? So se for:
+ *  - uma prova da biblioteca com linha em exam_files visivel para o aluno
+ *    (perguntado ao Postgres com o token dele, por isso a RLS aplica-se), ou
+ *  - um caderno de exercicios em "handbook/<uuid>" (nome que so o servidor
+ *    gera, e so para sessoes validas).
+ * Qualquer outro caminho e recusado, mesmo que exista no bucket.
+ */
+export async function podeLerDoR2(sb, path) {
+  const p = String(path || '')
+  if (!SAFE_PATH.test(p)) throw new Error('Caminho inválido.')
+  if (HANDBOOK_PATH.test(p)) return true
+  const { data, error } = await sb.from('exam_files').select('id').eq('storage_path', p).limit(1)
+  if (error) throw error
+  if (!data?.length) throw new Error('Ficheiro não encontrado ou sem permissão para o ler.')
+  return true
+}
+
+/** lerDoR2, mas so depois de podeLerDoR2 dizer que sim. */
+export async function lerDoR2ComPermissao(sb, path, env = process.env) {
+  await podeLerDoR2(sb, path)
+  return lerDoR2(path, env)
 }
 
 /**
