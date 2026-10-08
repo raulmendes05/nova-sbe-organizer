@@ -8,7 +8,7 @@ import { COURSE_COLORS } from '../lib/helpers.js'
 import { hasSchedule, turnosFor, blocksFor, officialBlock, clashesFor, allClashes } from '../lib/enroll.js'
 import { datesFor } from '../data/schedules.js'
 import { encolher } from '../lib/imagem.js'
-import { errorText } from '../lib/errors.js'
+import { errorText, erroDaApi } from '../lib/errors.js'
 import { useT } from '../i18n/index.jsx'
 import { authHeaders } from '../lib/api.js'
 
@@ -72,7 +72,7 @@ export default function EnrollFlow({ onClose, onSaved, onStart, preSelect = [], 
         body: JSON.stringify(corpo),
       })
       const out = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)
+      if (!res.ok) throw erroDaApi(res, out)
 
       const lidas = out.cadeiras || []
       setNaoLidas(out.naoReconhecido || [])

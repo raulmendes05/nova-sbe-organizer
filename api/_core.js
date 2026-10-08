@@ -422,12 +422,17 @@ const OVERLOADED = (last) =>
  * isso a primeira leitura e feita aqui dentro, antes de qualquer entrega — e
  * e ela que decide se vale a pena tentar outro modelo.
  */
-async function* streamWithRetry(ai, { contents, config }) {
+//
+// `guarda` (opcional, ver _limite.js) e perguntado antes de CADA tentativa: a
+// Google conta cada pedido, mesmo os que falham, e o limite tem de contar igual.
+async function* streamWithRetry(ai, { contents, config }, guarda = null) {
   const deadline = Date.now() + TOTAL_BUDGET_MS
   let last
   for (const model of [MODEL, ...FALLBACK_MODELS]) {
     for (let attempt = 0; attempt < ATTEMPTS_PER_MODEL; attempt++) {
       if (Date.now() >= deadline) break
+      // Sem quota para este modelo (do aluno ou da app): passa ao seguinte.
+      if (guarda && !(await guarda.reservar(model))) break
       const ac = new AbortController()
       const timer = setTimeout(() => ac.abort(), ATTEMPT_TIMEOUT_MS)
       let iterator
@@ -443,6 +448,7 @@ async function* streamWithRetry(ai, { contents, config }) {
       } catch (e) {
         clearTimeout(timer)
         last = e
+        guarda?.falhou(model, e)
         if (isQuota(e)) break            // este modelo já não responde hoje
         if (!isTransient(e)) throw e
         const wait = BACKOFF_MS[attempt] ?? BACKOFF_MS[BACKOFF_MS.length - 1]
@@ -457,6 +463,9 @@ async function* streamWithRetry(ai, { contents, config }) {
       }
     }
   }
+  // Sem quota: o erro leva o 429 pronto (err.quota) para o handler responder.
+  const semQuota = guarda?.erro(last)
+  if (semQuota) throw semQuota
   throw isQuota(last) ? new Error(QUOTA_MESSAGE) : OVERLOADED(last)
 }
 
@@ -498,7 +507,7 @@ function replyBlocks({ text, fcParts, finishReason, turn }) {
  * (por exemplo quando o modelo só chamou ferramentas): é dele que o cliente
  * tira os blocos para continuar a conversa.
  */
-export async function* streamClaudio({ messages, context, apiKey, lang }) {
+export async function* streamClaudio({ messages, context, apiKey, lang, guarda = null }) {
   // Desativado: não chama a API (custo zero).
   if (!CLAUDIO_ENABLED) {
     yield {
@@ -522,7 +531,7 @@ export async function* streamClaudio({ messages, context, apiKey, lang }) {
       tools: geminiTools(),
       maxOutputTokens: MAX_OUTPUT_TOKENS,
     },
-  })
+  }, guarda)
 
   let text = ''
   const fcParts = []

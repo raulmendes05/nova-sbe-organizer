@@ -104,12 +104,38 @@ function isNetwork(err, raw) {
   return !raw && !Number(err?.status) && err?.name === 'AuthRetryableFetchError'
 }
 
+// O limite diario de pedidos de IA (api/_limite.js) responde 429 com um
+// `code` proprio. O servidor manda a frase em portugues; aqui sai na lingua
+// do aluno, com o numero de pedidos. Vem antes do known() de proposito: um
+// 429 nao e o "Demasiadas tentativas" do login.
+// 429 do limite de IA (api/_limite.js): o servidor manda a frase em portugues
+// e o `code` diz qual e. Aqui sai na lingua do aluno.
+//   ai_daily_limit / ai_daily_limit_total -> com o numero de pedidos ({n})
+//   ai_global_limit / ai_user_share       -> com a hora de Lisboa em que volta ({hour})
+//   ai_busy                               -> sem variaveis
+const AI_LIMIT_KEYS = {
+  ai_daily_limit: 'error.aiLimit', ai_daily_limit_total: 'error.aiLimitTotal',
+  ai_global_limit: 'error.aiGlobal', ai_user_share: 'error.aiShare', ai_busy: 'error.aiBusy',
+}
+const AI_LIMIT_VAR = { 'error.aiLimit': 'n', 'error.aiLimitTotal': 'n', 'error.aiGlobal': 'hour', 'error.aiShare': 'hour' }
+
+function aiLimitText(err, say) {
+  const key = err && typeof err === 'object' ? AI_LIMIT_KEYS[err.code] : null
+  if (!key) return ''
+  const v = AI_LIMIT_VAR[key]
+  if (v === 'n') return Number(err.limit) > 0 ? say(key, { n: Number(err.limit) }) : ''
+  if (v === 'hour') return /^\d{2}:\d{2}$/.test(String(err.resetHour || '')) ? say(key, { hour: err.resetHour }) : ''
+  return say(key)
+}
+
 /**
  * Transforma qualquer erro numa frase que diz alguma coisa. Nunca devolve
  * vazio, "{}" nem "[object Object]".
  */
 export function errorText(err, t) {
   const say = typeof t === 'function' ? t : (k) => k
+  const limite = aiLimitText(err, say)
+  if (limite) return limite
   const raw = rawMessage(err)
   const pista = detail(err)
 
@@ -133,6 +159,22 @@ export async function apiError(res, fallback) {
   const err = new Error(text(body?.error) || text(body?.message) || fallback || '')
   err.status = res.status
   if (text(body?.code)) err.code = body.code
+  if (Number.isFinite(Number(body?.limit))) err.limit = Number(body.limit)
+  if (/^\d{2}:\d{2}$/.test(String(body?.resetHour || ''))) err.resetHour = body.resetHour
   if (!err.message) err.message = ''
+  return err
+}
+
+/**
+ * Para quem ja leu o corpo da resposta (res.json()) antes de ver o res.ok.
+ * A mensagem e a mesma de sempre (o `error` do servidor, ou "HTTP 500");
+ * so se juntam o `code` e o `limit`, para o errorText reconhecer o limite
+ * diario de IA e o mostrar traduzido.
+ */
+export function erroDaApi(res, body) {
+  const err = new Error(text(body?.error) || `HTTP ${res?.status}`)
+  if (text(body?.code)) err.code = body.code
+  if (Number.isFinite(Number(body?.limit))) err.limit = Number(body.limit)
+  if (/^\d{2}:\d{2}$/.test(String(body?.resetHour || ''))) err.resetHour = body.resetHour
   return err
 }

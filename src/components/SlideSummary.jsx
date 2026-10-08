@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Icon, Spinner, ErrorBox } from './ui.jsx'
 import { lerPptx, slidesEmTexto, podeLerPptx } from '../lib/pptx.js'
 import { perguntaDe } from '../lib/revisao.js'
-import { errorText } from '../lib/errors.js'
+import { errorText, erroDaApi } from '../lib/errors.js'
 import { useT } from '../i18n/index.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { authHeaders } from '../lib/api.js'
@@ -77,7 +77,7 @@ export default function SlideSummary({ cadeira = null, nomeCadeira = null, onSav
         body: JSON.stringify(corpo),
       })
       const out = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)
+      if (!res.ok) throw erroDaApi(res, out)
       setResultado(out)
       setAbertos(new Set([0]))
     } catch (e) {
