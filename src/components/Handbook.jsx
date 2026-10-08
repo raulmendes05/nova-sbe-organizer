@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { Icon, Spinner, ErrorBox } from './ui.jsx'
 import { encolher } from '../lib/imagem.js'
-import { errorText, apiError } from '../lib/errors.js'
+import { errorText, apiError, erroDaApi } from '../lib/errors.js'
 import {
   handbookOf, handbookBody, contas, chaveDoExercicio, estadoDoVeredicto,
 } from '../lib/exercicios.js'
@@ -76,7 +76,7 @@ async function pedir(url, corpo) {
     method: 'POST', headers: await authHeaders(), body: JSON.stringify(corpo),
   })
   const out = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)
+  if (!res.ok) throw erroDaApi(res, out)
   return out
 }
 
