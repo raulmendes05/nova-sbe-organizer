@@ -446,7 +446,7 @@ export const pt = {
   'grades.componentHint': 'Deixa a nota vazia se ainda não saiu — o peso conta para a percentagem avaliada.',
   'grades.simTitle': 'Simulador — que nota preciso?',
   'grades.simToPass': 'Para passar ({n}):',
-  'grades.simFor': 'Para {n}:',
+  'grades.simFor': 'Para {n} (média {media}):',
   'grades.simTarget': 'Objetivo:',
   'grades.simPlaceholder': 'ex. 16',
   'grades.simDone': 'Todas as componentes já têm nota — média fechada.',

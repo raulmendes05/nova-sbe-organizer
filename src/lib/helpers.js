@@ -1,6 +1,7 @@
 import { dayStatus } from '../data/calendar.js'
 import { blocksOn } from './week.js'
 import { CWI_CODE, CWI_MODULES, cwiDone } from '../data/cwi.js'
+import { PASS_DEFAULT } from '../data/assessments.js'
 
 // ---------------------------------------------------------------------------
 //  Texto visivel ao utilizador
@@ -262,6 +263,42 @@ export function fmtGrade(n, vazio = '—') {
   // que seria precisao inventada por uma divisao.
   const casas = Math.abs(v * 10 - Math.round(v * 10)) < 1e-9 ? 1 : 2
   return v.toFixed(casas)
+}
+
+/**
+ * A média mínima que dá a nota final `alvo`.
+ *
+ * A nota que fica no registo é um INTEIRO: 15,5 já é 16. Perguntar ao
+ * simulador "o que preciso para ter 16" é perguntar o que falta para a média
+ * chegar a 15,5 — pedir 16 certos é mandar estudar para uma nota que ninguém
+ * precisa de ter, e foi isso que um aluno de Ética veio dizer que estava mal.
+ *
+ * A nota de passagem da cadeira carrega a convenção dela: Microeconomia passa
+ * a 9,45 porque arredonda duas vezes (9,45 → 9,5 → 10), e nessa cadeira um 16
+ * chega-se com 15,45. Daí entrar aqui em vez de um 0,5 fixo.
+ */
+export function minAverageFor(alvo, notaPasse = PASS_DEFAULT) {
+  const n = Number(alvo)
+  if (!isFinite(n)) return n
+  const folga = PASS_DEFAULT - Number(notaPasse || PASS_DEFAULT)
+  return Math.ceil(n) - 0.5 - folga
+}
+
+/**
+ * "Precisas de X" — arredondado SEMPRE para cima.
+ *
+ * Com um toFixed() normal, precisar de 14,24 aparecia como 14,2: quem tirasse
+ * exatamente o que a app pediu ficava a baixo do que precisava.
+ */
+export function fmtNeeded(n, locale) {
+  const v = Number(n)
+  if (!isFinite(v)) return '—'
+  const cima = Math.ceil(v * 100 - 1e-9) / 100
+  // Com `locale` sai com virgula, para nao ficar "precisas de 16.17" ao lado
+  // de "para passar (9,45)" na mesma caixa.
+  return locale
+    ? cima.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 2 })
+    : fmtGrade(cima)
 }
 
 // Simulador: que nota (média) é precisa nas componentes que faltam para

@@ -446,7 +446,7 @@ export const en = {
   'grades.componentHint': 'Leave the grade empty if it is not out yet — the weight still counts towards the assessed percentage.',
   'grades.simTitle': 'Simulator — what grade do I need?',
   'grades.simToPass': 'To pass ({n}):',
-  'grades.simFor': 'For {n}:',
+  'grades.simFor': 'For {n} (average {media}):',
   'grades.simTarget': 'Target:',
   'grades.simPlaceholder': 'e.g. 16',
   'grades.simDone': 'Every component is graded — the average is final.',

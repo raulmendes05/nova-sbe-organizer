@@ -10,7 +10,7 @@ import ErasmusGpa from '../components/ErasmusGpa.jsx'
 import CwiModules from '../components/CwiModules.jsx'
 import PassFailCourse from '../components/PassFailCourse.jsx'
 import DuplicateCourses from '../components/DuplicateCourses.jsx'
-import { localeOf, COURSE_COLORS, formatDate, fmtGrade, gradedWeight, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, isPassFail, passFailEcts, passPeriod, passRow, PASS_MARK, checkNumber, LIMITS, GRADE_STEP, WEIGHT_STEP } from '../lib/helpers.js'
+import { localeOf, COURSE_COLORS, formatDate, fmtGrade, fmtNeeded, gradedWeight, minAverageFor, resolveGrade, termLabel, termKey, simulateGrade, weightedAvg, isCwi, isPassFail, passFailEcts, passPeriod, passRow, PASS_MARK, checkNumber, LIMITS, GRADE_STEP, WEIGHT_STEP } from '../lib/helpers.js'
 import { cwiTitle, cwiRow, cwiDone, cwiCredits, CWI_MODULES } from '../data/cwi.js'
 import { assessmentFor, partsFor, partFor, passMarkFor, PASS_DEFAULT } from '../data/assessments.js'
 import { useT } from '../i18n/index.jsx'
@@ -487,12 +487,16 @@ export default function Grades() {
                   {comps.length > 0 && (() => {
                     const pass = simulateGrade(comps, notaPasse)
                     const malAlvo = checkNumber(simTarget, LIMITS.grade, t)
-                    const goal = !malAlvo && simTarget !== '' ? simulateGrade(comps, Number(simTarget)) : null
+                    // O objetivo e uma nota FINAL, e as finais sao inteiros: para
+                    // ter 16 basta a media chegar a 15,5. Simular 16 certos
+                    // mandava estudar para uma nota que ninguem precisa de ter.
+                    const alvoMedia = !malAlvo && simTarget !== '' ? minAverageFor(Number(simTarget), notaPasse) : null
+                    const goal = alvoMedia === null ? null : simulateGrade(comps, alvoMedia)
                     const line = (sim) => {
                       if (!sim || sim.done) return { txt: t('grades.simDone'), cls: 'text-slate-400' }
                         if (sim.guaranteed) return { txt: t('grades.simGuaranteed'), cls: 'text-emerald-300' }
                         if (sim.impossible) return { txt: t('grades.simImpossible', { pct: sim.remainingPct }), cls: 'text-rose-300' }
-                        return { txt: t('grades.simNeeded', { n: sim.needed.toFixed(1), pct: sim.remainingPct }), cls: 'text-slate-100' }
+                        return { txt: t('grades.simNeeded', { n: fmtNeeded(sim.needed, localeOf(lang)), pct: sim.remainingPct }), cls: 'text-slate-100' }
                     }
                     const p = line(pass)
                     const g = goal ? line(goal) : null
@@ -508,7 +512,8 @@ export default function Grades() {
                           <span className="text-sm text-slate-500">/ 20</span>
                         </div>
                         {malAlvo && <p role="alert" className="text-xs text-rose-300 mt-2">{malAlvo}</p>}
-                        {g && <p className={`text-sm mt-2 ${g.cls}`}><span className="text-slate-400">{t('grades.simFor', { n: Number(simTarget) })}</span> {g.txt}</p>}
+                        {g && <p className={`text-sm mt-2 ${g.cls}`}><span className="text-slate-400">{t('grades.simFor', {
+                          n: Number(simTarget), media: alvoMedia.toLocaleString(localeOf(lang)) })}</span> {g.txt}</p>}
                       </div>
                     )
                   })()}

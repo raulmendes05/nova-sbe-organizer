@@ -13,7 +13,8 @@ import {
 import { upcomingExams } from '../data/exams.js'
 import { useCollection } from '../lib/useCollection.js'
 import { Icon } from '../components/ui.jsx'
-import { hhmm, COURSE_COLORS, simulateGrade, isCwi, isPassFail, passPeriod, passRow, checkNumber, LIMITS } from '../lib/helpers.js'
+import { hhmm, COURSE_COLORS, fmtNeeded, minAverageFor, simulateGrade, isCwi, isPassFail, passPeriod, passRow, checkNumber, LIMITS } from '../lib/helpers.js'
+import { passMarkFor } from '../data/assessments.js'
 import { CWI_MODULES, cwiDone } from '../data/cwi.js'
 import { dayStatus, hasClasses, dowOf } from '../data/calendar.js'
 import { pt } from '../i18n/pt.js'
@@ -411,11 +412,16 @@ export default function Claudio() {
         if (!sim || sim.done) return `${label}: todas as componentes já têm nota (média fechada).`
         if (sim.guaranteed) return `${label}: já garantido (mesmo com 0 no resto).`
         if (sim.impossible) return `${label}: já não é possível (precisava de mais de 20 nos ${sim.remainingPct}% que faltam).`
-        return `${label}: precisa de ${sim.needed.toFixed(1)} nos ${sim.remainingPct}% que faltam.`
+        return `${label}: precisa de ${fmtNeeded(sim.needed)} nos ${sim.remainingPct}% que faltam.`
       }
-      const parts = [describe(simulateGrade(comps, 9.5), 'Para passar (9,5)')]
+      // A nota de passagem da cadeira, nao 9,5 fixo: Microeconomia passa a 9,45.
+      const notaPasse = passMarkFor(course)
+      const parts = [describe(simulateGrade(comps, notaPasse), `Para passar (${notaPasse})`)]
       if (inp.objetivo != null && !isNaN(Number(inp.objetivo))) {
-        parts.push(describe(simulateGrade(comps, Number(inp.objetivo)), `Para ${Number(inp.objetivo)}`))
+        // O objetivo e uma nota final (inteira): 16 pede media 15,5.
+        const alvo = Number(inp.objetivo)
+        const media = minAverageFor(alvo, notaPasse)
+        parts.push(describe(simulateGrade(comps, media), `Para ${alvo} (media ${media})`))
       }
       return `Simulação — ${course.name}: ${parts.join(' | ')}`
     }
