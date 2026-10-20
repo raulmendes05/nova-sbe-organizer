@@ -427,15 +427,16 @@ function UploadModal({ open, onClose, user, displayName, currentCodes, lockedCod
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
         setProgress(t('exams.uploading', { i: i + 1, total: files.length }))
-        const { url, path } = await signUrl({
+        // O servidor e que decide o tipo guardado, a partir da extensao; o PUT
+        // tem de repetir esse cabecalho por causa da assinatura do URL.
+        const { url, path, contentType } = await signUrl({
           action: 'upload',
           courseCode: course.code,
           fileName: file.name,
-          contentType: file.type || 'application/pdf',
         })
         const put = await fetch(url, {
           method: 'PUT',
-          headers: { 'Content-Type': file.type || 'application/pdf' },
+          headers: { 'Content-Type': contentType },
           body: file,
         })
         if (!put.ok) throw new Error(t('exams.errUpload', { name: file.name, status: put.status }))

@@ -43,7 +43,7 @@ async function pelaApi(file, t) {
   const res = await fetch('/api/upload', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
-    body: JSON.stringify({ file: btoa(bin), mime: file.type || 'application/pdf', nome: file.name }),
+    body: JSON.stringify({ file: btoa(bin) }),
   })
   if (!res.ok) throw await apiError(res)
   return (await res.json()).path
@@ -51,13 +51,15 @@ async function pelaApi(file, t) {
 
 async function paraOR2(file, t) {
   if (file.size > MAX_MB * 1024 * 1024) throw new Error(t('hb.tooBig', { n: MAX_MB }))
-  const { url, path } = await assinar({
+  // O tipo com que o ficheiro fica guardado e decidido pelo servidor (lista
+  // fechada de extensoes); o PUT tem de mandar exatamente esse cabecalho,
+  // senao a assinatura do URL nao bate certo.
+  const { url, path, contentType } = await assinar({
     action: 'upload', courseCode: 'handbook', fileName: file.name,
-    contentType: file.type || 'application/pdf',
   })
   try {
     const put = await fetch(url, {
-      method: 'PUT', headers: { 'Content-Type': file.type || 'application/pdf' }, body: file,
+      method: 'PUT', headers: { 'Content-Type': contentType }, body: file,
     })
     if (!put.ok) throw new Error(t('hb.errUpload', { status: put.status }))
     return path

@@ -36,6 +36,48 @@ const slug = (s, max) => String(s || '')
   .replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, max) || 'x'
 
 /**
+ * O tipo que o SERVIDOR atribui a cada extensao.
+ *
+ * O ContentType decide como o browser trata o ficheiro ao abri-lo a partir do
+ * dominio do bucket, por isso nao pode vir do cliente: um "ficheiro" com
+ * Content-Type text/html guardado aqui passava a ser uma pagina servida do
+ * nosso dominio de ficheiros. A lista e fechada — extensao que nao esteja
+ * aqui nao entra. Acompanha o `accept` dos campos de ficheiro (Exams.jsx).
+ */
+export const TIPO_POR_EXT = {
+  pdf: 'application/pdf',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  zip: 'application/zip',
+}
+
+export function tipoDaExtensao(ext) {
+  return TIPO_POR_EXT[String(ext || '').toLowerCase().replace(/^\./, '')] || null
+}
+
+const erro = (msg, status) => Object.assign(new Error(msg), { status })
+
+// Os primeiros bytes de um PDF. O `mime` que o browser manda nao prova nada —
+// quem diz o que o ficheiro e sao os bytes.
+const PDF_MAGIC = Buffer.from('%PDF-')
+export const PDF_MAX = 3 * 1024 * 1024
+
+export function exigirPdf(bytes) {
+  if (!bytes?.length) throw erro('Ficheiro vazio.', 400)
+  if (bytes.length > PDF_MAX) {
+    throw erro(`Ficheiro demasiado grande para este caminho (máx. ${Math.round(PDF_MAX / 1048576)} MB).`, 413)
+  }
+  if (!bytes.subarray(0, PDF_MAGIC.length).equals(PDF_MAGIC)) {
+    throw erro('Só se aceitam PDFs — este ficheiro não é um.', 415)
+  }
+}
+
+/**
  * Guardar um ficheiro no R2 a partir do servidor.
  *
  * O caminho normal é o browser fazer PUT direto para o R2 com um URL assinado,
@@ -43,13 +85,16 @@ const slug = (s, max) => String(s || '')
  * CORS a autorizar o domínio da app; enquanto não tiver, os ficheiros pequenos
  * passam por aqui — a Vercel corta o corpo aos ~4,5 MB, e é esse o limite.
  */
-export async function guardarNoR2({ token, fileName, contentType, bytes, env = process.env }) {
+export async function guardarNoR2({ token, bytes, env = process.env }) {
   const sb = userClient(token, env)
   await requireUser(sb)
-  const ext = slug((fileName || '').split('.').pop(), 8).toLowerCase() || 'pdf'
-  const Key = `${slug('handbook', 32)}/${crypto.randomUUID()}.${ext}`
+  // Por aqui so passam os PDFs do handbook. A extensao e o tipo sao postos
+  // pelo servidor depois de confirmar os bytes — o nome que o cliente manda
+  // nao chega a decidir nada.
+  exigirPdf(bytes)
+  const Key = `${slug('handbook', 32)}/${crypto.randomUUID()}.pdf`
   await r2Client(env).send(new PutObjectCommand({
-    Bucket: r2Bucket(env), Key, Body: bytes, ContentType: contentType || 'application/pdf',
+    Bucket: r2Bucket(env), Key, Body: bytes, ContentType: TIPO_POR_EXT.pdf,
   }))
   return { path: Key }
 }
@@ -103,11 +148,18 @@ export async function signExamUrl({ token, action, path, courseCode, fileName, c
 
   if (action === 'upload') {
     const ext = slug((fileName || '').split('.').pop(), 8).toLowerCase() || 'pdf'
+    // Aqui o ficheiro vai do browser direto para o R2 — o servidor nunca lhe ve
+    // os bytes. O que da para fechar e o tipo com que fica guardado: sai da
+    // extensao, por uma lista fechada, e nao do `contentType` que o cliente
+    // pediu. Vai de volta porque a assinatura inclui esse cabecalho: o PUT tem
+    // de o mandar igual.
+    const tipo = tipoDaExtensao(ext)
+    if (!tipo) throw erro('Tipo de ficheiro não aceite.', 415)
     const key = `${slug(courseCode, 32)}/${crypto.randomUUID()}.${ext}`
     const url = await getSignedUrl(client, new PutObjectCommand({
-      Bucket, Key: key, ContentType: contentType || 'application/octet-stream',
+      Bucket, Key: key, ContentType: tipo,
     }), { expiresIn: UPLOAD_TTL })
-    return { url, path: key }
+    return { url, path: key, contentType: tipo }
   }
 
   if (action === 'download') {
