@@ -31,7 +31,7 @@ export default function Schedule() {
   const { semester, academicYear, lang } = useAuth()
   const prazos = useCollection('assignments', { orderBy: 'due_date', ascending: true })
   // Alteracoes que valem para UMA semana so: a aula desmarcada, a de
-  // reposicao. Vivem a parte do horario recorrente (ver supabase/schema.sql).
+  // reposicao. Vivem a parte do horario recorrente (ver supabase/migrations/20260101000000_schema.sql).
   const excecoes = useCollection('schedule_exceptions', { orderBy: 'on_date', ascending: true })
   const { t } = useT()
   const courseById = Object.fromEntries(courses.map((c) => [c.id, c]))

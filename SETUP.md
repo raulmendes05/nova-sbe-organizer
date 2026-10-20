@@ -12,11 +12,10 @@ Stack: React + Vite + Tailwind + Supabase (login + base de dados) + Vercel (depl
 2. Clica **New project**. Dá-lhe um nome (ex: `nova-sbe`) e uma password para a base de dados (guarda-a). Escolhe a região **Europe (Frankfurt / Ireland)**.
 3. Espera ~1 min até o projeto ficar pronto.
 4. No menu lateral vai a **SQL Editor** → **New query**.
-5. Abre o ficheiro [`supabase/schema.sql`](supabase/schema.sql) deste projeto, copia **tudo**, cola no editor e clica **Run**. Deve aparecer *Success*.
-6. **New query** outra vez e repete o passo anterior com [`supabase/exams.sql`](supabase/exams.sql) — cria a biblioteca partilhada de provas antigas e o bucket de ficheiros.
-7. **New query** mais uma vez, agora com [`supabase/feedback.sql`](supabase/feedback.sql) — a tabela das mensagens que os utilizadores enviam pela aba no canto do ecrã. **Antes de correr, confirma o email dentro da função `is_admin()`**: é esse que passa a ver todas as mensagens.
-8. Por fim, corre por ordem os ficheiros de [`supabase/migrations/`](supabase/migrations/) (um de cada vez, pela ordem do nome): endurecem as funções e as policies, criam os índices em falta e o contador do limite diário de IA (`ai_usage`). Podem correr mais do que uma vez sem estragar nada. (No projeto de produção já foram aplicadas a 8 out. 2026, com estas mesmas versões no histórico de migrações do Supabase.)
-9. No menu vai a **Project Settings** (roda dentada) → **API**. Copia dois valores:
+5. Corre os ficheiros de [`supabase/migrations/`](supabase/migrations/) **por ordem do nome**, um de cada vez: abre o ficheiro, copia **tudo**, cola no editor, **Run** (deve aparecer *Success*), **New query** e segue para o seguinte. Pela ordem, criam as tabelas da app e o RLS, a biblioteca de provas antigas, as mensagens dos utilizadores, o endurecimento das funções e policies, o contador do limite diário de IA e a tabela de administradores. Podem correr mais do que uma vez sem estragar nada — há uma tabela com o que cada um faz no [README da pasta](supabase/migrations/README.md).
+6. A última migração (`..._admins.sql`) é a que diz **quem administra** — quem vê todas as mensagens enviadas pela aba de feedback. Mete lá o teu email antes de a correres, ou acrescenta-te depois com o `insert` que vem comentado no fim do ficheiro.
+7. (No projeto de produção já estão todas aplicadas.)
+8. No menu vai a **Project Settings** (roda dentada) → **API**. Copia dois valores:
    - **Project URL** → `https://xxxx.supabase.co`
    - **anon public** (em *Project API keys*) → começa por `eyJ...`
 
@@ -68,7 +67,7 @@ O **Cláudio** é o assistente dentro da app (ajuda a escolher cadeiras sem sobr
 ## Passo 2.6 — Biblioteca de provas antigas (Cloudflare R2) · ~5 min
 
 O separador **Provas** guarda exames e testes de anos anteriores. Os **metadados**
-ficam no Supabase (tabela `exam_files`, criada pelo `supabase/exams.sql`), mas os
+ficam no Supabase (tabela `exam_files`, criada pelo `20260101000100_exams.sql`), mas os
 **ficheiros** ficam no **Cloudflare R2**.
 
 > **Porquê R2 e não o Supabase Storage?** O plano gratuito do Supabase dá 1 GB de

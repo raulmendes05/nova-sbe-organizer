@@ -9,7 +9,7 @@ import { supabase } from './supabase.js'
 import { postJson } from './api.js'
 
 // Quem administra. Tem de ser o MESMO email da funcao is_admin() em
-// supabase/feedback.sql — aqui so decide o que aparece no ecra; quem manda
+// supabase/migrations/20260101000200_feedback.sql — aqui so decide o que aparece no ecra; quem manda
 // mesmo e a base de dados.
 export const ADMIN_EMAIL = '75960@novasbe.pt'
 

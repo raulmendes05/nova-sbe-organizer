@@ -32,5 +32,5 @@ src/
   components/  ui (icones/modal/fab), BottomNav, Layout, CourseSelect
   pages/       Home, Schedule, Assignments, Grades, Notes, Login
 supabase/
-  schema.sql   tabelas + Row Level Security
+  migrations/  SQL por ordem do nome (tabelas, RLS, provas, feedback, limites)
 ```

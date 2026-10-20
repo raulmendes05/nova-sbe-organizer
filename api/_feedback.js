@@ -355,7 +355,7 @@ export async function submitFeedback({ token, body, env = process.env }) {
   const userAgent = String(body?.userAgent || '').slice(0, 400) || null
 
   // A triagem vem ANTES de gravar: assim a linha nasce completa e ninguem
-  // precisa de poder reescrever um report ja enviado (ver feedback.sql).
+  // precisa de poder reescrever um report ja enviado (ver 20260101000200_feedback.sql).
   const t = await triage({ kind, message, page, userAgent, apiKey: env.GEMINI_API_KEY, sb })
 
   const { data: row, error } = await sb.from('feedback').insert({

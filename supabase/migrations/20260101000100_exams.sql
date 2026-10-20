@@ -2,7 +2,7 @@
 --  Biblioteca de exames e testes antigos (exam_files)
 --  ATENCAO: ao contrario das outras tabelas, esta e PARTILHADA —
 --  todos os alunos leem tudo; cada um so apaga o que enviou.
---  Corre isto no SQL Editor do Supabase, depois do schema.sql.
+--  Corre isto no SQL Editor do Supabase, depois do 20260101000000_schema.sql.
 -- ============================================================
 
 create extension if not exists "pgcrypto";

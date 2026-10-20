@@ -23,7 +23,7 @@ const KIND_ICON = { bug: 'bug', melhoria: 'spark', outro: 'chat' }
  *
  * O mesmo ecrã serve os dois casos, porque é a RLS que decide o que chega cá:
  * quem administra recebe todas as linhas (e pode mudar-lhes o estado), toda a
- * gente recebe só as suas. Ver supabase/feedback.sql.
+ * gente recebe só as suas. Ver supabase/migrations/20260101000200_feedback.sql.
  */
 export default function Feedback() {
   const { user, lang } = useAuth()

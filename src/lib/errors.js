@@ -91,7 +91,7 @@ function known(haystack, t) {
   // Sessao morta a meio: o aluno nao tem nada que ler "Auth session missing!".
   if (/auth session missing|session_not_found|session from session id claim/.test(s)) return t('login.errExpired')
   // O GoTrue mascara qualquer erro de trigger com este texto (ver o
-  // trg_enforce_nova_email em supabase/exams.sql).
+  // trg_enforce_nova_email em supabase/migrations/20260101000100_exams.sql).
   if (/database error saving new user|unexpected_failure/.test(s)) return t('login.errRefused')
   return ''
 }
