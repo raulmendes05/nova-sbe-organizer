@@ -85,9 +85,10 @@ export function exigirPdf(bytes) {
  * CORS a autorizar o domínio da app; enquanto não tiver, os ficheiros pequenos
  * passam por aqui — a Vercel corta o corpo aos ~4,5 MB, e é esse o limite.
  */
-export async function guardarNoR2({ token, bytes, env = process.env }) {
-  const sb = userClient(token, env)
-  await requireUser(sb)
+export async function guardarNoR2({ bytes, env = process.env }) {
+  // Quem confirma a sessao e o handler (exigirSessao, em api/upload.js), como
+  // em todas as outras funcoes — assim um pedido sem sessao nao chega a fazer
+  // trabalho nenhum. Esta funcao so e chamada de la.
   // Por aqui so passam os PDFs do handbook. A extensao e o tipo sao postos
   // pelo servidor depois de confirmar os bytes — o nome que o cliente manda
   // nao chega a decidir nada.
