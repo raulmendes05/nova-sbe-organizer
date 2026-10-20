@@ -4,7 +4,7 @@ import { useT } from '../i18n/index.jsx'
 import { PageHeader, Icon, Spinner, EmptyState, ErrorBox } from '../components/ui.jsx'
 import { errorText } from '../lib/errors.js'
 import { formatDateTime } from '../lib/helpers.js'
-import { listFeedback, setFeedbackStatus, isAdmin } from '../lib/feedback.js'
+import { listFeedback, setFeedbackStatus, amAdmin } from '../lib/feedback.js'
 
 const STATUS_TONE = {
   novo: 'bg-nova-500/20 text-nova-200 border-nova-500/30',
@@ -28,7 +28,11 @@ const KIND_ICON = { bug: 'bug', melhoria: 'spark', outro: 'chat' }
 export default function Feedback() {
   const { user, lang } = useAuth()
   const { t } = useT()
-  const admin = isAdmin(user)
+  // Quem administra e a base de dados que diz (a lista nao e legivel daqui),
+  // por isso chega com um pedido de atraso: ate responder, ve-se o ecra de
+  // quem nao administra, que e o que a RLS ja estava a devolver.
+  const [admin, setAdmin] = useState(false)
+  useEffect(() => { let vivo = true; amAdmin().then((v) => { if (vivo) setAdmin(v) }); return () => { vivo = false } }, [user?.id])
 
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)

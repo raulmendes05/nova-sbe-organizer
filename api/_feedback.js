@@ -35,8 +35,6 @@ const TRIAGE_TIMEOUT_MS = 35_000
 // raciocinio comia-o todo e a resposta vinha vazia — a triagem falhava sempre.
 const TRIAGE_MAX_TOKENS = 8192
 
-const ADMIN_EMAIL = '75960@novasbe.pt'
-
 // ---------------------------------------------------------------------------
 //  Supabase em nome do utilizador — as policies de RLS continuam a decidir.
 // ---------------------------------------------------------------------------
@@ -301,7 +299,13 @@ export function renderEmail({ row, t }) {
 export async function notify({ row, t, env = process.env }) {
   const key = env.RESEND_API_KEY
   if (!key) return { sent: false, reason: 'RESEND_API_KEY não configurada' }
-  const to = env.FEEDBACK_TO || ADMIN_EMAIL
+  // Para onde vai o aviso e uma definicao do deploy, nao uma questao de
+  // permissoes: quem PODE ler as mensagens esta na tabela `admins` (ver
+  // supabase/migrations/20261020203000_admins.sql) e e o RLS que decide. Sem
+  // FEEDBACK_TO nao se inventa destinatario — a mensagem fica na mesma
+  // guardada e visivel na app a quem administra.
+  const to = env.FEEDBACK_TO
+  if (!to) return { sent: false, reason: 'FEEDBACK_TO não configurada' }
   // O remetente de teste do Resend só entrega na conta do próprio dono da
   // chave — chega para isto. Com domínio verificado, põe-se FEEDBACK_FROM.
   const from = env.FEEDBACK_FROM || 'Nova SBE Organizer <onboarding@resend.dev>'

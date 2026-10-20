@@ -12,6 +12,11 @@ create extension if not exists "pgcrypto";
 -- ------------------------------------------------------------
 --  Quem administra
 -- ------------------------------------------------------------
+-- NOTA: a partir da migracao 20261020203000_admins.sql, quem administra esta
+-- numa tabela (public.admins) e esta funcao e substituida por uma que a le. O
+-- que vem a seguir e a versao original, mantida para o historico correr pela
+-- ordem certa — nao mexas no email aqui.
+--
 -- O email vem do proprio JWT da sessao, nao de nada que o browser envie:
 -- ninguem se pode fazer passar por administrador a partir do cliente.
 -- Sem `security definer` de proposito: a funcao so le o JWT de quem esta a

@@ -8,13 +8,20 @@
 import { supabase } from './supabase.js'
 import { postJson } from './api.js'
 
-// Quem administra. Tem de ser o MESMO email da funcao is_admin() em
-// supabase/migrations/20260101000200_feedback.sql — aqui so decide o que aparece no ecra; quem manda
-// mesmo e a base de dados.
-export const ADMIN_EMAIL = '75960@novasbe.pt'
-
-export const isAdmin = (user) =>
-  String(user?.email || '').toLowerCase() === ADMIN_EMAIL.toLowerCase()
+/**
+ * Se esta sessao administra.
+ *
+ * Pergunta-se a base de dados em vez de comparar emails no cliente: a lista
+ * de administradores (`public.admins`) nao e legivel por ninguem de fora, mas
+ * a funcao is_admin() responde sobre quem esta a perguntar. Aqui so decide o
+ * que aparece no ecra — quem manda mesmo, nas leituras e nas escritas, e o
+ * RLS. Ver supabase/migrations/20261020203000_admins.sql.
+ */
+export async function amAdmin() {
+  const { data, error } = await supabase.rpc('is_admin')
+  if (error) return false
+  return Boolean(data)
+}
 
 export const KINDS = ['bug', 'melhoria', 'outro']
 export const MAX_MESSAGE = 4000

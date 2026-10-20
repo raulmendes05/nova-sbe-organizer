@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useT, LANGS } from '../i18n/index.jsx'
@@ -6,7 +6,7 @@ import { PageHeader, Icon } from '../components/ui.jsx'
 import { PROGRAMS } from '../data/curriculum.js'
 import { termKey, checkNumber, LIMITS } from '../lib/helpers.js'
 import { errorText } from '../lib/errors.js'
-import { isAdmin } from '../lib/feedback.js'
+import { amAdmin } from '../lib/feedback.js'
 
 /* ---------- Seccao com titulo e ajuda ---------- */
 function Section({ title, hint, children }) {
@@ -44,6 +44,11 @@ export default function Profile() {
     goals, signOut, updateProfile,
   } = useAuth()
   const { t } = useT()
+
+  // Quem administra vem da base de dados (ver lib/feedback.js): enquanto nao
+  // responde, mostra-se o texto de quem nao administra.
+  const [admin, setAdmin] = useState(false)
+  useEffect(() => { let vivo = true; amAdmin().then((v) => { if (vivo) setAdmin(v) }); return () => { vivo = false } }, [user?.id])
 
   const [name, setName] = useState(displayName || '')
   const [year, setYear] = useState(academicYear || '')
@@ -192,10 +197,10 @@ export default function Profile() {
 
         {/* ---- Mensagens ---- */}
         <Section title={t('feedback.inboxTitle')}
-          hint={isAdmin(user) ? t('profile.inboxHintAdmin') : t('profile.inboxHint')}>
+          hint={admin ? t('profile.inboxHintAdmin') : t('profile.inboxHint')}>
           <button onClick={() => navigate('/mensagens')} className="btn-ghost px-4 py-2.5 text-sm">
             <Icon name="chat" className="w-4 h-4" />
-            {isAdmin(user) ? t('profile.inboxBtnAdmin') : t('profile.inboxBtn')}
+            {admin ? t('profile.inboxBtnAdmin') : t('profile.inboxBtn')}
           </button>
         </Section>
 
