@@ -1,14 +1,13 @@
 import { useRef, useState } from 'react'
-import { supabase } from '../lib/supabase.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { Icon, Spinner, ErrorBox } from './ui.jsx'
 import { encolher } from '../lib/imagem.js'
-import { errorText, apiError, erroDaApi } from '../lib/errors.js'
+import { errorText, erroDaApi } from '../lib/errors.js'
 import {
   handbookOf, handbookBody, contas, chaveDoExercicio, estadoDoVeredicto,
 } from '../lib/exercicios.js'
 import { useT } from '../i18n/index.jsx'
-import { authHeaders } from '../lib/api.js'
+import { authHeaders, postJson } from '../lib/api.js'
 
 const MAX_MB = 20
 const MAX_PELA_API = 3 * 1024 * 1024
@@ -21,16 +20,7 @@ const CORES = {
 
 // O PDF vai direto do browser para o R2 com um URL assinado — não passa pela
 // função da Vercel, que corta aos 4,5 MB.
-async function assinar(body) {
-  const { data: { session } } = await supabase.auth.getSession()
-  const res = await fetch('/api/exam-url', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) throw await apiError(res)
-  return res.json()
-}
+const assinar = (body) => postJson('/api/exam-url', body)
 
 // Pelo servidor, quando o envio direto não passa. Limitado pelo corpo que a
 // Vercel aceita, por isso é o plano B e não o plano A.
@@ -39,14 +29,8 @@ async function pelaApi(file, t) {
   const bytes = new Uint8Array(await file.arrayBuffer())
   let bin = ''
   for (let i = 0; i < bytes.length; i += 8192) bin += String.fromCharCode(...bytes.subarray(i, i + 8192))
-  const { data: { session } } = await supabase.auth.getSession()
-  const res = await fetch('/api/upload', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
-    body: JSON.stringify({ file: btoa(bin) }),
-  })
-  if (!res.ok) throw await apiError(res)
-  return (await res.json()).path
+  const { path } = await postJson('/api/upload', { file: btoa(bin) })
+  return path
 }
 
 async function paraOR2(file, t) {

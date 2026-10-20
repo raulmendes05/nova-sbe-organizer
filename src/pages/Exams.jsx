@@ -7,25 +7,14 @@ import { useCollection } from '../lib/useCollection.js'
 import { PageHeader, Fab, Modal, Icon, EmptyState, Spinner } from '../components/ui.jsx'
 import { PROGRAMS, flatCatalog } from '../data/curriculum.js'
 import { useT } from '../i18n/index.jsx'
-import { errorText, apiError } from '../lib/errors.js'
+import { errorText } from '../lib/errors.js'
+import { postJson } from '../lib/api.js'
 
 const MAX_MB = 20
 
 // Os ficheiros vivem no Cloudflare R2; o servidor devolve URLs assinados
 // de curta duração para que as chaves nunca cheguem ao browser.
-async function signUrl(body) {
-  const { data: { session } } = await supabase.auth.getSession()
-  const res = await fetch('/api/exam-url', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session?.access_token || ''}`,
-    },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) throw await apiError(res)
-  return res.json()
-}
+const signUrl = (body) => postJson('/api/exam-url', body)
 
 // Os rotulos vem da traducao; so o tom de cor vive aqui.
 const KINDS = [

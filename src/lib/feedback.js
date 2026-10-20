@@ -6,7 +6,7 @@
 //  que vai direto a tabela — as policias de RLS ja decidem quem ve o que.
 // ============================================================
 import { supabase } from './supabase.js'
-import { apiError } from './errors.js'
+import { postJson } from './api.js'
 
 // Quem administra. Tem de ser o MESMO email da funcao is_admin() em
 // supabase/feedback.sql — aqui so decide o que aparece no ecra; quem manda
@@ -25,20 +25,13 @@ export async function sendFeedback({ message, kind, page }) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.access_token) throw new Error('Sem sessão. Volta a entrar e tenta outra vez.')
 
-  const res = await fetch('/api/feedback', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({
-      message, kind, page,
-      appVersion: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : null,
-      userAgent: navigator.userAgent,
-    }),
+  // O getSession acima fica: o postJson tambem o faz, mas sem ele a falta de
+  // sessao so se via no 403 do servidor, com uma frase mais seca.
+  return postJson('/api/feedback', {
+    message, kind, page,
+    appVersion: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : null,
+    userAgent: navigator.userAgent,
   })
-  if (!res.ok) throw await apiError(res)
-  return res.json()
 }
 
 /** As mensagens que esta sessão pode ler: as minhas, ou todas se administro. */
