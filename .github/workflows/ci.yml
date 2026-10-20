@@ -1,0 +1,38 @@
+# Corre a cada push e em cada pull request: se isto passar a verde, o que
+# esta no ramo compila e os dois dicionarios de traducao estao coerentes.
+#
+# Nao precisa de segredo nenhum. As variaveis VITE_* so sao lidas pelo browser
+# em execucao; sem elas a app compila na mesma (arranca no ecra "base de dados
+# nao configurada"), por isso o build do CI e o mesmo que o da Vercel.
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Um push novo em cima de outro cancela o anterior: o resultado do antigo ja
+# nao interessa a ninguem.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `ci` e nao `install`: instala exatamente o que esta no package-lock e
+      # falha se ele estiver dessincronizado do package.json.
+      - run: npm ci
+
+      - run: npm run build
+
+      # Chaves a mais num dicionario, a menos no outro, ou um {n} que se perdeu
+      # na traducao — e o erro que so se ve quando um aluno poe a app em ingles.
+      - run: npm run check:i18n
