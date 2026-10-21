@@ -490,7 +490,7 @@ export default function Grades() {
                     // O objetivo e uma nota FINAL, e as finais sao inteiros: para
                     // ter 16 basta a media chegar a 15,5. Simular 16 certos
                     // mandava estudar para uma nota que ninguem precisa de ter.
-                    const alvoMedia = !malAlvo && simTarget !== '' ? minAverageFor(Number(simTarget), notaPasse) : null
+                    const alvoMedia = !malAlvo && simTarget !== '' ? minAverageFor(Number(simTarget)) : null
                     const goal = alvoMedia === null ? null : simulateGrade(comps, alvoMedia)
                     const line = (sim) => {
                       if (!sim || sim.done) return { txt: t('grades.simDone'), cls: 'text-slate-400' }

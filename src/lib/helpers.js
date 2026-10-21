@@ -273,15 +273,21 @@ export function fmtGrade(n, vazio = '—') {
  * chegar a 15,5 — pedir 16 certos é mandar estudar para uma nota que ninguém
  * precisa de ter, e foi isso que um aluno de Ética veio dizer que estava mal.
  *
- * A nota de passagem da cadeira carrega a convenção dela: Microeconomia passa
- * a 9,45 porque arredonda duas vezes (9,45 → 9,5 → 10), e nessa cadeira um 16
- * chega-se com 15,45. Daí entrar aqui em vez de um 0,5 fixo.
+ * Meio valor, e não a folga da nota de passagem da cadeira. Microeconomia
+ * passa a 9,45, o que só faz sentido se nela a nota for arredondada duas vezes
+ * (9,45 → 9,5 → 10) — mas isso pode ser uma regra só da linha da passagem, e
+ * não da escala toda. Com meio valor a conta fica certa nas duas leituras; com
+ * 0,45 só ficava numa, e na outra pedia 0,05 A MENOS do que era preciso. Entre
+ * pedir um bocadinho a mais e dizer a alguém que chega uma nota que não chega,
+ * pede-se a mais.
+ *
+ * A linha "para passar" continua a usar o 9,45 tal como o syllabus o escreve:
+ * aí a regra está documentada, aqui estaria a ser extrapolada.
  */
-export function minAverageFor(alvo, notaPasse = PASS_DEFAULT) {
+export function minAverageFor(alvo) {
   const n = Number(alvo)
   if (!isFinite(n)) return n
-  const folga = PASS_DEFAULT - Number(notaPasse || PASS_DEFAULT)
-  return Math.ceil(n) - 0.5 - folga
+  return Math.ceil(n) - 0.5
 }
 
 /**

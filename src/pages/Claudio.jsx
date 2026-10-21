@@ -420,7 +420,7 @@ export default function Claudio() {
       if (inp.objetivo != null && !isNaN(Number(inp.objetivo))) {
         // O objetivo e uma nota final (inteira): 16 pede media 15,5.
         const alvo = Number(inp.objetivo)
-        const media = minAverageFor(alvo, notaPasse)
+        const media = minAverageFor(alvo)
         parts.push(describe(simulateGrade(comps, media), `Para ${alvo} (media ${media})`))
       }
       return `Simulação — ${course.name}: ${parts.join(' | ')}`
