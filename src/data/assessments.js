@@ -8,7 +8,10 @@
 //           Ética pede 7, o de Microeconomia pede 8): sem ela reprova-se
 //           mesmo com média positiva, e é o tipo de regra que passa
 //           despercebida até ser tarde.
-//  `pass` — nota a que a cadeira passa, quando não são os habituais 9,5.
+//  `pass` — nota a que a cadeira passa, quando não são os habituais 9,5. É uma
+//           excepção escrita no syllabus para a linha da passagem, não uma
+//           regra de arredondamento: a escola arredonda uma vez só, e uma
+//           média de 17,45 fica 17 (confirmado em out. 2026).
 // ============================================================
 
 export const ASSESSMENTS = {
